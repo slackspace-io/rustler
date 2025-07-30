@@ -1,0 +1,32 @@
+{
+  "name": "firefly-tracker-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Firefly III account tracker",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@mantine/core": "^8.2.1",
+    "@mantine/dates": "^8.2.1",
+    "@mantine/hooks": "^8.2.1",
+    "axios": "^1.11.0",
+    "chart.js": "^4.5.0",
+    "dayjs": "^1.11.13",
+    "react": "^19.1.1",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6"
+  }
+}
