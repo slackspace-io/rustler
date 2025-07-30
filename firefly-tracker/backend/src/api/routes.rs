@@ -52,13 +52,16 @@ async fn calculate_net_worth(
     State(state): State<Arc<AppState>>,
     Json(request): Json<NetWorthRequest>,
 ) -> Result<Json<NetWorthResponse>, ApiError> {
-    info!("Calculating net worth for {} accounts", request.account_ids.len());
+    info!("Calculating net worth for {} accounts: {:?}", request.account_ids.len(), request.account_ids);
+    info!("Date range: start={:?}, end={:?}", request.start_date, request.end_date);
 
     if request.account_ids.is_empty() {
+        info!("Rejecting request: No accounts selected");
         return Err(ApiError::bad_request("No accounts selected".to_string()));
     }
 
     // Calculate net worth
+    info!("Calling calculate_net_worth on FireflyClient");
     let net_worth = state.firefly_client.calculate_net_worth(
         &request.account_ids,
         request.start_date,
@@ -70,10 +73,21 @@ async fn calculate_net_worth(
         ApiError::internal_error(format!("Failed to calculate net worth: {}", e))
     })?;
 
+    info!("Got net worth data with {} data points", net_worth.len());
+    if net_worth.is_empty() {
+        info!("Warning: Net worth calculation returned empty result");
+    } else {
+        info!("Net worth data range: from {} to {}",
+            net_worth.first().map_or("N/A".to_string(), |b| b.date.to_string()),
+            net_worth.last().map_or("N/A".to_string(), |b| b.date.to_string()));
+    }
+
     // Get account details and balances for each selected account
     let mut accounts_with_balances = Vec::new();
 
     for account_id in &request.account_ids {
+        info!("Processing account: {}", account_id);
+
         // Get all accounts first
         let all_accounts = state.firefly_client.get_accounts()
             .await
@@ -86,13 +100,19 @@ async fn calculate_net_worth(
         let account = all_accounts.iter()
             .find(|a| &a.id == account_id)
             .cloned()
-            .ok_or_else(|| ApiError::not_found(format!("Account not found: {}", account_id)))?;
+            .ok_or_else(|| {
+                error!("Account not found: {}", account_id);
+                ApiError::not_found(format!("Account not found: {}", account_id))
+            })?;
+
+        info!("Found account: {} ({})", account.name, account.type_name);
 
         // Get balances for this account
         let balances = state.firefly_client.get_account_balances(
             account_id,
             request.start_date,
             request.end_date,
+            Some(request.frequency),
         )
         .await
         .map_err(|e| {
@@ -100,16 +120,23 @@ async fn calculate_net_worth(
             ApiError::internal_error(format!("Failed to get balances: {}", e))
         })?;
 
+        info!("Got {} balance data points for account {}", balances.len(), account.name);
+
         accounts_with_balances.push(AccountWithBalances {
             account,
             balances,
         });
     }
 
-    Ok(Json(NetWorthResponse {
+    let response = NetWorthResponse {
         accounts: accounts_with_balances,
         net_worth,
-    }))
+    };
+
+    info!("Returning response with {} accounts and {} net worth data points",
+          response.accounts.len(), response.net_worth.len());
+
+    Ok(Json(response))
 }
 
 /// API error type

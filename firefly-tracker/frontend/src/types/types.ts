@@ -30,6 +30,7 @@ export interface NetWorthRequest {
   account_ids: string[];
   start_date?: string;
   end_date?: string;
+  frequency?: 'daily' | 'weekly' | 'monthly' | 'auto';
 }
 
 // Response from the net worth endpoint

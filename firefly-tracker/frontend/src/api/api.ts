@@ -14,9 +14,9 @@ const api = axios.create({
   },
 });
 
-// Format date for API requests (YYYY-MM-DD)
+// Format date for API requests (ISO 8601 format for backend DateTime<Utc> deserialization)
 const formatDate = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  return date.toISOString();
 };
 
 /**
@@ -38,7 +38,8 @@ export const fetchAccounts = async (): Promise<Account[]> => {
 export const fetchNetWorth = async (
   accountIds: string[],
   startDate?: Date,
-  endDate?: Date
+  endDate?: Date,
+  frequency?: string
 ): Promise<NetWorthResponse> => {
   try {
     const request: NetWorthRequest = {
@@ -52,6 +53,11 @@ export const fetchNetWorth = async (
 
     if (endDate) {
       request.end_date = formatDate(endDate);
+    }
+
+    // Add frequency if provided
+    if (frequency) {
+      request.frequency = frequency;
     }
 
     const response = await api.post<NetWorthResponse>('/net-worth', request);

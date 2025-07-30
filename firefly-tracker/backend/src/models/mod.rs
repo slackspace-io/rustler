@@ -1,5 +1,53 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::str::FromStr;
+
+/// Frequency for balance data points
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BalanceFrequency {
+    /// Daily balance data points
+    Daily,
+    /// Weekly balance data points
+    Weekly,
+    /// Monthly balance data points
+    Monthly,
+    /// Automatically determine frequency based on date range
+    #[serde(rename = "auto")]
+    Auto,
+}
+
+impl Default for BalanceFrequency {
+    fn default() -> Self {
+        BalanceFrequency::Auto
+    }
+}
+
+impl fmt::Display for BalanceFrequency {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BalanceFrequency::Daily => write!(f, "daily"),
+            BalanceFrequency::Weekly => write!(f, "weekly"),
+            BalanceFrequency::Monthly => write!(f, "monthly"),
+            BalanceFrequency::Auto => write!(f, "auto"),
+        }
+    }
+}
+
+impl FromStr for BalanceFrequency {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "daily" => Ok(BalanceFrequency::Daily),
+            "weekly" => Ok(BalanceFrequency::Weekly),
+            "monthly" => Ok(BalanceFrequency::Monthly),
+            "auto" => Ok(BalanceFrequency::Auto),
+            _ => Err(format!("Unknown balance frequency: {}", s)),
+        }
+    }
+}
 
 /// Represents an account from Firefly III
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +86,8 @@ pub struct NetWorthRequest {
     pub account_ids: Vec<String>,
     pub start_date: Option<DateTime<Utc>>,
     pub end_date: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub frequency: BalanceFrequency,
 }
 
 /// Response for the net worth endpoint
@@ -66,11 +116,17 @@ pub struct FireflyPagination {
     pub total_pages: Option<i32>,
 }
 
+/// Firefly III meta data containing pagination
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FireflyMeta {
+    pub pagination: FireflyPagination,
+}
+
 /// Firefly III API response wrapper
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FireflyResponse<T> {
     pub data: T,
-    pub meta: Option<FireflyPagination>,
+    pub meta: Option<FireflyMeta>,
 }
 
 /// Firefly III account data
@@ -87,6 +143,7 @@ pub struct FireflyAccountAttributes {
     pub r#type: String,
     pub currency_code: Option<String>,
     pub current_balance: Option<String>,
+    pub current_balance_date: Option<DateTime<Utc>>,
     pub active: bool,
 }
 

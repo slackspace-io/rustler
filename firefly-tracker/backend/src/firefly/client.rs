@@ -1,11 +1,11 @@
 use crate::config::FireflyConfig;
 use crate::models::{
-    Account, Balance, FireflyAccount, FireflyResponse, FireflyTransaction,
+    Account, Balance, BalanceFrequency, FireflyAccount, FireflyResponse, FireflyTransaction,
 };
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, Utc};
 use dashmap::DashMap;
-use reqwest::{Client, ClientBuilder, Error as ReqwestError, header};
+use reqwest::{Client, ClientBuilder, header};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
@@ -49,7 +49,6 @@ impl FireflyClient {
         let debug_mode = self.config.debug_mode;
 
         let mut attempt = 0;
-        let mut last_error = None;
 
         loop {
             attempt += 1;
@@ -97,7 +96,6 @@ impl FireflyClient {
                         // Check if we should retry based on status code
                         if attempt <= max_retries && options.retry_on_status.contains(&status_code) {
                             warn!("Retrying request to {} after status code {}", url, status_code);
-                            last_error = Some(anyhow::anyhow!(error_msg));
                         } else {
                             return Err(anyhow::anyhow!(error_msg));
                         }
@@ -121,7 +119,6 @@ impl FireflyClient {
                     // Retry network errors
                     if attempt <= max_retries {
                         warn!("Retrying request to {} after error: {}", url, e);
-                        last_error = Some(anyhow::anyhow!(error_msg));
                     } else {
                         return Err(anyhow::anyhow!(error_msg));
                     }
@@ -183,7 +180,7 @@ impl FireflyClient {
         })
     }
 
-    /// Get all accounts from Firefly III
+    /// Get all accounts from Firefly III with pagination support
     pub async fn get_accounts(&self) -> Result<Vec<Account>> {
         // Check cache first
         let cache_key = "all_accounts".to_string();
@@ -194,76 +191,271 @@ impl FireflyClient {
             }
         }
 
-        let url = format!("{}/v1/accounts", self.config.api_url);
-        debug!("Fetching accounts from {}", url);
+        let mut all_accounts = Vec::new();
+        let mut current_page = 1;
+        let mut total_pages = 10; // Start with 1, will be updated after first request
 
-        // Create request builder
-        let request_builder = self.client.get(&url);
+        // Fetch all pages
+        while current_page <= total_pages {
+            let url = format!("{}/v1/accounts?page={}&type=asset", self.config.api_url, current_page);
+            debug!("Fetching accounts from {} (page {} of {})", url, current_page, total_pages);
 
-        // Use the retry mechanism to make the request
-        let firefly_response: FireflyResponse<Vec<FireflyAccount>> =
-            self.request_with_retry(&url, request_builder, RequestOptions::default()).await?;
+            // Create request builder
+            let request_builder = self.client.get(&url);
 
-        let accounts: Vec<Account> = firefly_response.data
-            .into_iter()
-            .map(Account::from)
-            .filter(|account| account.active)
-            .collect();
+            // Use the retry mechanism to make the request
+            let firefly_response: FireflyResponse<Vec<FireflyAccount>> =
+                self.request_with_retry(&url, request_builder, RequestOptions::default()).await?;
+            debug!("{:?}", firefly_response);
+            // Update total pages from pagination metadata if available
+            if let Some(meta) = &firefly_response.meta {
+                debug!("Received response from firefly: {:?}", meta);
+                if let Some(pages) = meta.pagination.total_pages {
+                    total_pages = pages;
+                    debug!("Total pages: {}", total_pages);
+                }
+            }
 
-        // Update cache
-        for account in &accounts {
+            // Process accounts from this page
+            let page_accounts: Vec<Account> = firefly_response.data
+                .into_iter()
+                .map(Account::from)
+                .filter(|account| account.active)
+                .collect();
+
+            // Add accounts from this page to our collection
+            all_accounts.extend(page_accounts);
+
+            // Move to next page
+            current_page += 1;
+        }
+
+        debug!("Fetched a total of {} accounts", all_accounts.len());
+
+        // Update cache for individual accounts
+        for account in &all_accounts {
+            debug!("Caching account: {}", account.name);
             self.accounts_cache.insert(
                 account.id.clone(),
                 (account.clone(), Instant::now()),
             );
         }
 
-        Ok(accounts)
+        // Cache the full list of accounts
+        debug!("Caching full list of {} accounts", all_accounts.len());
+
+        // Don't cache the full list in the accounts_cache as it expects individual Account objects
+        // We'll handle this differently in future if needed
+
+        Ok(all_accounts)
     }
 
-    /// Get account balances over time
+    /// Get account balance for a specific date
+    async fn get_account_balance_for_date(
+        &self,
+        account_id: &str,
+        date: DateTime<Utc>,
+    ) -> Result<Balance> {
+        // Format the date as YYYY-MM-DD for the query parameter
+        let date_str = date.format("%Y-%m-%d").to_string();
+
+        // Construct the URL with the date parameter
+        let url = format!("{}/v1/accounts/{}?date={}", self.config.api_url, account_id, date_str);
+        debug!("Fetching account balance from {} for date {}", url, date_str);
+
+        // Create request builder
+        let request_builder = self.client.get(&url);
+
+        // Use the retry mechanism to make the request
+        let firefly_response: FireflyResponse<FireflyAccount> =
+            self.request_with_retry(&url, request_builder, RequestOptions::default()).await?;
+
+        // Extract the account data
+        let account = firefly_response.data;
+
+        // Parse the current balance
+        let amount = account.attributes.current_balance
+            .unwrap_or_else(|| "0".to_string())
+            .parse::<f64>()
+            .unwrap_or(0.0);
+
+        // Use the provided date or the balance date from the response
+        let balance_date = account.attributes.current_balance_date
+            .unwrap_or(date);
+
+        // Create a Balance object
+        let balance = Balance {
+            date: balance_date.date_naive().and_hms_opt(0, 0, 0).map(|naive| naive.and_utc()).unwrap_or(balance_date),
+            amount,
+        };
+
+        debug!("Got balance for date {}: {}", balance.date.format("%Y-%m-%d"), balance.amount);
+
+        Ok(balance)
+    }
+
+    /// Get account balances over time with specified frequency
     pub async fn get_account_balances(
         &self,
         account_id: &str,
         start_date: Option<DateTime<Utc>>,
         end_date: Option<DateTime<Utc>>,
+        frequency: Option<BalanceFrequency>,
     ) -> Result<Vec<Balance>> {
-        // Fetch transactions for the account
-        let transactions = self.get_account_transactions(account_id, start_date, end_date).await?;
+        // Get account name for better debug output
+        let account_name = match self.accounts_cache.get(account_id) {
+            Some(cached) => cached.0.name.clone(),
+            None => account_id.to_string(),
+        };
 
-        // Calculate balances over time
-        let mut balances = Vec::new();
-        let mut current_balance = 0.0;
+        debug!("Calculating balances for account: {} (ID: {})", account_name, account_id);
 
-        // Sort transactions by date
-        let mut sorted_transactions = transactions.clone();
-        sorted_transactions.sort_by(|a, b| {
-            a.attributes.transactions[0].date.cmp(&b.attributes.transactions[0].date)
+        // Use provided dates or set defaults to ensure 6 months of data
+        let end = end_date.unwrap_or_else(|| Utc::now());
+
+        // If start_date is not provided, set it to 6 months before end_date
+        let start = start_date.unwrap_or_else(|| {
+            // Subtract 6 months from end date (approximately 180 days)
+            end - chrono::Duration::days(180)
         });
 
-        for transaction in sorted_transactions {
-            for journal in transaction.attributes.transactions {
-                let amount = journal.amount.parse::<f64>().unwrap_or(0.0);
+        debug!("Date range: start={}, end={}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d"));
 
-                // If this account is the source, subtract the amount
-                if journal.source_id == account_id {
-                    current_balance -= amount;
+        // Calculate the number of days in the range
+        let days = (end.date_naive() - start.date_naive()).num_days() + 1;
+
+        // Determine the appropriate frequency based on the date range if auto is selected
+        let effective_frequency = match frequency.unwrap_or(BalanceFrequency::Auto) {
+            BalanceFrequency::Auto => {
+                // Auto-select frequency based on date range:
+                // - Less than 30 days: daily
+                // - 30-90 days: weekly
+                // - More than 90 days: monthly
+                if days <= 30 {
+                    BalanceFrequency::Daily
+                } else if days <= 90 {
+                    BalanceFrequency::Weekly
+                } else {
+                    BalanceFrequency::Monthly
+                }
+            },
+            specific => specific,
+        };
+
+        debug!("Using {} frequency for {} days date range", effective_frequency, days);
+
+        // Collect balances at the specified frequency
+        let mut balances = Vec::new();
+
+        // For monthly frequency, always use the first day of each month
+        if effective_frequency == BalanceFrequency::Monthly {
+            // Start with the first day of the month for the start date
+            let mut year = start.year();
+            let mut month = start.month();
+
+            // Create dates for the first of each month in the range
+            loop {
+                // Create a date for the first of the current month
+                let date = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap()
+                    .and_utc();
+
+                // If this date is after the end date, break
+                if date > end {
+                    break;
                 }
 
-                // If this account is the destination, add the amount
-                if journal.destination_id == account_id {
-                    current_balance += amount;
+                // If this date is within our range, get the balance
+                if date >= start {
+                    match self.get_account_balance_for_date(account_id, date).await {
+                        Ok(balance) => {
+                            balances.push(balance);
+                        },
+                        Err(e) => {
+                            error!("Failed to get balance for date {}: {}", date.format("%Y-%m-%d"), e);
+                            // Continue with the next date even if this one fails
+                        }
+                    }
                 }
 
-                balances.push(Balance {
-                    date: journal.date,
-                    amount: current_balance,
-                });
+                // Move to the next month
+                month += 1;
+                if month > 12 {
+                    month = 1;
+                    year += 1;
+                }
+            }
+
+            // Add the current date as the final data point if it's not already the last day
+            // and it's after the last data point we've added
+            if !balances.is_empty() {
+                let last_date = balances.last().unwrap().date;
+                if end.date_naive() != last_date.date_naive() && end > last_date {
+                    match self.get_account_balance_for_date(account_id, end).await {
+                        Ok(balance) => {
+                            balances.push(balance);
+                        },
+                        Err(e) => {
+                            error!("Failed to get balance for current date {}: {}", end.format("%Y-%m-%d"), e);
+                        }
+                    }
+                }
+            }
+        } else {
+            // For daily and weekly frequencies, use the original approach
+            // Calculate the step size based on frequency
+            let step_days = match effective_frequency {
+                BalanceFrequency::Daily => 1,
+                BalanceFrequency::Weekly => 7,
+                BalanceFrequency::Auto => unreachable!(), // Already resolved above
+                BalanceFrequency::Monthly => unreachable!(), // Handled separately above
+            };
+
+            let mut current_date = start;
+
+            while current_date <= end {
+                match self.get_account_balance_for_date(account_id, current_date).await {
+                    Ok(balance) => {
+                        balances.push(balance);
+                    },
+                    Err(e) => {
+                        error!("Failed to get balance for date {}: {}", current_date.format("%Y-%m-%d"), e);
+                        // Continue with the next date even if this one fails
+                    }
+                }
+
+                // Move to the next date based on frequency
+                current_date = current_date + chrono::Duration::days(step_days);
+            }
+
+            // For weekly frequency, ensure the final data point is the current date if needed
+            if effective_frequency == BalanceFrequency::Weekly && !balances.is_empty() {
+                let last_date = balances.last().unwrap().date;
+                if end.date_naive() != last_date.date_naive() && end > last_date {
+                    match self.get_account_balance_for_date(account_id, end).await {
+                        Ok(balance) => {
+                            balances.push(balance);
+                        },
+                        Err(e) => {
+                            error!("Failed to get balance for current date {}: {}", end.format("%Y-%m-%d"), e);
+                        }
+                    }
+                }
             }
         }
 
-        // Sort balances by date
+        // Sort balances by date (should already be sorted, but just to be safe)
         balances.sort_by(|a, b| a.date.cmp(&b.date));
+
+        debug!("Final balance data for account {} ({}):", account_name, account_id);
+        for (i, balance) in balances.iter().enumerate() {
+            debug!("  Balance {}: Date={}, Amount={}",
+                i + 1,
+                balance.date.format("%Y-%m-%d %H:%M:%S"),
+                balance.amount);
+        }
 
         Ok(balances)
     }
@@ -289,14 +481,22 @@ impl FireflyClient {
         // Add account filter
         url.push_str(&format!("&query=account_id:{}", account_id));
 
-        // Add date filters if provided
-        if let Some(start) = start_date {
-            url.push_str(&format!("&start={}", start.format("%Y-%m-%d")));
-        }
+        // Use provided dates or set defaults to ensure 6 months of data
+        let end = end_date.unwrap_or_else(|| Utc::now());
 
-        if let Some(end) = end_date {
-            url.push_str(&format!("&end={}", end.format("%Y-%m-%d")));
-        }
+        // If start_date is not provided, set it to 6 months before end_date
+        let start = start_date.unwrap_or_else(|| {
+            // Subtract 6 months from end date
+            // Since chrono doesn't have a direct "subtract months" method,
+            // we'll approximate by subtracting 180 days
+            end - chrono::Duration::days(180)
+        });
+
+        debug!("Using date range: start={}, end={}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d"));
+
+        // Add date filters
+        url.push_str(&format!("&start={}", start.format("%Y-%m-%d")));
+        url.push_str(&format!("&end={}", end.format("%Y-%m-%d")));
 
         debug!("Fetching transactions from {}", url);
 
@@ -329,7 +529,7 @@ impl FireflyClient {
 
         // Get balances for each account
         for account_id in account_ids {
-            let balances = self.get_account_balances(account_id, start_date, end_date).await?;
+            let balances = self.get_account_balances(account_id, start_date, end_date, None).await?;
             all_balances.extend(balances);
         }
 
@@ -337,7 +537,8 @@ impl FireflyClient {
         let mut net_worth_map = std::collections::HashMap::new();
 
         for balance in all_balances {
-            let date_key = balance.date.format("%Y-%m-%d").to_string();
+            // Normalize the date to midnight UTC to ensure consistent grouping
+            let date_key = balance.date.date_naive().and_hms_opt(0, 0, 0).map(|naive| naive.and_utc()).unwrap_or(balance.date);
             let entry = net_worth_map.entry(date_key).or_insert(0.0);
             *entry += balance.amount;
         }
@@ -345,13 +546,7 @@ impl FireflyClient {
         // Convert map to vector of Balance objects
         let mut net_worth: Vec<Balance> = net_worth_map
             .into_iter()
-            .map(|(date_str, amount)| {
-                let date = DateTime::parse_from_str(&format!("{}T00:00:00Z", date_str), "%Y-%m-%dT%H:%M:%S%z")
-                    .unwrap_or_else(|_| Utc::now().into())
-                    .with_timezone(&Utc);
-
-                Balance { date, amount }
-            })
+            .map(|(date, amount)| Balance { date, amount })
             .collect();
 
         // Sort by date
