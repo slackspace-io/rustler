@@ -197,7 +197,8 @@ impl FireflyClient {
 
         // Fetch all pages
         while current_page <= total_pages {
-            let url = format!("{}/v1/accounts?page={}&type=asset", self.config.api_url, current_page);
+            //let url = format!("{}/v1/accounts?page={}&type=asset", self.config.api_url, current_page);
+            let url = format!("{}/v1/accounts?page={}", self.config.api_url, current_page);
             debug!("Fetching accounts from {} (page {} of {})", url, current_page, total_pages);
 
             // Create request builder

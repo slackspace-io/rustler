@@ -31,12 +31,23 @@ interface NetWorthChartProps {
 const NetWorthChart = ({ data }: NetWorthChartProps) => {
   console.log('NetWorthChart rendering with data:', data);
 
-  // Generate random color for account lines
-  const getRandomColor = () => {
-    const r = Math.floor(Math.random() * 200);
-    const g = Math.floor(Math.random() * 200);
-    const b = Math.floor(Math.random() * 200);
-    return `rgba(${r}, ${g}, ${b}, 1)`;
+  // Generate colors from a modern palette for account lines
+  const getAccountColor = (index: number) => {
+    // Modern color palette
+    const colors = [
+      'rgba(75, 192, 192, 1)',    // Teal
+      'rgba(255, 159, 64, 1)',    // Orange
+      'rgba(153, 102, 255, 1)',   // Purple
+      'rgba(255, 99, 132, 1)',    // Pink
+      'rgba(54, 162, 235, 1)',    // Blue
+      'rgba(255, 206, 86, 1)',    // Yellow
+      'rgba(46, 204, 113, 1)',    // Green
+      'rgba(231, 76, 60, 1)',     // Red
+      'rgba(52, 152, 219, 1)',    // Light Blue
+      'rgba(155, 89, 182, 1)',    // Violet
+    ];
+
+    return colors[index % colors.length];
   };
 
   // Parse date string to Date object
@@ -83,10 +94,21 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
           label: 'Net Worth',
           data: netWorthPoints,
           borderColor: 'rgba(53, 162, 235, 1)',
-          backgroundColor: 'rgba(53, 162, 235, 0.5)',
-          fill: false,
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(53, 162, 235, 0.6)');
+            gradient.addColorStop(1, 'rgba(53, 162, 235, 0.05)');
+            return gradient;
+          },
+          fill: true,
           borderWidth: 3,
-          tension: 0.1, // Add slight curve to line
+          tension: 0.4, // Increased for smoother curves
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: 'white',
+          pointBorderColor: 'rgba(53, 162, 235, 1)',
+          pointBorderWidth: 2
         });
       } else {
         console.warn('No net worth data available or empty array');
@@ -95,10 +117,10 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
       // Add individual account lines
       if (data.accounts && data.accounts.length > 0) {
         console.log('Account data points:', data.accounts.length);
-        data.accounts.forEach(accountWithBalances => {
+        data.accounts.forEach((accountWithBalances, index) => {
           try {
             const { account, balances } = accountWithBalances;
-            const color = getRandomColor();
+            const color = getAccountColor(index);
 
             if (balances && balances.length > 0) {
               const accountPoints: ChartDataPoint[] = balances.map(balance => ({
@@ -110,11 +132,16 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
                 label: account.name,
                 data: accountPoints,
                 borderColor: color,
-                backgroundColor: color.replace('1)', '0.2)'),
+                backgroundColor: color.replace('1)', '0.15)'),
                 fill: false,
-                borderWidth: 1.5,
+                borderWidth: 2,
                 borderDash: [],
-                tension: 0.1, // Add slight curve to line
+                tension: 0.3, // Smoother curve for account lines
+                pointRadius: 2,
+                pointHoverRadius: 5,
+                pointBackgroundColor: 'white',
+                pointBorderColor: color,
+                pointBorderWidth: 1.5,
               });
             } else {
               console.warn(`No balance data for account: ${account.name}`);
@@ -138,6 +165,10 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 1500, // Animation duration in milliseconds
+      easing: 'easeOutQuart', // Smooth easing function
+    },
     scales: {
       x: {
         type: 'time' as const,
@@ -151,20 +182,59 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
         title: {
           display: true,
           text: 'Date',
+          font: {
+            size: 14,
+            weight: '500',
+          },
+          color: '#666',
+        },
+        grid: {
+          display: true,
+          color: 'rgba(0, 0, 0, 0.05)',
+          drawBorder: false,
+        },
+        ticks: {
+          font: {
+            size: 12,
+          },
+          color: '#888',
         },
       },
       y: {
         title: {
           display: true,
           text: 'Amount',
+          font: {
+            size: 14,
+            weight: '500',
+          },
+          color: '#666',
         },
         ticks: {
           callback: (value: number) => formatCurrency(value),
+          font: {
+            size: 12,
+          },
+          color: '#888',
         },
+        grid: {
+          display: true,
+          color: 'rgba(0, 0, 0, 0.05)',
+          drawBorder: false,
+        },
+        beginAtZero: false,
       },
     },
     plugins: {
       tooltip: {
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        titleColor: '#333',
+        bodyColor: '#666',
+        borderColor: 'rgba(0, 0, 0, 0.1)',
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 12,
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         callbacks: {
           label: (context: any) => {
             const label = context.dataset.label || '';
@@ -187,10 +257,28 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
       },
       legend: {
         position: 'top' as const,
+        labels: {
+          boxWidth: 12,
+          padding: 15,
+          font: {
+            size: 13,
+          },
+          usePointStyle: true,
+          pointStyle: 'circle',
+        },
       },
       title: {
         display: true,
         text: 'Net Worth Over Time',
+        font: {
+          size: 18,
+          weight: '600',
+        },
+        color: '#333',
+        padding: {
+          top: 10,
+          bottom: 20,
+        },
       },
     },
     interaction: {
@@ -207,7 +295,15 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
   console.log('Chart has valid data to display:', hasData);
 
   return (
-    <div className="chart-container" style={{ width: '100%', height: '100%' }}>
+    <div className="chart-container" style={{
+      width: '100%',
+      height: '100%',
+      padding: '20px',
+      borderRadius: '12px',
+      backgroundColor: 'white',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+      overflow: 'hidden'
+    }}>
       {hasData ? (
         <Line data={chartData} options={options} />
       ) : (
@@ -218,7 +314,9 @@ const NetWorthChart = ({ data }: NetWorthChartProps) => {
           height: '100%',
           color: '#666',
           textAlign: 'center',
-          padding: '20px'
+          padding: '20px',
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontSize: '15px'
         }}>
           No data available to display. Try selecting different accounts or date range.
         </div>
