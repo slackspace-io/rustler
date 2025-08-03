@@ -15,6 +15,7 @@ const TransactionNew = () => {
 
   // Form state
   const [sourceAccountId, setSourceAccountId] = useState(preselectedAccountId || '');
+  const [sourceAccountName, setSourceAccountName] = useState('');
   const [destinationAccountId, setDestinationAccountId] = useState('');
   const [isTransfer, setIsTransfer] = useState(false);
   const [payeeName, setPayeeName] = useState('');
@@ -57,6 +58,15 @@ const TransactionNew = () => {
         setLoading(true);
         const data = await accountsApi.getAccounts();
         setAccounts(data);
+
+        // If there's a preselected account ID, set the account name too
+        if (preselectedAccountId) {
+          const selectedAccount = data.find(account => account.id === preselectedAccountId);
+          if (selectedAccount) {
+            setSourceAccountName(`${selectedAccount.name} (${selectedAccount.balance.toFixed(2)} ${selectedAccount.currency})`);
+          }
+        }
+
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch accounts. Please try again later.');
@@ -66,13 +76,13 @@ const TransactionNew = () => {
     };
 
     fetchAccounts();
-  }, []);
+  }, [preselectedAccountId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!sourceAccountId) {
-      setError('Source account is required');
+    if (!sourceAccountName) {
+      setError('From Account is required');
       return;
     }
 
@@ -167,19 +177,31 @@ const TransactionNew = () => {
 
         <div className="form-group">
           <label htmlFor="source-account">From Account</label>
-          <select
+          <input
+            type="text"
             id="source-account"
-            value={sourceAccountId}
-            onChange={(e) => setSourceAccountId(e.target.value)}
+            value={sourceAccountName}
+            onChange={(e) => {
+              const inputValue = e.target.value;
+              setSourceAccountName(inputValue);
+
+              // Check if the input matches an existing account
+              const matchedAccount = accounts.find(
+                account => account.name === inputValue ||
+                           `${account.name} (${account.balance.toFixed(2)} ${account.currency})` === inputValue
+              );
+
+              // If matched, set the account ID, otherwise clear it
+              setSourceAccountId(matchedAccount ? matchedAccount.id : '');
+            }}
+            list="source-accounts-list"
             required
-          >
-            <option value="">Select Account</option>
+          />
+          <datalist id="source-accounts-list">
             {accounts.map(account => (
-              <option key={account.id} value={account.id}>
-                {account.name} ({account.balance.toFixed(2)} {account.currency})
-              </option>
+              <option key={account.id} value={`${account.name} (${account.balance.toFixed(2)} ${account.currency})`} />
             ))}
-          </select>
+          </datalist>
         </div>
 
         {isTransfer ? (
