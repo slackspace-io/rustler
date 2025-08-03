@@ -16,6 +16,8 @@ pub struct FireflyClient {
     config: FireflyConfig,
     accounts_cache: Arc<DashMap<String, (Account, Instant)>>,
     transactions_cache: Arc<DashMap<String, (Vec<FireflyTransaction>, Instant)>>,
+    balance_cache: Arc<DashMap<String, (Balance, Instant)>>,
+    balances_cache: Arc<DashMap<String, (Vec<Balance>, Instant)>>,
     cache_ttl: Duration,
 }
 
@@ -176,6 +178,8 @@ impl FireflyClient {
             config,
             accounts_cache: Arc::new(DashMap::new()),
             transactions_cache: Arc::new(DashMap::new()),
+            balance_cache: Arc::new(DashMap::new()),
+            balances_cache: Arc::new(DashMap::new()),
             cache_ttl: Duration::from_secs(300), // 5 minutes cache TTL
         })
     }
@@ -184,10 +188,19 @@ impl FireflyClient {
     pub async fn get_accounts(&self) -> Result<Vec<Account>> {
         // Check cache first
         let cache_key = "all_accounts".to_string();
-        if let Some(cached) = self.accounts_cache.get(&cache_key) {
+
+        // Use a separate entry in the accounts_cache for the full list
+        // We'll store it as a special entry with a Vec<Account> in the transactions_cache
+        if let Some(cached) = self.transactions_cache.get(&cache_key) {
             if cached.1.elapsed() < self.cache_ttl {
                 debug!("Using cached accounts data");
-                return Ok(vec![cached.0.clone()]);
+                // Since we're storing the accounts list in the transactions_cache,
+                // we need to cast it back to Vec<Account>
+                if let Ok(accounts) = serde_json::from_value::<Vec<Account>>(
+                    serde_json::to_value(&cached.0).unwrap_or_default()
+                ) {
+                    return Ok(accounts);
+                }
             }
         }
 
@@ -198,7 +211,7 @@ impl FireflyClient {
         // Fetch all pages
         while current_page <= total_pages {
             //let url = format!("{}/v1/accounts?page={}&type=asset", self.config.api_url, current_page);
-            let url = format!("{}/v1/accounts?page={}", self.config.api_url, current_page);
+            let url = format!("{}/v1/accounts?page={}&limit=500", self.config.api_url, current_page);
             debug!("Fetching accounts from {} (page {} of {})", url, current_page, total_pages);
 
             // Create request builder
@@ -245,8 +258,16 @@ impl FireflyClient {
         // Cache the full list of accounts
         debug!("Caching full list of {} accounts", all_accounts.len());
 
-        // Don't cache the full list in the accounts_cache as it expects individual Account objects
-        // We'll handle this differently in future if needed
+        // Store the full list in the transactions_cache
+        // We use this cache because it already stores Vec<T> values
+        if let Ok(transactions_json) = serde_json::to_value(&all_accounts) {
+            if let Ok(transactions) = serde_json::from_value(transactions_json.clone()) {
+                self.transactions_cache.insert(
+                    cache_key,
+                    (transactions, Instant::now()),
+                );
+            }
+        }
 
         Ok(all_accounts)
     }
@@ -296,12 +317,17 @@ impl FireflyClient {
     }
 
     /// Get account balances over time with specified frequency
+    ///
+    /// This method retrieves historical balance data for an account. It uses caching to avoid
+    /// making repeated API calls for the same data. The `force_refresh` parameter can be used
+    /// to bypass the cache and fetch fresh data from the API.
     pub async fn get_account_balances(
         &self,
         account_id: &str,
         start_date: Option<DateTime<Utc>>,
         end_date: Option<DateTime<Utc>>,
         frequency: Option<BalanceFrequency>,
+        force_refresh: Option<bool>,
     ) -> Result<Vec<Balance>> {
         // Get account name for better debug output
         let account_name = match self.accounts_cache.get(account_id) {
@@ -321,6 +347,31 @@ impl FireflyClient {
         });
 
         debug!("Date range: start={}, end={}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d"));
+
+        // Create a cache key based on account_id, date range, and frequency
+        let freq_str = match frequency {
+            Some(f) => format!("{}", f),
+            None => "auto".to_string(),
+        };
+        let cache_key = format!("balances_{}_{}_{}_{}",
+            account_id,
+            start.format("%Y-%m-%d"),
+            end.format("%Y-%m-%d"),
+            freq_str
+        );
+
+        // Check if we should use cached data
+        let should_use_cache = !force_refresh.unwrap_or(false);
+
+        // Check cache first if not forcing refresh
+        if should_use_cache {
+            if let Some(cached) = self.balances_cache.get(&cache_key) {
+                if cached.1.elapsed() < self.cache_ttl {
+                    debug!("Using cached balance history for account {}", account_id);
+                    return Ok(cached.0.clone());
+                }
+            }
+        }
 
         // Calculate the number of days in the range
         let days = (end.date_naive() - start.date_naive()).num_days() + 1;
@@ -530,7 +581,7 @@ impl FireflyClient {
 
         // Get balances for each account
         for account_id in account_ids {
-            let balances = self.get_account_balances(account_id, start_date, end_date, None).await?;
+            let balances = self.get_account_balances(account_id, start_date, end_date, None, None).await?;
             all_balances.extend(balances);
         }
 

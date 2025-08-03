@@ -113,6 +113,7 @@ async fn calculate_net_worth(
             request.start_date,
             request.end_date,
             Some(request.frequency),
+            None, // Don't force refresh by default
         )
         .await
         .map_err(|e| {
