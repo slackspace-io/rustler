@@ -356,3 +356,192 @@ a.button.small {
   border-radius: 4px;
   margin-bottom: 1rem;
 }
+
+/* Ledger Layout Styles */
+.ledger-layout {
+  display: flex;
+  gap: 2rem;
+  min-height: calc(100vh - 200px);
+}
+
+.ledger-sidebar {
+  flex: 0 0 250px;
+  border-right: 1px solid #eee;
+  padding-right: 1rem;
+}
+
+.ledger-content {
+  flex: 1;
+}
+
+/* Account Sidebar Styles */
+.account-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.account-sidebar h2 {
+  margin-bottom: 1rem;
+}
+
+.account-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.account-item {
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border: 1px solid transparent;
+}
+
+.account-item:hover {
+  background-color: #f0f0f0;
+}
+
+.account-item.selected {
+  background-color: #e6f7ff;
+  border-color: #91d5ff;
+}
+
+.account-name {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.account-balance {
+  font-size: 0.9rem;
+}
+
+.account-balance.positive {
+  color: #52c41a;
+}
+
+.account-balance.negative {
+  color: #f5222d;
+}
+
+.account-sidebar-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.account-sidebar-loading,
+.account-sidebar-error,
+.account-sidebar-empty {
+  padding: 1rem;
+}
+
+/* Account Ledger Styles */
+.account-ledger {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ledger-container {
+  flex: 1;
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ledger-table th,
+.ledger-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.ledger-table th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+.ledger-table .amount {
+  text-align: right;
+}
+
+.ledger-table .amount.incoming {
+  color: #52c41a;
+}
+
+.ledger-table .amount.outgoing {
+  color: #f5222d;
+}
+
+.new-transaction-row {
+  background-color: #f8f9fa;
+}
+
+.new-transaction-row input,
+.new-transaction-row select {
+  margin-bottom: 0;
+  padding: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.new-transaction-row button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.no-transactions {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+}
+
+.no-account-selected {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #999;
+  font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ledger-layout {
+    flex-direction: column;
+  }
+
+  .ledger-sidebar {
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid #eee;
+    padding-right: 0;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .account-list {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .account-item {
+    flex: 0 0 auto;
+    margin-right: 0.5rem;
+    margin-bottom: 0;
+    min-width: 150px;
+  }
+}

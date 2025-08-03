@@ -10,6 +10,7 @@ import AccountEdit from './components/accounts/AccountEdit'
 import TransactionsList from './components/transactions/TransactionsList'
 import TransactionNew from './components/transactions/TransactionNew'
 import TransactionEdit from './components/transactions/TransactionEdit'
+import LedgerLayout from './components/LedgerLayout'
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
                 <li><Link to="/">Dashboard</Link></li>
                 <li><Link to="/accounts">Accounts</Link></li>
                 <li><Link to="/transactions">Transactions</Link></li>
+                <li><Link to="/ledger">Ledger</Link></li>
               </ul>
             </nav>
           </div>
@@ -42,6 +44,9 @@ function App() {
             <Route path="/transactions" element={<TransactionsList />} />
             <Route path="/transactions/new" element={<TransactionNew />} />
             <Route path="/transactions/:id/edit" element={<TransactionEdit />} />
+
+            {/* Ledger view */}
+            <Route path="/ledger" element={<LedgerLayout />} />
           </Routes>
         </main>
       </div>
