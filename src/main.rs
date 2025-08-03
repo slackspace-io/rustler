@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::http::{header, Method, StatusCode};
-use axum::response::Html;
+use axum::response::{Html, Redirect};
 use axum::Router;
 use axum::routing::get;
 use hyper::server::conn::http1;
@@ -19,15 +19,15 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-// Handler for the root path
-async fn root_handler() -> Html<String> {
+// Handler for the API root path
+async fn api_root_handler() -> Html<String> {
     Html(format!(
         r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rustler - Personal Finance</title>
+    <title>Rustler API - Personal Finance</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -55,7 +55,7 @@ async fn root_handler() -> Html<String> {
     </style>
 </head>
 <body>
-    <h1>Welcome to Rustler</h1>
+    <h1>Rustler API</h1>
     <p>A personal finance application built with Rust, providing a web-based interface for managing accounts and tracking financial transactions.</p>
 
     <h2>API Endpoints</h2>
@@ -72,6 +72,8 @@ async fn root_handler() -> Html<String> {
         <li><code>PUT /api/transactions/{{id}}</code> - Update a transaction</li>
         <li><code>DELETE /api/transactions/{{id}}</code> - Delete a transaction</li>
     </ul>
+
+    <p><a href="/">Go to Web Interface</a></p>
 </body>
 </html>"#
     ))
@@ -105,12 +107,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_origin(Any);
 
     // Create API router
-    let api_router = routes::create_router();
+    let api_router = routes::create_router(account_service.clone(), transaction_service.clone());
 
-    // Create main router with root route handler
+    // Create web router
+    let web_router = routes::web_router(account_service.clone(), transaction_service.clone());
+
+    // Create main router with API and web routes
     let app = Router::new()
-        .route("/", get(root_handler))
-        .merge(api_router)
+        .route("/api", get(api_root_handler))
+        .nest("/api", api_router)
+        .merge(web_router)
         .nest_service("/static", ServeDir::new("src/static"))
         .layer(TraceLayer::new_for_http())
         .layer(cors);

@@ -27,6 +27,8 @@ askama = "0.12.1"
 # Utilities
 chrono = { version = "0.4.34", features = ["serde"] }
 uuid = { version = "1.7.0", features = ["v4", "serde"] }
+rust_decimal = { version = "1.37.2", features = ["serde-with-float"] }
+rust_decimal_macros = "1.34.3"
 thiserror = "1.0.56"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

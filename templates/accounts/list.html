@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustler - Accounts</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Rustler Finance</h1>
+        <nav>
+            <ul>
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/accounts" class="active">Accounts</a></li>
+                <li><a href="/transactions">Transactions</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="accounts-list">
+            <div class="section-header">
+                <h2>Accounts</h2>
+                <a href="/accounts/new" class="btn btn-primary">New Account</a>
+            </div>
+
+            {% if accounts.is_empty() %}
+                <p class="empty-state">No accounts found. Create your first account to get started.</p>
+            {% else %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Balance</th>
+                            <th>Currency</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for account in accounts %}
+                        <tr>
+                            <td>{{ account.name }}</td>
+                            <td>{{ account.account_type }}</td>
+                            <td class="amount {% if account.balance < 0.0 %}negative{% else %}positive{% endif %}">
+                                {{ account.balance }}
+                            </td>
+                            <td>{{ account.currency }}</td>
+                            <td class="actions">
+                                <a href="/accounts/{{ account.id }}" class="btn btn-small">View</a>
+                                <a href="/accounts/{{ account.id }}/edit" class="btn btn-small">Edit</a>
+                                <form action="/api/accounts/{{ account.id }}" method="POST" class="inline-form" data-ajax="true" data-redirect-url="/accounts" onsubmit="return confirm('Are you sure you want to delete this account?');">
+                                    <input type="hidden" name="_method" value="DELETE">
+                                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="summary">
+                    <p>Total Balance: <span class="total-balance">{{ total_balance }}</span></p>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Rustler Finance</p>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
