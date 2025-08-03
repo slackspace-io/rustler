@@ -1,0 +1,24 @@
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use std::time::Duration;
+
+mod migrations;
+
+pub use migrations::run_migrations;
+
+/// Initialize a connection pool to the database
+pub async fn init_db_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
+    PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(Duration::from_secs(3))
+        .connect(database_url)
+        .await
+}
+
+/// Check if the database connection is working
+pub async fn check_db_connection(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
+    // Simple query to check if the connection is working
+    sqlx::query("SELECT 1")
+        .execute(pool)
+        .await
+        .map(|_| ())
+}
