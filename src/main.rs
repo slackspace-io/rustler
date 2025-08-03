@@ -109,15 +109,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create API router
     let api_router = routes::create_router(account_service.clone(), transaction_service.clone());
 
-    // Create web router
-    let web_router = routes::web_router(account_service.clone(), transaction_service.clone());
-
-    // Create main router with API and web routes
+    // Create main router with API routes and serve React frontend
     let app = Router::new()
         .route("/api", get(api_root_handler))
         .nest("/api", api_router)
-        .merge(web_router)
-        .nest_service("/static", ServeDir::new("src/static"))
+        .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
+        .fallback_service(ServeDir::new("frontend/dist").append_index_html_on_directories(true))
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 
