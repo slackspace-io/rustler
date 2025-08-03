@@ -75,8 +75,8 @@ impl TransactionService {
         // Create the transaction
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
-            INSERT INTO transactions (id, source_account_id, destination_account_id, payee_name, description, amount, category, transaction_date, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, payee_name, description, amount, category, transaction_date, created_at, updated_at)
+            VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
             "#,
         )
@@ -93,15 +93,20 @@ impl TransactionService {
         .fetch_one(&mut *tx)
         .await?;
 
-        // Update the source account balance (subtract the amount)
+        // Update the source account balance
+        // If amount is positive, subtract it (outgoing)
+        // If amount is negative, add the absolute value (incoming)
+        let amount_to_adjust = req.amount.abs();
+        let adjustment = if req.amount >= 0.0 { -amount_to_adjust } else { amount_to_adjust };
+
         sqlx::query(
             r#"
             UPDATE accounts
-            SET balance = balance - $1, updated_at = $2
+            SET balance = balance + $1, updated_at = $2
             WHERE id = $3
             "#,
         )
-        .bind(req.amount)
+        .bind(adjustment)
         .bind(now)
         .bind(req.source_account_id)
         .execute(&mut *tx)
