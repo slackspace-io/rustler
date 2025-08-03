@@ -22,7 +22,7 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
-    // Create transactions table
+    // Create transactions table with original schema
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS transactions (
@@ -39,6 +39,67 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
     )
     .execute(pool)
     .await?;
+
+    // Check if we need to update the transactions table schema
+    let column_exists = sqlx::query("SELECT column_name FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'source_account_id'")
+        .fetch_optional(pool)
+        .await?;
+
+    if column_exists.is_none() {
+        info!("Updating transactions table schema to support source and destination accounts...");
+
+        // Add new columns
+        sqlx::query(
+            r#"
+            ALTER TABLE transactions
+            ADD COLUMN source_account_id UUID,
+            ADD COLUMN destination_account_id UUID NULL,
+            ADD COLUMN payee_name VARCHAR(255) NULL
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Migrate existing data: set source_account_id to the current account_id
+        sqlx::query(
+            r#"
+            UPDATE transactions
+            SET source_account_id = account_id
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Make source_account_id NOT NULL after data migration
+        sqlx::query(
+            r#"
+            ALTER TABLE transactions
+            ALTER COLUMN source_account_id SET NOT NULL,
+            ADD CONSTRAINT fk_source_account FOREIGN KEY (source_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+            ADD CONSTRAINT fk_destination_account FOREIGN KEY (destination_account_id) REFERENCES accounts(id) ON DELETE SET NULL
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on source_account_id
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_transactions_source_account_id ON transactions(source_account_id)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on destination_account_id
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_transactions_destination_account_id ON transactions(destination_account_id)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    }
 
     // Alter column types if they exist with incompatible types
     // This handles the case where the database was created with NUMERIC types

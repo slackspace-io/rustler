@@ -19,13 +19,13 @@ pub fn router(transaction_service: Arc<TransactionService>) -> Router {
         .route("/transactions/{id}", get(get_transaction))
         .route("/transactions/{id}", put(update_transaction))
         .route("/transactions/{id}", delete(delete_transaction))
-        .route("/accounts/{account_id}/transactions", get(get_account_transactions))
+        .route("/accounts/{source_account_id}/transactions", get(get_account_transactions))
         .with_state(transaction_service)
 }
 
 #[derive(Debug, Deserialize)]
 pub struct TransactionQuery {
-    pub account_id: Option<Uuid>,
+    pub source_account_id: Option<Uuid>,
     pub category: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
@@ -62,7 +62,7 @@ async fn get_transactions(
     });
 
     // Call the transaction service to get transactions with filters
-    match state.get_transactions(query.account_id, query.category.as_deref(), start_date, end_date).await {
+    match state.get_transactions(query.source_account_id, query.category.as_deref(), start_date, end_date).await {
         Ok(transactions) => Ok(Json(transactions)),
         Err(err) => {
             eprintln!("Error getting transactions: {:?}", err);
@@ -73,11 +73,11 @@ async fn get_transactions(
 
 // Handler to get transactions for a specific account
 async fn get_account_transactions(
-    Path(account_id): Path<Uuid>,
+    Path(source_account_id): Path<Uuid>,
     State(state): State<Arc<TransactionService>>,
 ) -> Result<Json<Vec<Transaction>>, StatusCode> {
     // Call the transaction service to get transactions for the account
-    match state.get_account_transactions(account_id).await {
+    match state.get_account_transactions(source_account_id).await {
         Ok(transactions) => Ok(Json(transactions)),
         Err(err) => {
             eprintln!("Error getting account transactions: {:?}", err);

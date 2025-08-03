@@ -129,9 +129,23 @@ function initForms() {
                 const formData = new FormData(form);
                 const jsonData = {};
 
+                console.log('Form data before processing:', Object.fromEntries(formData));
+
+                // Create an array to store all form fields for debugging
+                const formFields = [];
                 formData.forEach((value, key) => {
-                    // Handle special cases like account_id which should be a UUID
-                    if (key === 'account_id' && value) {
+                    formFields.push({ key, value });
+                });
+                console.log('All form fields:', formFields);
+
+                formData.forEach((value, key) => {
+                    // Skip destination_type field as it's only used for UI toggling
+                    if (key === 'destination_type') {
+                        console.log('Skipping destination_type field:', key, value);
+                        return;
+                    }
+                    // Handle special cases like account_id or source_account_id which should be a UUID
+                    else if ((key === 'account_id' || key === 'source_account_id') && value) {
                         jsonData[key] = value;
                     }
                     // Handle numeric values
@@ -148,12 +162,50 @@ function initForms() {
                     }
                 });
 
+                console.log('JSON data after processing:', jsonData);
+
+                // Check if destination_type is still in the jsonData object
+                if ('destination_type' in jsonData) {
+                    console.error('ERROR: destination_type is still in the jsonData object!');
+                    // Remove it to prevent the 422 error
+                    delete jsonData.destination_type;
+                } else {
+                    console.log('Confirmed: destination_type is not in the jsonData object');
+                }
+
+                // Check for required fields
+                const requiredFields = ['source_account_id', 'description', 'amount', 'category', 'transaction_date'];
+                const missingFields = requiredFields.filter(field => !jsonData[field] && jsonData[field] !== 0);
+
+                if (missingFields.length > 0) {
+                    console.error('ERROR: Missing required fields:', missingFields);
+                } else {
+                    console.log('All required fields are present');
+                }
+
+                // Check that either destination_account_id or payee_name is provided
+                if (!jsonData.destination_account_id && !jsonData.payee_name) {
+                    console.error('ERROR: Either destination_account_id or payee_name must be provided');
+                } else {
+                    console.log('Either destination_account_id or payee_name is provided');
+                }
+
+                // Ensure only one of destination_account_id or payee_name is provided
+                if (jsonData.destination_account_id && jsonData.payee_name) {
+                    console.warn('WARNING: Both destination_account_id and payee_name are provided. Removing payee_name.');
+                    jsonData.payee_name = null;
+                }
+
+                // Convert to string to see exactly what's being sent
+                const jsonString = JSON.stringify(jsonData);
+                console.log('JSON string being sent to server:', jsonString);
+
                 const response = await fetch(form.action, {
                     method: form.method,
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(jsonData)
+                    body: jsonString
                 });
 
                 if (!response.ok) {

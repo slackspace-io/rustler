@@ -70,7 +70,7 @@ struct TransactionListTemplate {
 #[template(path = "transactions/new.html")]
 struct TransactionNewTemplate {
     accounts: Vec<crate::models::Account>,
-    preselected_account_id: Option<Uuid>,
+    preselected_source_account_id: Option<Uuid>,
     current_date: String,
 }
 
@@ -86,8 +86,10 @@ struct TransactionEditTemplate {
 #[derive(Debug, Clone, serde::Serialize)]
 struct TransactionWithAccountName {
     id: Uuid,
-    account_id: Uuid,
+    source_account_id: Uuid,
     account_name: String,
+    destination_account_id: Option<Uuid>,
+    payee_name: Option<String>,
     description: String,
     amount: f64,
     category: String,
@@ -100,7 +102,7 @@ struct TransactionWithAccountName {
 // Query parameters for transaction filtering
 #[derive(Debug, Deserialize)]
 pub struct TransactionFilterQuery {
-    pub account_id: Option<Uuid>,
+    pub source_account_id: Option<Uuid>,
     pub category: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
@@ -109,7 +111,7 @@ pub struct TransactionFilterQuery {
 // Query parameters for new transaction with preselected account
 #[derive(Debug, Deserialize)]
 pub struct NewTransactionQuery {
-    pub account_id: Option<Uuid>,
+    pub source_account_id: Option<Uuid>,
 }
 
 // Define a combined state type for the router
@@ -173,12 +175,14 @@ async fn dashboard_handler(
         .take(10)
         .map(|t| {
             // Find the account for this transaction
-            let account = accounts.iter().find(|a| a.id == t.account_id).cloned();
+            let account = accounts.iter().find(|a| a.id == t.source_account_id).cloned();
 
             TransactionWithAccountName {
                 id: t.id,
-                account_id: t.account_id,
+                source_account_id: t.source_account_id,
                 account_name: account.as_ref().map(|a| a.name.clone()).unwrap_or_else(|| "Unknown".to_string()),
+                destination_account_id: t.destination_account_id,
+                payee_name: t.payee_name.clone(),
                 description: t.description,
                 amount: t.amount,
                 category: t.category,
@@ -362,7 +366,7 @@ async fn transaction_list_handler(
 
     // Get transactions with filters
     let transactions = match transaction_service.get_transactions(
-        query.account_id,
+        query.source_account_id,
         query.category.as_deref(),
         start_date,
         end_date,
@@ -375,12 +379,14 @@ async fn transaction_list_handler(
     let transactions_with_account = transactions.into_iter()
         .map(|t| {
             // Find the account for this transaction
-            let account = accounts.iter().find(|a| a.id == t.account_id).cloned();
+            let account = accounts.iter().find(|a| a.id == t.source_account_id).cloned();
 
             TransactionWithAccountName {
                 id: t.id,
-                account_id: t.account_id,
+                source_account_id: t.source_account_id,
                 account_name: account.as_ref().map(|a| a.name.clone()).unwrap_or_else(|| "Unknown".to_string()),
+                destination_account_id: t.destination_account_id,
+                payee_name: t.payee_name.clone(),
                 description: t.description,
                 amount: t.amount,
                 category: t.category,
@@ -407,7 +413,7 @@ async fn transaction_list_handler(
         transactions: transactions_with_account,
         accounts,
         categories,
-        selected_account_id: query.account_id,
+        selected_account_id: query.source_account_id,
         selected_category: query.category,
         start_date: query.start_date,
         end_date: query.end_date,
@@ -439,7 +445,7 @@ async fn transaction_new_handler(
     // Render the transaction new template
     let template = TransactionNewTemplate {
         accounts,
-        preselected_account_id: query.account_id,
+        preselected_source_account_id: query.source_account_id,
         current_date,
     };
 

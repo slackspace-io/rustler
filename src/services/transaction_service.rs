@@ -18,15 +18,15 @@ impl TransactionService {
     /// Get all transactions, with optional filtering
     pub async fn get_transactions(
         &self,
-        account_id: Option<Uuid>,
+        source_account_id: Option<Uuid>,
         category: Option<&str>,
         start_date: Option<DateTime<Utc>>,
         end_date: Option<DateTime<Utc>>,
     ) -> Result<Vec<Transaction>, sqlx::Error> {
         let mut query = String::from("SELECT * FROM transactions WHERE 1=1");
 
-        if let Some(account_id) = account_id {
-            query.push_str(&format!(" AND account_id = '{}'", account_id));
+        if let Some(source_account_id) = source_account_id {
+            query.push_str(&format!(" AND source_account_id = '{}'", source_account_id));
         }
 
         if let Some(category) = category {
@@ -49,9 +49,9 @@ impl TransactionService {
     }
 
     /// Get transactions for a specific account
-    pub async fn get_account_transactions(&self, account_id: Uuid) -> Result<Vec<Transaction>, sqlx::Error> {
-        sqlx::query_as::<_, Transaction>("SELECT * FROM transactions WHERE account_id = $1 ORDER BY transaction_date DESC")
-            .bind(account_id)
+    pub async fn get_account_transactions(&self, source_account_id: Uuid) -> Result<Vec<Transaction>, sqlx::Error> {
+        sqlx::query_as::<_, Transaction>("SELECT * FROM transactions WHERE source_account_id = $1 ORDER BY transaction_date DESC")
+            .bind(source_account_id)
             .fetch_all(&self.db)
             .await
     }
@@ -69,19 +69,21 @@ impl TransactionService {
         let now = chrono::Utc::now();
         let transaction_date = req.transaction_date.unwrap_or(now);
 
-        // Start a transaction to update both the transaction table and the account balance
+        // Start a transaction to update both the transaction table and the account balance(s)
         let mut tx = self.db.begin().await?;
 
         // Create the transaction
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
-            INSERT INTO transactions (id, account_id, description, amount, category, transaction_date, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO transactions (id, source_account_id, destination_account_id, payee_name, description, amount, category, transaction_date, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
             "#,
         )
         .bind(Uuid::new_v4())
-        .bind(req.account_id)
+        .bind(req.source_account_id)
+        .bind(req.destination_account_id)
+        .bind(req.payee_name)
         .bind(&req.description)
         .bind(req.amount)
         .bind(&req.category)
@@ -91,19 +93,35 @@ impl TransactionService {
         .fetch_one(&mut *tx)
         .await?;
 
-        // Update the account balance
+        // Update the source account balance (subtract the amount)
         sqlx::query(
             r#"
             UPDATE accounts
-            SET balance = balance + $1, updated_at = $2
+            SET balance = balance - $1, updated_at = $2
             WHERE id = $3
             "#,
         )
         .bind(req.amount)
         .bind(now)
-        .bind(req.account_id)
+        .bind(req.source_account_id)
         .execute(&mut *tx)
         .await?;
+
+        // If there's a destination account, update its balance (add the amount)
+        if let Some(destination_account_id) = req.destination_account_id {
+            sqlx::query(
+                r#"
+                UPDATE accounts
+                SET balance = balance + $1, updated_at = $2
+                WHERE id = $3
+                "#,
+            )
+            .bind(req.amount)
+            .bind(now)
+            .bind(destination_account_id)
+            .execute(&mut *tx)
+            .await?;
+        }
 
         // Commit the transaction
         tx.commit().await?;
@@ -113,7 +131,7 @@ impl TransactionService {
 
     /// Update an existing transaction
     pub async fn update_transaction(&self, id: Uuid, req: UpdateTransactionRequest) -> Result<Option<Transaction>, sqlx::Error> {
-        // First, check if the transaction exists and get the original amount
+        // First, check if the transaction exists and get the original details
         let transaction = self.get_transaction(id).await?;
 
         if let Some(transaction) = transaction {
@@ -129,7 +147,7 @@ impl TransactionService {
             let amount_diff = if let Some(new_amount) = req.amount {
                 let diff = new_amount - transaction.amount;
                 params.push(format!("amount = {}", new_amount));
-                Some(diff)
+                Some((diff, new_amount))
             } else {
                 None
             };
@@ -146,6 +164,15 @@ impl TransactionService {
                 params.push(format!("transaction_date = '{}'", transaction_date));
             }
 
+            // Handle destination account and payee name updates
+            if let Some(destination_account_id) = req.destination_account_id {
+                params.push(format!("destination_account_id = '{}'", destination_account_id));
+                params.push("payee_name = NULL".to_string());
+            } else if let Some(payee_name) = &req.payee_name {
+                params.push("destination_account_id = NULL".to_string());
+                params.push(format!("payee_name = '{}'", payee_name));
+            }
+
             if !params.is_empty() {
                 query.push_str(", ");
                 query.push_str(&params.join(", "));
@@ -160,9 +187,10 @@ impl TransactionService {
                 .fetch_optional(&mut *tx)
                 .await?;
 
-            // If the amount changed, update the account balance
-            if let Some(diff) = amount_diff {
+            // If the amount changed, update the source account balance
+            if let Some((diff, new_amount)) = amount_diff {
                 if diff != 0.0 {
+                    // Update source account (add the negative diff to reverse the original transaction)
                     sqlx::query(
                         r#"
                         UPDATE accounts
@@ -172,7 +200,88 @@ impl TransactionService {
                     )
                     .bind(diff)
                     .bind(now)
-                    .bind(transaction.account_id)
+                    .bind(transaction.source_account_id)
+                    .execute(&mut *tx)
+                    .await?;
+
+                    // If there was a destination account, update its balance too
+                    if let Some(dest_id) = transaction.destination_account_id {
+                        // Reverse the effect on the destination account
+                        sqlx::query(
+                            r#"
+                            UPDATE accounts
+                            SET balance = balance - $1, updated_at = $2
+                            WHERE id = $3
+                            "#,
+                        )
+                        .bind(transaction.amount)
+                        .bind(now)
+                        .bind(dest_id)
+                        .execute(&mut *tx)
+                        .await?;
+
+                        // If there's still a destination account (might be different), add the new amount
+                        if let Some(new_dest_id) = req.destination_account_id.or(transaction.destination_account_id) {
+                            sqlx::query(
+                                r#"
+                                UPDATE accounts
+                                SET balance = balance + $1, updated_at = $2
+                                WHERE id = $3
+                                "#,
+                            )
+                            .bind(new_amount)
+                            .bind(now)
+                            .bind(new_dest_id)
+                            .execute(&mut *tx)
+                            .await?;
+                        }
+                    } else if let Some(new_dest_id) = req.destination_account_id {
+                        // If there's a new destination account, add the amount
+                        sqlx::query(
+                            r#"
+                            UPDATE accounts
+                            SET balance = balance + $1, updated_at = $2
+                            WHERE id = $3
+                            "#,
+                        )
+                        .bind(new_amount)
+                        .bind(now)
+                        .bind(new_dest_id)
+                        .execute(&mut *tx)
+                        .await?;
+                    }
+                }
+            } else if req.destination_account_id.is_some() && req.destination_account_id != transaction.destination_account_id {
+                // If only the destination account changed (not the amount)
+
+                // If there was a previous destination account, reverse its balance change
+                if let Some(old_dest_id) = transaction.destination_account_id {
+                    sqlx::query(
+                        r#"
+                        UPDATE accounts
+                        SET balance = balance - $1, updated_at = $2
+                        WHERE id = $3
+                        "#,
+                    )
+                    .bind(transaction.amount)
+                    .bind(now)
+                    .bind(old_dest_id)
+                    .execute(&mut *tx)
+                    .await?;
+                }
+
+                // Add the amount to the new destination account
+                if let Some(new_dest_id) = req.destination_account_id {
+                    sqlx::query(
+                        r#"
+                        UPDATE accounts
+                        SET balance = balance + $1, updated_at = $2
+                        WHERE id = $3
+                        "#,
+                    )
+                    .bind(transaction.amount)
+                    .bind(now)
+                    .bind(new_dest_id)
                     .execute(&mut *tx)
                     .await?;
                 }
@@ -212,7 +321,7 @@ impl TransactionService {
             )
             .bind(transaction.amount)
             .bind(chrono::Utc::now())
-            .bind(transaction.account_id)
+            .bind(transaction.source_account_id)
             .execute(&mut *tx)
             .await?;
 
