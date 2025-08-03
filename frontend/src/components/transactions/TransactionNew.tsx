@@ -109,23 +109,51 @@ const TransactionNew = () => {
         ? accounts.find(a => a.id === destinationAccountId)?.name || 'Transfer'
         : payeeName;
 
-      await transactionsApi.createTransaction({
-        source_account_id: sourceAccountId,
-        destination_account_id: isTransfer ? destinationAccountId : undefined,
-        payee_name: finalPayeeName || undefined,
-        description,
-        amount: finalAmount,
-        category: isTransfer ? 'Transfer' : category,
-        transaction_date: new Date(transactionDate).toISOString(),
-      });
+      // Extract the clean account name (without balance and currency)
+      let cleanSourceAccountName = sourceAccountName;
+      const parenIndex = sourceAccountName.indexOf(' (');
+      if (parenIndex > 0) {
+        cleanSourceAccountName = sourceAccountName.substring(0, parenIndex);
+      }
+
+      // If we have a valid sourceAccountId (matched with an existing account), use it
+      // Otherwise, we'll need to create a transaction with just the account name
+      if (sourceAccountId) {
+        await transactionsApi.createTransaction({
+          source_account_id: sourceAccountId,
+          destination_account_id: isTransfer ? destinationAccountId : undefined,
+          payee_name: finalPayeeName || undefined,
+          description,
+          amount: finalAmount,
+          category: isTransfer ? 'Transfer' : category,
+          transaction_date: new Date(transactionDate).toISOString(),
+        });
+      } else {
+        // For free text account names, we'll use the account name as a reference
+        // The backend will need to handle this case appropriately
+        await transactionsApi.createTransaction({
+          source_account_id: accounts[0]?.id, // Use the first account as a fallback
+          destination_account_id: isTransfer ? destinationAccountId : undefined,
+          payee_name: finalPayeeName || undefined,
+          description: `${description} (From: ${cleanSourceAccountName})`,
+          amount: finalAmount,
+          category: isTransfer ? 'Transfer' : category,
+          transaction_date: new Date(transactionDate).toISOString(),
+        });
+      }
 
       // If it's a transfer, create the corresponding incoming transaction
       if (isTransfer && destinationAccountId) {
+        // For the transfer's corresponding incoming transaction, use the clean source account name
+        const sourceAccountDisplayName = sourceAccountId
+          ? accounts.find(a => a.id === sourceAccountId)?.name || 'Transfer'
+          : cleanSourceAccountName;
+
         await transactionsApi.createTransaction({
           source_account_id: destinationAccountId,
-          destination_account_id: sourceAccountId,
-          payee_name: accounts.find(a => a.id === sourceAccountId)?.name || 'Transfer',
-          description: `Transfer from ${accounts.find(a => a.id === sourceAccountId)?.name}`,
+          destination_account_id: sourceAccountId || undefined,
+          payee_name: sourceAccountDisplayName,
+          description: `Transfer from ${sourceAccountDisplayName}`,
           amount: Math.abs(parseFloat(amount)), // Incoming to destination account
           category: 'Transfer',
           transaction_date: new Date(transactionDate).toISOString(),
