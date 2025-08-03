@@ -97,11 +97,51 @@ impl AccountService {
 
     /// Delete an account
     pub async fn delete_account(&self, id: Uuid) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM accounts WHERE id = $1")
+        // First, check if the account exists
+        let account = self.get_account(id).await?;
+
+        if account.is_none() {
+            println!("Account with id {} not found, cannot delete", id);
+            return Ok(false);
+        }
+
+        println!("Attempting to delete account with id: {}", id);
+
+        // Check if there are any transactions for this account
+        let transactions_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM transactions WHERE account_id = $1")
             .bind(id)
-            .execute(&self.db)
+            .fetch_one(&self.db)
             .await?;
 
-        Ok(result.rows_affected() > 0)
+        println!("Found {} transactions for account {}", transactions_count, id);
+
+        // Use a transaction to ensure atomicity
+        let mut tx = self.db.begin().await?;
+
+        // First delete any transactions associated with this account
+        // This is a safety measure in case ON DELETE CASCADE doesn't work
+        let transactions_result = sqlx::query("DELETE FROM transactions WHERE account_id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+
+        let transactions_deleted = transactions_result.rows_affected();
+        println!("Deleted {} transactions for account {}", transactions_deleted, id);
+
+        // Now delete the account
+        let result = sqlx::query("DELETE FROM accounts WHERE id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+
+        let rows_affected = result.rows_affected();
+        println!("Delete query affected {} rows for account {}", rows_affected, id);
+
+        // Commit the transaction
+        println!("Committing transaction...");
+        tx.commit().await?;
+        println!("Transaction committed successfully");
+
+        Ok(rows_affected > 0)
     }
 }

@@ -17,6 +17,7 @@ pub fn router(account_service: Arc<AccountService>) -> Router {
         .route("/accounts", post(create_account))
         .route("/accounts/{id}", get(get_account))
         .route("/accounts/{id}", put(update_account))
+        .route("/accounts/{id}", post(update_account))  // Add POST handler for account updates
         .route("/accounts/{id}", delete(delete_account))
         .with_state(account_service)
 }

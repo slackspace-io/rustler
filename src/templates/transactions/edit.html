@@ -86,10 +86,7 @@
 
             <div class="danger-zone">
                 <h3>Danger Zone</h3>
-                <form action="/api/transactions/{{ transaction.id }}" method="POST" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this transaction? This action cannot be undone.');">
-                    <input type="hidden" name="_method" value="DELETE">
-                    <button type="submit" class="btn btn-danger">Delete Transaction</button>
-                </form>
+                <a href="/api/transactions/{{ transaction.id }}" class="btn btn-danger btn-delete" data-confirm-message="Are you sure you want to delete this transaction? This action cannot be undone.">Delete Transaction</a>
             </div>
         </section>
     </main>
