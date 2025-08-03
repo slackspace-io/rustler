@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustler - Account Details</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Rustler Finance</h1>
+        <nav>
+            <ul>
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/accounts" class="active">Accounts</a></li>
+                <li><a href="/transactions">Transactions</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="account-details">
+            <div class="breadcrumb">
+                <a href="/accounts">Accounts</a> &gt; {{ account.name }}
+            </div>
+
+            <div class="section-header">
+                <h2>{{ account.name }}</h2>
+                <div class="actions">
+                    <a href="/accounts/{{ account.id }}/edit" class="btn">Edit Account</a>
+                    <a href="/transactions/new?account_id={{ account.id }}" class="btn btn-primary">New Transaction</a>
+                </div>
+            </div>
+
+            <div class="account-info">
+                <div class="card">
+                    <h3>Account Details</h3>
+                    <table class="details-table">
+                        <tr>
+                            <th>Name:</th>
+                            <td>{{ account.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Type:</th>
+                            <td>{{ account.account_type }}</td>
+                        </tr>
+                        <tr>
+                            <th>Balance:</th>
+                            <td class="amount {% if account.balance < 0.0 %}negative{% else %}positive{% endif %}">
+                                {{ account.balance }} {{ account.currency }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Currency:</th>
+                            <td>{{ account.currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>Created:</th>
+                            <td>{{ account.created_at | date }}</td>
+                        </tr>
+                        <tr>
+                            <th>Last Updated:</th>
+                            <td>{{ account.updated_at | date }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="transactions-section">
+                <h3>Recent Transactions</h3>
+
+                {% if transactions.is_empty() %}
+                    <p class="empty-state">No transactions found for this account.</p>
+                {% else %}
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr class="item">
+                                <td>{{ transaction.transaction_date | date }}</td>
+                                <td>{{ transaction.description }}</td>
+                                <td>{{ transaction.category }}</td>
+                                <td class="amount {% if transaction.amount < 0.0 %}negative{% else %}positive{% endif %}">
+                                    {{ transaction.amount }}
+                                </td>
+                                <td class="actions">
+                                    <a href="/transactions/{{ transaction.id }}/edit" class="btn btn-small">Edit</a>
+                                    <a href="/api/transactions/{{ transaction.id }}" class="btn btn-small btn-danger btn-delete" data-confirm-message="Are you sure you want to delete this transaction?">Delete</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div class="view-all">
+                        <a href="/transactions?account_id={{ account.id }}" class="btn">View All Transactions</a>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Rustler Finance</p>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

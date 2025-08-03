@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustler - Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Rustler Finance</h1>
+        <nav>
+            <ul>
+                <li><a href="/" class="active">Dashboard</a></li>
+                <li><a href="/accounts">Accounts</a></li>
+                <li><a href="/transactions">Transactions</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="dashboard">
+            <h2>Dashboard</h2>
+
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Balance</h3>
+                    <p class="balance">{{ total_balance }} USD</p>
+                </div>
+
+                <div class="card">
+                    <h3>Accounts</h3>
+                    <p class="count">{{ accounts.len() }}</p>
+                    <a href="/accounts" class="btn">View All</a>
+                </div>
+
+                <div class="card">
+                    <h3>Transactions This Month</h3>
+                    <p class="count">{{ recent_transactions.len() }}</p>
+                    <a href="/transactions" class="btn">View All</a>
+                </div>
+            </div>
+
+            <div class="recent-section">
+                <h3>Recent Transactions</h3>
+                {% if recent_transactions.is_empty() %}
+                    <p class="empty-state">No recent transactions found.</p>
+                {% else %}
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Account</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in recent_transactions %}
+                            <tr>
+                                <td>{{ transaction.transaction_date }}</td>
+                                <td>{{ transaction.description }}</td>
+                                <td>{{ transaction.category }}</td>
+                                <td>{{ transaction.account_name }}</td>
+                                <td class="amount {% if transaction.amount < 0.0 %}negative{% else %}positive{% endif %}">
+                                    {{ transaction.amount }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+
+            <div class="accounts-section">
+                <h3>Accounts</h3>
+                {% if accounts.is_empty() %}
+                    <p class="empty-state">No accounts found. <a href="/accounts/new">Create your first account</a>.</p>
+                {% else %}
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Balance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for account in accounts %}
+                            <tr>
+                                <td>{{ account.name }}</td>
+                                <td>{{ account.account_type }}</td>
+                                <td class="amount {% if account.balance < 0.0 %}negative{% else %}positive{% endif %}">
+                                    {{ account.balance }} {{ account.currency }}
+                                </td>
+                                <td>
+                                    <a href="/accounts/{{ account.id }}" class="btn btn-small">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Rustler Finance</p>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

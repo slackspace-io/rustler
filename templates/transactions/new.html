@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustler - New Transaction</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Rustler Finance</h1>
+        <nav>
+            <ul>
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/accounts">Accounts</a></li>
+                <li><a href="/transactions" class="active">Transactions</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="transaction-form">
+            <div class="breadcrumb">
+                <a href="/transactions">Transactions</a> &gt; New Transaction
+            </div>
+
+            <h2>Create New Transaction</h2>
+
+            <form action="/api/transactions" method="POST" class="form" data-ajax="true" data-redirect-url="/transactions">
+                <div class="form-group">
+                    <label for="source_account_id">Source Account</label>
+                    <select id="source_account_id" name="source_account_id" required>
+                        <option value="">Select source account</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">
+                            {{ account.name }} ({{ account.balance }} {{ account.currency }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="destination_type">Destination Type</label>
+                    <select id="destination_type" name="destination_type" onchange="toggleDestination()" required>
+                        <option value="external">External (Payee/Expense)</option>
+                        <option value="internal">Internal (Another Account)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="destination_account_group" style="display: none;">
+                    <label for="destination_account_id">Destination Account</label>
+                    <select id="destination_account_id" name="destination_account_id">
+                        <option value="">Select destination account</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">
+                            {{ account.name }} ({{ account.balance }} {{ account.currency }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group" id="payee_name_group">
+                    <label for="payee_name">Payee Name</label>
+                    <input type="text" id="payee_name" name="payee_name">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <input type="text" id="description" name="description" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">Amount</label>
+                    <input type="number" id="amount" name="amount" step="0.01" required>
+                    <p class="help-text">Use positive values for income, negative for expenses.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category" required>
+                        <option value="">Select a category</option>
+                        <option value="Income">Income</option>
+                        <option value="Salary">Salary</option>
+                        <option value="Food">Food</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Housing">Housing</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Health">Health</option>
+                        <option value="Education">Education</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Transfer">Transfer</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="transaction_date">Transaction Date</label>
+                    <input type="datetime-local" id="transaction_date" name="transaction_date" value="{{ current_date }}" required>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/transactions" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Transaction</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Rustler Finance</p>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+    <script>
+        function toggleDestination() {
+            const destinationType = document.getElementById('destination_type').value;
+            const destinationAccountGroup = document.getElementById('destination_account_group');
+            const payeeNameGroup = document.getElementById('payee_name_group');
+
+            if (destinationType === 'internal') {
+                destinationAccountGroup.style.display = 'block';
+                payeeNameGroup.style.display = 'none';
+                document.getElementById('payee_name').value = '';
+                document.getElementById('destination_account_id').setAttribute('required', 'required');
+                document.getElementById('payee_name').removeAttribute('required');
+            } else {
+                destinationAccountGroup.style.display = 'none';
+                payeeNameGroup.style.display = 'block';
+                document.getElementById('destination_account_id').value = '';
+                document.getElementById('payee_name').setAttribute('required', 'required');
+                document.getElementById('destination_account_id').removeAttribute('required');
+            }
+        }
+
+        // Initialize the form
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleDestination();
+        });
+    </script>
+</body>
+</html>
