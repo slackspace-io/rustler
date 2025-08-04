@@ -17,6 +17,7 @@ import BudgetEdit from './components/budgets/BudgetEdit'
 import CategoriesList from './components/categories/CategoriesList'
 import LedgerLayout from './components/LedgerLayout'
 import ReportsList from './components/reports/ReportsList'
+import SettingsPage from './components/settings/SettingsPage'
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
                 <li><Link to="/budgets">Budgets</Link></li>
                 <li><Link to="/ledger">Ledger</Link></li>
                 <li><Link to="/reports">Reports</Link></li>
+                <li><Link to="/settings">Settings</Link></li>
               </ul>
             </nav>
           </div>
@@ -68,6 +70,9 @@ function App() {
 
             {/* Reports */}
             <Route path="/reports" element={<ReportsList />} />
+
+            {/* Settings */}
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
       </div>

@@ -48,3 +48,7 @@ export interface MonthlyBudgetStatus {
   budgeted_amount: number;
   remaining_to_budget: number;
 }
+
+export interface Settings {
+  numberFormat: 'decimal' | 'comma';
+}

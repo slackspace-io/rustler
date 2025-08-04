@@ -2,6 +2,7 @@ import { useState, useEffect, type KeyboardEvent } from 'react';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
 import type { Transaction, Account, Budget } from '../../services/api';
 import CategoryInput from '../common/CategoryInput';
+import { useSettings } from '../../contexts/useSettings';
 
 interface AccountLedgerProps {
   accountId: string;
@@ -17,6 +18,7 @@ interface EditingState {
 }
 
 const AccountLedger = ({ accountId }: AccountLedgerProps) => {
+  const { formatNumber } = useSettings();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
@@ -105,7 +107,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
           source_account_id: accountId,
           destination_name: destinationName || undefined,
           description: hasOutgoing ? `${description} (Incoming)` : description,
-          amount: -Math.abs(parseFloat(incomingAmount)), // Negative value to increase balance
+          amount: Math.abs(parseFloat(incomingAmount)), // Negative value to increase balance
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -322,7 +324,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       <div className="account-header">
         <h2>{account.name}</h2>
         <div className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-          Balance: {account.balance.toFixed(2)}
+          Balance: {formatNumber(account.balance)}
         </div>
       </div>
 

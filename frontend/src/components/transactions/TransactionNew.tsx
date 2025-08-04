@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
 import type { Account, Budget } from '../../services/api';
 import CategoryInput from '../common/CategoryInput';
+import { useSettings } from '../../contexts/useSettings';
 
 const TransactionNew = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedAccountId = searchParams.get('source_account_id');
+  const { formatNumber } = useSettings();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -44,7 +46,7 @@ const TransactionNew = () => {
         if (preselectedAccountId) {
           const selectedAccount = accountsData.find(account => account.id === preselectedAccountId);
           if (selectedAccount) {
-            setSourceAccountName(`${selectedAccount.name} (${selectedAccount.balance.toFixed(2)})`);
+            setSourceAccountName(`${selectedAccount.name} (${formatNumber(selectedAccount.balance)})`);
           }
         }
 
@@ -203,7 +205,7 @@ const TransactionNew = () => {
               // Check if the input matches an existing account
               const matchedAccount = accounts.find(
                 account => account.name === inputValue ||
-                           `${account.name} (${account.balance.toFixed(2)})` === inputValue
+                           `${account.name} (${formatNumber(account.balance)})` === inputValue
               );
 
               // If matched, set the account ID, otherwise clear it
@@ -214,7 +216,7 @@ const TransactionNew = () => {
           />
           <datalist id="source-accounts-list">
             {accounts.map(account => (
-              <option key={account.id} value={`${account.name} (${account.balance.toFixed(2)})`} />
+              <option key={account.id} value={`${account.name} (${formatNumber(account.balance)})`} />
             ))}
           </datalist>
         </div>
@@ -233,7 +235,7 @@ const TransactionNew = () => {
                 .filter(account => account.id !== sourceAccountId)
                 .map(account => (
                   <option key={account.id} value={account.id}>
-                    {account.name} ({account.balance.toFixed(2)})
+                    {account.name} ({formatNumber(account.balance)})
                   </option>
                 ))
               }
@@ -302,7 +304,7 @@ const TransactionNew = () => {
               <option value="">No Budget</option>
               {budgets.map(budget => (
                 <option key={budget.id} value={budget.id}>
-                  {budget.name} ({budget.amount.toFixed(2)})
+                  {budget.name} ({formatNumber(budget.amount)})
                 </option>
               ))}
             </select>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { accountsApi } from '../../services/api';
 import type { Account } from '../../services/api';
+import { ACCOUNT_TYPE } from '../../constants/accountTypes';
 
 interface AccountSidebarProps {
   selectedAccountId: string | null;
@@ -17,11 +18,18 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount }: AccountSidebarPr
       try {
         setLoading(true);
         const data = await accountsApi.getAccounts();
-        setAccounts(data);
+
+        // Filter out external accounts, only show on-budget and off-budget accounts
+        const filteredAccounts = data.filter(account =>
+          account.account_type === ACCOUNT_TYPE.ON_BUDGET ||
+          account.account_type === ACCOUNT_TYPE.OFF_BUDGET
+        );
+
+        setAccounts(filteredAccounts);
 
         // If no account is selected and we have accounts, select the first one
-        if (!selectedAccountId && data.length > 0) {
-          onSelectAccount(data[0].id);
+        if (!selectedAccountId && filteredAccounts.length > 0) {
+          onSelectAccount(filteredAccounts[0].id);
         }
 
         setLoading(false);
