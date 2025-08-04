@@ -12,7 +12,6 @@ const AccountEdit = () => {
   // Form state
   const [name, setName] = useState('');
   const [accountType, setAccountType] = useState('');
-  const [currency, setCurrency] = useState('');
 
   useEffect(() => {
     const fetchAccount = async () => {
@@ -25,7 +24,6 @@ const AccountEdit = () => {
         // Initialize form with account data
         setName(account.name);
         setAccountType(account.account_type);
-        setCurrency(account.currency);
 
         setLoading(false);
       } catch (err) {
@@ -55,7 +53,7 @@ const AccountEdit = () => {
       await accountsApi.updateAccount(id, {
         name,
         account_type: accountType,
-        currency,
+        currency: "DEFAULT" // Using a default currency value since the app is currency-agnostic
       });
 
       // Redirect to account view on success
@@ -110,22 +108,6 @@ const AccountEdit = () => {
           </select>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="currency">Currency</label>
-          <select
-            id="currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-          >
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-            <option value="GBP">GBP</option>
-            <option value="JPY">JPY</option>
-            <option value="CAD">CAD</option>
-            <option value="AUD">AUD</option>
-            <option value="CHF">CHF</option>
-          </select>
-        </div>
 
         <div className="form-actions">
           <button type="submit" disabled={saving}>

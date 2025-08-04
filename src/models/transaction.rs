@@ -10,16 +10,16 @@ pub struct Transaction {
     pub id: Uuid,
     /// ID of the source account for this transaction
     pub source_account_id: Uuid,
-    /// ID of the destination account (if it's an internal account)
-    pub destination_account_id: Option<Uuid>,
-    /// Name of the payee/external account (if destination_account_id is None)
-    pub payee_name: Option<String>,
+    /// ID of the destination account (required for double entry accounting)
+    pub destination_account_id: Uuid,
     /// Description of the transaction
     pub description: String,
     /// Amount of the transaction (always positive for transfers)
     pub amount: f64,
     /// Category of the transaction (e.g., "Food", "Transportation", "Income", "Transfer")
     pub category: String,
+    /// Optional budget ID this transaction is assigned to
+    pub budget_id: Option<Uuid>,
     /// Date and time when the transaction occurred
     pub transaction_date: DateTime<Utc>,
     /// When the transaction record was created
@@ -33,25 +33,25 @@ pub struct Transaction {
 pub struct CreateTransactionRequest {
     /// ID of the source account for this transaction
     pub source_account_id: Uuid,
-    /// ID of the destination account (if it's an internal account)
-    pub destination_account_id: Option<Uuid>,
-    /// Name of the payee/external account (if destination_account_id is None)
-    pub payee_name: Option<String>,
+    /// ID of the destination account (required for double entry accounting)
+    pub destination_account_id: Uuid,
     pub description: String,
     pub amount: f64,
     pub category: String,
+    /// Optional budget ID this transaction is assigned to
+    pub budget_id: Option<Uuid>,
     pub transaction_date: Option<DateTime<Utc>>,
 }
 
 /// Data required to update an existing transaction
 #[derive(Debug, Deserialize)]
 pub struct UpdateTransactionRequest {
-    /// ID of the destination account (if it's an internal account)
+    /// ID of the destination account (required for double entry accounting)
     pub destination_account_id: Option<Uuid>,
-    /// Name of the payee/external account (if destination_account_id is None)
-    pub payee_name: Option<String>,
     pub description: Option<String>,
     pub amount: Option<f64>,
     pub category: Option<String>,
+    /// Optional budget ID this transaction is assigned to
+    pub budget_id: Option<Uuid>,
     pub transaction_date: Option<DateTime<Utc>>,
 }

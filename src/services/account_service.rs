@@ -107,28 +107,34 @@ impl AccountService {
 
         println!("Attempting to delete account with id: {}", id);
 
-        // Check if there are any transactions for this account
-        let transactions_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM transactions WHERE account_id = $1")
-            .bind(id)
-            .fetch_one(&self.db)
-            .await?;
+        // Check if there are any transactions where this account is used as source or destination
+        let source_transactions_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM transactions WHERE source_account_id = $1"
+        )
+        .bind(id)
+        .fetch_one(&self.db)
+        .await?;
 
-        println!("Found {} transactions for account {}", transactions_count, id);
+        let destination_transactions_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM transactions WHERE destination_account_id = $1"
+        )
+        .bind(id)
+        .fetch_one(&self.db)
+        .await?;
+
+        let total_transactions = source_transactions_count + destination_transactions_count;
+        println!("Found {} transactions for account {} ({} as source, {} as destination)",
+                 total_transactions, id, source_transactions_count, destination_transactions_count);
+
+        if total_transactions > 0 {
+            println!("Cannot delete account with existing transactions");
+            return Ok(false);
+        }
 
         // Use a transaction to ensure atomicity
         let mut tx = self.db.begin().await?;
 
-        // First delete any transactions associated with this account
-        // This is a safety measure in case ON DELETE CASCADE doesn't work
-        let transactions_result = sqlx::query("DELETE FROM transactions WHERE account_id = $1")
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
-
-        let transactions_deleted = transactions_result.rows_affected();
-        println!("Deleted {} transactions for account {}", transactions_deleted, id);
-
-        // Now delete the account
+        // Delete the account
         let result = sqlx::query("DELETE FROM accounts WHERE id = $1")
             .bind(id)
             .execute(&mut *tx)

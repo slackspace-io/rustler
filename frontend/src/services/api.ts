@@ -1,29 +1,11 @@
 // API base URL
 const API_BASE_URL = '/api';
 
-// Types for our data models
-export interface Account {
-  id: string;
-  name: string;
-  balance: number;
-  account_type: string;
-  currency: string;
-  created_at: string;
-  updated_at: string;
-}
+// Import types from types.ts
+import type { Account, Category, Transaction, Budget } from './types.ts';
 
-export interface Transaction {
-  id: string;
-  source_account_id: string;
-  destination_account_id?: string;
-  payee_name?: string;
-  description: string;
-  amount: number;
-  category: string;
-  transaction_date: string;
-  created_at: string;
-  updated_at: string;
-}
+// Re-export types for convenience
+export type { Account, Category, Transaction, Budget };
 
 // API functions for accounts
 export const accountsApi = {
@@ -153,5 +135,153 @@ export const transactionsApi = {
     if (!response.ok) {
       throw new Error(`Failed to delete transaction with ID ${id}`);
     }
+  },
+};
+
+// API functions for categories
+export const categoriesApi = {
+  // Get all categories
+  getCategories: async (): Promise<Category[]> => {
+    const response = await fetch(`${API_BASE_URL}/categories`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch categories');
+    }
+    return response.json();
+  },
+
+  // Get a single category by ID
+  getCategory: async (id: string): Promise<Category> => {
+    const response = await fetch(`${API_BASE_URL}/categories/${id}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch category with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Create a new category
+  createCategory: async (category: { name: string; description?: string }): Promise<Category> => {
+    const response = await fetch(`${API_BASE_URL}/categories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(category),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create category');
+    }
+    return response.json();
+  },
+
+  // Update an existing category
+  updateCategory: async (id: string, category: { name?: string; description?: string }): Promise<Category> => {
+    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(category),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update category with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Delete a category
+  deleteCategory: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete category with ID ${id}`);
+    }
+  },
+};
+
+export const budgetsApi = {
+  // Get all budgets
+  getBudgets: async (): Promise<Budget[]> => {
+    const response = await fetch(`${API_BASE_URL}/budgets`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch budgets');
+    }
+    return response.json();
+  },
+
+  // Get active budgets
+  getActiveBudgets: async (): Promise<Budget[]> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/active`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch active budgets');
+    }
+    return response.json();
+  },
+
+  // Get a single budget by ID
+  getBudget: async (id: string): Promise<Budget> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Create a new budget
+  createBudget: async (budget: Omit<Budget, 'id' | 'created_at' | 'updated_at'>): Promise<Budget> => {
+    const response = await fetch(`${API_BASE_URL}/budgets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(budget),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create budget');
+    }
+    return response.json();
+  },
+
+  // Update an existing budget
+  updateBudget: async (id: string, budget: Partial<Budget>): Promise<Budget> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(budget),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Delete a budget
+  deleteBudget: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete budget with ID ${id}`);
+    }
+  },
+
+  // Get the total spent amount for a budget
+  getBudgetSpent: async (id: string): Promise<number> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/spent`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch spent amount for budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Get the remaining amount for a budget
+  getBudgetRemaining: async (id: string): Promise<number> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/remaining`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch remaining amount for budget with ID ${id}`);
+    }
+    return response.json();
   },
 };

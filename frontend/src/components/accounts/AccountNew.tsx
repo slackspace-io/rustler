@@ -11,7 +11,6 @@ const AccountNew = () => {
   const [name, setName] = useState('');
   const [accountType, setAccountType] = useState('Checking');
   const [balance, setBalance] = useState('0');
-  const [currency, setCurrency] = useState('USD');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +28,7 @@ const AccountNew = () => {
         name,
         account_type: accountType,
         balance: parseFloat(balance),
-        currency,
+        currency: "DEFAULT" // Using a default currency value since the app is currency-agnostic
       });
 
       // Redirect to accounts list on success
@@ -87,22 +86,6 @@ const AccountNew = () => {
           />
         </div>
 
-        <div className="form-group">
-          <label htmlFor="currency">Currency</label>
-          <select
-            id="currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-          >
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-            <option value="GBP">GBP</option>
-            <option value="JPY">JPY</option>
-            <option value="CAD">CAD</option>
-            <option value="AUD">AUD</option>
-            <option value="CHF">CHF</option>
-          </select>
-        </div>
 
         <div className="form-actions">
           <button type="submit" disabled={loading}>

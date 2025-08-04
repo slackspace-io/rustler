@@ -77,13 +77,12 @@ const AccountView = () => {
         <div className="summary-box">
           <h2>Balance</h2>
           <p className={`total-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-            {account.currency} {account.balance.toFixed(2)}
+            {account.balance.toFixed(2)}
           </p>
         </div>
 
         <div className="account-info">
           <p><strong>Account Type:</strong> {account.account_type}</p>
-          <p><strong>Currency:</strong> {account.currency}</p>
           <p><strong>Created:</strong> {new Date(account.created_at).toLocaleDateString()}</p>
           <p><strong>Last Updated:</strong> {new Date(account.updated_at).toLocaleDateString()}</p>
         </div>

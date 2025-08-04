@@ -88,24 +88,24 @@ const Dashboard = () => {
       <div className="dashboard-summary">
         <div className="summary-card">
           <h2>Total Balance</h2>
-          <p className="amount">${totalBalance.toFixed(2)}</p>
+          <p className="amount">{totalBalance.toFixed(2)}</p>
           <Link to="/accounts" className="card-link">View Accounts</Link>
         </div>
 
         <div className="summary-card">
           <h2>Monthly Income</h2>
-          <p className="amount positive">${monthlyIncome.toFixed(2)}</p>
+          <p className="amount positive">{monthlyIncome.toFixed(2)}</p>
         </div>
 
         <div className="summary-card">
           <h2>Monthly Expenses</h2>
-          <p className="amount negative">${Math.abs(monthlyExpenses).toFixed(2)}</p>
+          <p className="amount negative">{Math.abs(monthlyExpenses).toFixed(2)}</p>
         </div>
 
         <div className="summary-card">
           <h2>Monthly Net</h2>
           <p className={`amount ${monthlyNet >= 0 ? 'positive' : 'negative'}`}>
-            ${monthlyNet.toFixed(2)}
+            {monthlyNet.toFixed(2)}
           </p>
         </div>
       </div>
@@ -125,7 +125,7 @@ const Dashboard = () => {
                 <h3>{account.name}</h3>
                 <p className="account-type">{account.account_type}</p>
                 <p className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-                  {account.currency} {account.balance.toFixed(2)}
+                  {account.balance.toFixed(2)}
                 </p>
                 <Link to={`/accounts/${account.id}`} className="card-link">View Details</Link>
               </div>
