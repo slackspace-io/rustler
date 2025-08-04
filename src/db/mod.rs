@@ -2,8 +2,12 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::time::Duration;
 
 mod migrations;
+mod double_entry_migration;
+mod fix_null_destination_migration;
 
 pub use migrations::run_migrations;
+pub use double_entry_migration::migrate_to_double_entry;
+pub use fix_null_destination_migration::fix_null_destination_accounts;
 
 /// Initialize a connection pool to the database
 pub async fn init_db_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
