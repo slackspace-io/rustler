@@ -7,17 +7,16 @@ mod services;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::http::{header, Method, StatusCode};
-use axum::response::{Html, Redirect};
+use axum::http::{header, Method};
+use axum::response::Html;
 use axum::Router;
 use axum::routing::get;
-use hyper::server::conn::http1;
-use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::info;
+
 
 // Handler for the API root path
 async fn api_root_handler() -> Html<String> {
@@ -139,7 +138,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api", get(api_root_handler))
         .nest("/api", api_router)
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
-        .fallback_service(ServeDir::new("frontend/dist").append_index_html_on_directories(true))
+        // Serve static files from the frontend/dist directory with SPA fallback
+        .fallback_service(ServeDir::new("frontend/dist"))
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 

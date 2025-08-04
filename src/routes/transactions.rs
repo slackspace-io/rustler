@@ -236,7 +236,10 @@ async fn import_csv_transactions(
             .and_then(|idx| if idx < row.len() {
                 let date_str = &row[idx];
                 // Try different date formats
-                if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                // First try ISO 8601 format (e.g., 2025-08-03T17:21:12+00:00)
+                if let Ok(date_time) = chrono::DateTime::parse_from_rfc3339(date_str) {
+                    Some(date_time.with_timezone(&Utc))
+                } else if let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
                     Some(chrono::DateTime::<Utc>::from_utc(
                         chrono::NaiveDateTime::new(date, chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
                         Utc,

@@ -40,7 +40,7 @@ RUN mkdir -p src && \
 
 # Copy the actual source code
 COPY src/ src/
-
+COPY .sqlx/ .sqlx/
 # Copy the built frontend from the previous stage
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
@@ -69,6 +69,7 @@ COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 ENV PORT=3000
 ENV HOST=0.0.0.0
 ENV RUST_LOG=info
+ENV SQLX_OFFLINE=true
 
 # Expose the application port
 EXPOSE 3000

@@ -245,17 +245,7 @@ const BalanceOverTime = () => {
             periodEnd.setTime(lastDate.getTime() + 1); // Add 1ms to include lastDate
           }
 
-          const dateString = formatDateByGranularity(currentDate);
-          const dataPoint: BalanceDataPoint = { date: dateString };
-
-          // Add balance for each selected account
-          for (const accountId of selectedAccounts) {
-            dataPoint[accountId] = accountBalances[accountId] || 0;
-          }
-
-          data.push(dataPoint);
-
-          // Find transactions in this period and update balances
+          // Find transactions in this period and update balances BEFORE adding to data point
           const periodTransactions = filteredTransactions.filter(transaction =>
             isTransactionInPeriod(transaction, currentDate, periodEnd)
           );
@@ -266,6 +256,16 @@ const BalanceOverTime = () => {
               accountBalances[transaction.source_account_id] -= transaction.amount;
             }
           }
+
+          const dateString = formatDateByGranularity(currentDate);
+          const dataPoint: BalanceDataPoint = { date: dateString };
+
+          // Add balance for each selected account AFTER updating balances
+          for (const accountId of selectedAccounts) {
+            dataPoint[accountId] = accountBalances[accountId] || 0;
+          }
+
+          data.push(dataPoint);
 
           // Move to next period
           advanceDate(currentDate);
