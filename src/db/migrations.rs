@@ -1,4 +1,4 @@
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Row};
 use tracing::info;
 
 /// Run database migrations to set up the schema
@@ -157,6 +157,115 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
     )
     .execute(pool)
     .await?;
+
+    // Check if categories table exists
+    let categories_table_exists = sqlx::query("SELECT to_regclass('public.categories')::text")
+        .fetch_optional(pool)
+        .await?;
+
+    // Check if the table exists by safely handling the result
+    let table_exists = match categories_table_exists {
+        Some(row) => match row.try_get::<Option<String>, _>(0) {
+            Ok(Some(table_name)) if !table_name.is_empty() => true,
+            _ => false,
+        },
+        None => false,
+    };
+
+    if !table_exists {
+        info!("Creating categories table...");
+
+        // Create categories table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS categories (
+                id UUID PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create unique index on category name for faster lookups and to support ON CONFLICT
+        sqlx::query(
+            r#"
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name ON categories(name)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Migrate existing categories from transactions table
+        info!("Migrating existing categories...");
+
+        // Get distinct categories from transactions
+        let categories = sqlx::query("SELECT DISTINCT category FROM transactions")
+            .fetch_all(pool)
+            .await?;
+
+        // Insert each category into the categories table
+        let now = chrono::Utc::now();
+        for row in categories {
+            let category_name: String = row.get(0);
+            let category_id = uuid::Uuid::new_v4();
+
+            sqlx::query(
+                r#"
+                INSERT INTO categories (id, name, description, created_at, updated_at)
+                VALUES ($1, $2, NULL, $3, $4)
+                ON CONFLICT (name) DO NOTHING
+                "#,
+            )
+            .bind(category_id)
+            .bind(&category_name)
+            .bind(now)
+            .bind(now)
+            .execute(pool)
+            .await?;
+        }
+    }
+
+    // Check if transactions table has category_id column
+    let category_id_exists = sqlx::query("SELECT column_name FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'category_id'")
+        .fetch_optional(pool)
+        .await?;
+
+    if category_id_exists.is_none() {
+        info!("Adding category_id to transactions table...");
+
+        // Add category_id column to transactions table
+        sqlx::query(
+            r#"
+            ALTER TABLE transactions
+            ADD COLUMN category_id UUID NULL
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create foreign key constraint
+        sqlx::query(
+            r#"
+            ALTER TABLE transactions
+            ADD CONSTRAINT fk_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on category_id
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_transactions_category_id ON transactions(category_id)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    }
 
     info!("Database migrations completed successfully");
     Ok(())

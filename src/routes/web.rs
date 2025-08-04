@@ -12,7 +12,7 @@ use askama::Template;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use uuid::Uuid;
 
-use crate::services::{AccountService, TransactionService};
+use crate::services::{AccountService, TransactionService, CategoryService};
 
 // Define templates using Askama
 #[derive(Template)]
@@ -119,14 +119,16 @@ pub struct NewTransactionQuery {
 pub struct AppState {
     pub account_service: Arc<AccountService>,
     pub transaction_service: Arc<TransactionService>,
+    pub category_service: Arc<CategoryService>,
 }
 
 // Create the web router
-pub fn router(account_service: Arc<AccountService>, transaction_service: Arc<TransactionService>) -> Router {
+pub fn router(account_service: Arc<AccountService>, transaction_service: Arc<TransactionService>, category_service: Arc<CategoryService>) -> Router {
     // Create the app state
     let app_state = AppState {
         account_service,
         transaction_service,
+        category_service,
     };
 
     Router::new()

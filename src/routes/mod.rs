@@ -1,5 +1,6 @@
 mod accounts;
 mod transactions;
+mod categories;
 mod web;
 
 use axum::{
@@ -7,17 +8,26 @@ use axum::{
     routing::{get, post, put, delete},
 };
 
-pub fn create_router(account_service: Arc<AccountService>, transaction_service: Arc<TransactionService>) -> Router {
+pub fn create_router(
+    account_service: Arc<AccountService>,
+    transaction_service: Arc<TransactionService>,
+    category_service: Arc<CategoryService>
+) -> Router {
     Router::new()
         .merge(accounts::router(account_service))
         .merge(transactions::router(transaction_service))
+        .merge(categories::router(category_service))
 }
 
 pub use web::router as web_router_impl;
 
 use std::sync::Arc;
-use crate::services::{AccountService, TransactionService};
+use crate::services::{AccountService, TransactionService, CategoryService};
 
-pub fn web_router(account_service: Arc<AccountService>, transaction_service: Arc<TransactionService>) -> Router {
-    web_router_impl(account_service, transaction_service)
+pub fn web_router(
+    account_service: Arc<AccountService>,
+    transaction_service: Arc<TransactionService>,
+    category_service: Arc<CategoryService>
+) -> Router {
+    web_router_impl(account_service, transaction_service, category_service)
 }
