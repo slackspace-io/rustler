@@ -104,7 +104,7 @@ impl TransactionService {
                 sqlx::query(
                     r#"
                     INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
-                    VALUES ($1, $2, 'DESTINATION', 0.00, 'USD', $3, $4)
+                    VALUES ($1, $2, 'External', 0.00, 'USD', $3, $4)
                     "#,
                 )
                 .bind(new_account_id)
@@ -244,7 +244,7 @@ impl TransactionService {
                     sqlx::query(
                         r#"
                         INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
-                        VALUES ($1, $2, 'DESTINATION', 0.00, 'USD', $3, $4)
+                        VALUES ($1, $2, 'External', 0.00, 'USD', $3, $4)
                         "#,
                     )
                     .bind(new_account_id)

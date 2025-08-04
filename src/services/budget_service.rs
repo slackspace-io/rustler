@@ -191,9 +191,12 @@ impl BudgetService {
         .unwrap();
         let end_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(end_date, Utc);
 
-        // Query for transactions where the destination is an on-budget account
-        // and the source is not an on-budget account (to avoid counting transfers between on-budget accounts)
-        let incoming_funds = sqlx::query_scalar::<_, f64>(
+        // There are two cases to consider for incoming funds:
+        // 1. Money coming into on-budget accounts from external/off-budget accounts (positive amount)
+        // 2. Money going out of external/off-budget accounts to on-budget accounts (negative amount)
+
+        // First, get incoming transactions where destination is on-budget and source is not
+        let incoming_positive = sqlx::query_scalar::<_, f64>(
             r#"
             SELECT COALESCE(SUM(t.amount), 0.0)
             FROM transactions t
@@ -201,6 +204,26 @@ impl BudgetService {
             JOIN accounts src ON t.source_account_id = src.id
             WHERE dest.account_type = 'On Budget'
             AND src.account_type != 'On Budget'
+            AND t.amount > 0
+            AND t.transaction_date >= $1
+            AND t.transaction_date < $2
+            "#,
+        )
+        .bind(start_date.clone())
+        .bind(end_date.clone())
+        .fetch_one(&self.db)
+        .await?;
+
+        // Second, get outgoing transactions (negative amounts) where source is not on-budget and destination is
+        let incoming_negative = sqlx::query_scalar::<_, f64>(
+            r#"
+            SELECT COALESCE(SUM(ABS(t.amount)), 0.0)
+            FROM transactions t
+            JOIN accounts dest ON t.destination_account_id = dest.id
+            JOIN accounts src ON t.source_account_id = src.id
+            WHERE dest.account_type = 'On Budget'
+            AND src.account_type != 'On Budget'
+            AND t.amount < 0
             AND t.transaction_date >= $1
             AND t.transaction_date < $2
             "#,
@@ -209,6 +232,9 @@ impl BudgetService {
         .bind(end_date)
         .fetch_one(&self.db)
         .await?;
+
+        // Total incoming funds is the sum of both types
+        let incoming_funds = incoming_positive + incoming_negative;
 
         Ok(incoming_funds)
     }

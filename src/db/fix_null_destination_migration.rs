@@ -29,8 +29,9 @@ pub async fn fix_null_destination_accounts(pool: &Pool<Postgres>) -> Result<(), 
     let unknown_destination_id = Uuid::new_v4();
 
     // Check if the "Unknown Destination" account already exists
+    // Look for both 'DESTINATION' and 'External' account types for backward compatibility
     let unknown_destination = sqlx::query!(
-        "SELECT id FROM accounts WHERE name = 'Unknown Destination' AND account_type = 'DESTINATION'"
+        "SELECT id FROM accounts WHERE name = 'Unknown Destination' AND (account_type = 'DESTINATION' OR account_type = 'External')"
     )
     .fetch_optional(&mut *tx)
     .await?;
@@ -43,7 +44,7 @@ pub async fn fix_null_destination_accounts(pool: &Pool<Postgres>) -> Result<(), 
         sqlx::query(
             r#"
             INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
-            VALUES ($1, 'Unknown Destination', 'DESTINATION', 0.00, 'USD', $2, $3)
+            VALUES ($1, 'Unknown Destination', 'External', 0.00, 'USD', $2, $3)
             "#,
         )
         .bind(unknown_destination_id)
