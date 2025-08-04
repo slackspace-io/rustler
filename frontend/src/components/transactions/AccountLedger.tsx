@@ -102,12 +102,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       setFormError(null);
 
       // Handle incoming amount (negative to increase balance)
-      if (hasIncoming) {
+      if (hasOutgoing) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
           destination_name: destinationName || undefined,
-          description: hasOutgoing ? `${description} (Incoming)` : description,
-          amount: Math.abs(parseFloat(incomingAmount)), // Negative value to increase balance
+          description: hasOutgoing ? `${description} (Outgoing)` : description,
+          amount: -Math.abs(parseFloat(outgoingAmount)), // Negative value to increase balance
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -115,12 +115,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       }
 
       // Handle outgoing amount (negative)
-      if (hasOutgoing) {
+      if (hasIncoming) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
           destination_name: destinationName || undefined,
-          description: hasIncoming ? `${description} (Outgoing)` : description,
-          amount: -Math.abs(parseFloat(outgoingAmount)), // Ensure negative
+          description: hasIncoming ? `${description} (Incoming)` : description,
+          amount: Math.abs(parseFloat(incomingAmount)),
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -394,22 +394,22 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                   />
                 </td>
                 <td>
-                  <label>Incoming</label>
+                  <label>Outgoing</label>
                   <input
                     type="number"
-                    value={incomingAmount}
-                    onChange={(e) => setIncomingAmount(e.target.value)}
+                    value={outgoingAmount}
+                    onChange={(e) => setOutgoingAmount(e.target.value)}
                     placeholder="0.00"
                     step="0.01"
                     min="0"
                   />
                 </td>
                 <td>
-                  <label>Outgoing</label>
+                  <label>Incoming</label>
                   <input
                     type="number"
-                    value={outgoingAmount}
-                    onChange={(e) => setOutgoingAmount(e.target.value)}
+                    value={incomingAmount}
+                    onChange={(e) => setIncomingAmount(e.target.value)}
                     placeholder="0.00"
                     step="0.01"
                     min="0"
@@ -578,34 +578,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                       )}
                     </td>
 
-                    {/* Amount (Incoming/Outgoing) */}
-                    <td
-                      className={`amount incoming ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
-                      onClick={() => transaction.amount <= 0 && handleStartEdit(transaction, 'amount')}
-                    >
-                      {editing?.transactionId === transaction.id && editing.field === 'amount' && transaction.amount <= 0 ? (
-                        <div className="edit-field">
-                          <input
-                            type="number"
-                            value={Math.abs(parseFloat(editValue)).toString()}
-                            onChange={(e) => setEditValue((-Math.abs(parseFloat(e.target.value))).toString())}
-                            onKeyDown={handleEditKeyDown}
-                            autoFocus
-                            step="0.01"
-                            min="0"
-                          />
-                          <div className="edit-actions">
-                            <button onClick={handleSaveEdit} disabled={editSaving}>
-                              {editSaving ? 'Saving...' : 'Save'}
-                            </button>
-                            <button onClick={handleCancelEdit} disabled={editSaving}>Cancel</button>
-                          </div>
-                          {editError && <div className="edit-error">{editError}</div>}
-                        </div>
-                      ) : (
-                        transaction.amount < 0 ? Math.abs(transaction.amount).toFixed(2) : ''
-                      )}
-                    </td>
+                    {/* Amount (Outgoing/Incoming) */}
                     <td
                       className={`amount outgoing ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
                       onClick={() => transaction.amount > 0 && handleStartEdit(transaction, 'amount')}
@@ -631,6 +604,33 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                         </div>
                       ) : (
                         transaction.amount > 0 ? transaction.amount.toFixed(2) : ''
+                      )}
+                    </td>
+                    <td
+                      className={`amount incoming ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
+                      onClick={() => transaction.amount <= 0 && handleStartEdit(transaction, 'amount')}
+                    >
+                      {editing?.transactionId === transaction.id && editing.field === 'amount' && transaction.amount <= 0 ? (
+                        <div className="edit-field">
+                          <input
+                            type="number"
+                            value={Math.abs(parseFloat(editValue)).toString()}
+                            onChange={(e) => setEditValue((-Math.abs(parseFloat(e.target.value))).toString())}
+                            onKeyDown={handleEditKeyDown}
+                            autoFocus
+                            step="0.01"
+                            min="0"
+                          />
+                          <div className="edit-actions">
+                            <button onClick={handleSaveEdit} disabled={editSaving}>
+                              {editSaving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button onClick={handleCancelEdit} disabled={editSaving}>Cancel</button>
+                          </div>
+                          {editError && <div className="edit-error">{editError}</div>}
+                        </div>
+                      ) : (
+                        transaction.amount < 0 ? Math.abs(transaction.amount).toFixed(2) : ''
                       )}
                     </td>
 
