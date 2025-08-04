@@ -267,6 +267,98 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
         .await?;
     }
 
+    // Check if budgets table exists
+    let budgets_table_exists = sqlx::query("SELECT to_regclass('public.budgets')::text")
+        .fetch_optional(pool)
+        .await?;
+
+    // Check if the table exists by safely handling the result
+    let table_exists = match budgets_table_exists {
+        Some(row) => match row.try_get::<Option<String>, _>(0) {
+            Ok(Some(table_name)) if !table_name.is_empty() => true,
+            _ => false,
+        },
+        None => false,
+    };
+
+    if !table_exists {
+        info!("Creating budgets table...");
+
+        // Create budgets table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS budgets (
+                id UUID PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                amount FLOAT8 NOT NULL DEFAULT 0.00,
+                start_date TIMESTAMPTZ NOT NULL,
+                end_date TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on budget name for faster lookups
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_budgets_name ON budgets(name)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on budget dates for faster date-based queries
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_budgets_dates ON budgets(start_date, end_date)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    }
+
+    // Check if transactions table has budget_id column
+    let budget_id_exists = sqlx::query("SELECT column_name FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'budget_id'")
+        .fetch_optional(pool)
+        .await?;
+
+    if budget_id_exists.is_none() {
+        info!("Adding budget_id to transactions table...");
+
+        // Add budget_id column to transactions table
+        sqlx::query(
+            r#"
+            ALTER TABLE transactions
+            ADD COLUMN budget_id UUID NULL
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create foreign key constraint
+        sqlx::query(
+            r#"
+            ALTER TABLE transactions
+            ADD CONSTRAINT fk_budget FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE SET NULL
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on budget_id
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_transactions_budget_id ON transactions(budget_id)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    }
+
     info!("Database migrations completed successfully");
     Ok(())
 }

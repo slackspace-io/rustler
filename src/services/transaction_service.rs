@@ -75,8 +75,8 @@ impl TransactionService {
         // Create the transaction
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
-            INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, payee_name, description, amount, category, transaction_date, created_at, updated_at)
-            VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, payee_name, description, amount, category, budget_id, transaction_date, created_at, updated_at)
+            VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
             "#,
         )
@@ -87,6 +87,7 @@ impl TransactionService {
         .bind(&req.description)
         .bind(req.amount)
         .bind(&req.category)
+        .bind(req.budget_id)
         .bind(transaction_date)
         .bind(now)
         .bind(now)
@@ -163,6 +164,10 @@ impl TransactionService {
 
             if let Some(category) = &req.category {
                 params.push(format!("category = '{}'", category));
+            }
+
+            if let Some(budget_id) = req.budget_id {
+                params.push(format!("budget_id = '{}'", budget_id));
             }
 
             if let Some(transaction_date) = req.transaction_date {

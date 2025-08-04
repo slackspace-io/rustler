@@ -20,6 +20,8 @@ pub struct Transaction {
     pub amount: f64,
     /// Category of the transaction (e.g., "Food", "Transportation", "Income", "Transfer")
     pub category: String,
+    /// Optional budget ID this transaction is assigned to
+    pub budget_id: Option<Uuid>,
     /// Date and time when the transaction occurred
     pub transaction_date: DateTime<Utc>,
     /// When the transaction record was created
@@ -40,6 +42,8 @@ pub struct CreateTransactionRequest {
     pub description: String,
     pub amount: f64,
     pub category: String,
+    /// Optional budget ID this transaction is assigned to
+    pub budget_id: Option<Uuid>,
     pub transaction_date: Option<DateTime<Utc>>,
 }
 
@@ -53,5 +57,7 @@ pub struct UpdateTransactionRequest {
     pub description: Option<String>,
     pub amount: Option<f64>,
     pub category: Option<String>,
+    /// Optional budget ID this transaction is assigned to
+    pub budget_id: Option<Uuid>,
     pub transaction_date: Option<DateTime<Utc>>,
 }

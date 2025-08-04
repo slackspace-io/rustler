@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { transactionsApi, accountsApi } from '../../services/api';
-import type { Account } from '../../services/api';
+import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
+import type { Account, Budget } from '../../services/api';
 
 const TransactionEdit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +19,7 @@ const TransactionEdit = () => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('Uncategorized');
+  const [budgetId, setBudgetId] = useState<string>('');
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -59,6 +61,10 @@ const TransactionEdit = () => {
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
 
+        // Fetch budgets
+        const budgetsData = await budgetsApi.getActiveBudgets();
+        setBudgets(budgetsData);
+
         // Fetch transaction details
         const transaction = await transactionsApi.getTransaction(id);
 
@@ -68,6 +74,7 @@ const TransactionEdit = () => {
         setDescription(transaction.description);
         setAmount(transaction.amount.toString());
         setCategory(transaction.category);
+        setBudgetId(transaction.budget_id || '');
 
         // Format date for the date input (YYYY-MM-DD)
         const date = new Date(transaction.transaction_date);
@@ -109,6 +116,7 @@ const TransactionEdit = () => {
         description,
         amount: parseFloat(amount),
         category,
+        budget_id: budgetId || undefined,
         transaction_date: new Date(transactionDate).toISOString(),
       });
 
@@ -202,6 +210,22 @@ const TransactionEdit = () => {
           >
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="budget">Budget (Optional)</label>
+          <select
+            id="budget"
+            value={budgetId}
+            onChange={(e) => setBudgetId(e.target.value)}
+          >
+            <option value="">No Budget</option>
+            {budgets.map(budget => (
+              <option key={budget.id} value={budget.id}>
+                {budget.name} (${budget.amount.toFixed(2)})
+              </option>
             ))}
           </select>
         </div>

@@ -12,7 +12,7 @@ use askama::Template;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use uuid::Uuid;
 
-use crate::services::{AccountService, TransactionService, CategoryService};
+use crate::services::{AccountService, TransactionService, CategoryService, BudgetService};
 
 // Define templates using Askama
 #[derive(Template)]
@@ -20,6 +20,7 @@ use crate::services::{AccountService, TransactionService, CategoryService};
 struct DashboardTemplate {
     accounts: Vec<crate::models::Account>,
     recent_transactions: Vec<TransactionWithAccountName>,
+    active_budgets: Vec<BudgetWithSpending>,
     total_balance: f64,
     monthly_income: f64,
     monthly_expenses: f64,
@@ -27,6 +28,16 @@ struct DashboardTemplate {
     default_currency: String,
     accounts_count: usize,
     transactions_count: usize,
+}
+
+// A struct to hold budget data with spending information
+#[derive(Debug, Clone, serde::Serialize)]
+struct BudgetWithSpending {
+    id: Uuid,
+    name: String,
+    amount: f64,
+    spent: f64,
+    remaining: f64,
 }
 
 #[derive(Template)]
@@ -82,6 +93,51 @@ struct TransactionEditTemplate {
     datetime_local: String,
 }
 
+// DEPRECATED: These templates are legacy code and are no longer being used.
+// The application has moved to a React+TypeScript frontend.
+// This code is kept for reference purposes only and can be safely removed in a future cleanup.
+#[derive(Template)]
+#[template(path = "budgets/list.html")]
+struct BudgetListTemplate {
+    budgets: Vec<BudgetDisplay>,
+    total_allocated: f64,
+}
+
+#[derive(Template)]
+#[template(path = "budgets/view.html")]
+struct BudgetViewTemplate {
+    budget: BudgetDisplay,
+    spent: f64,
+    remaining: f64,
+}
+
+#[derive(Template)]
+#[template(path = "budgets/new.html")]
+struct BudgetNewTemplate {
+    current_date: String,
+}
+
+#[derive(Template)]
+#[template(path = "budgets/edit.html")]
+struct BudgetEditTemplate {
+    budget: BudgetDisplay,
+    start_date_local: String,
+    end_date_local: String,
+}
+
+// A simplified version of Budget for display in templates
+#[derive(Debug, Clone, serde::Serialize)]
+struct BudgetDisplay {
+    id: Uuid,
+    name: String,
+    description: String,
+    amount: f64,
+    start_date: String,
+    end_date: String,
+    created_at: String,
+    updated_at: String,
+}
+
 // Define a struct to hold transaction data with account name
 #[derive(Debug, Clone, serde::Serialize)]
 struct TransactionWithAccountName {
@@ -120,15 +176,17 @@ pub struct AppState {
     pub account_service: Arc<AccountService>,
     pub transaction_service: Arc<TransactionService>,
     pub category_service: Arc<CategoryService>,
+    pub budget_service: Arc<BudgetService>,
 }
 
 // Create the web router
-pub fn router(account_service: Arc<AccountService>, transaction_service: Arc<TransactionService>, category_service: Arc<CategoryService>) -> Router {
+pub fn router(account_service: Arc<AccountService>, transaction_service: Arc<TransactionService>, category_service: Arc<CategoryService>, budget_service: Arc<BudgetService>) -> Router {
     // Create the app state
     let app_state = AppState {
         account_service,
         transaction_service,
         category_service,
+        budget_service,
     };
 
     Router::new()
@@ -145,6 +203,12 @@ pub fn router(account_service: Arc<AccountService>, transaction_service: Arc<Tra
         .route("/transactions", get(transaction_list_handler))
         .route("/transactions/new", get(transaction_new_handler))
         .route("/transactions/{id}/edit", get(transaction_edit_handler))
+
+        // Budget routes
+        .route("/budgets", get(budget_list_handler))
+        .route("/budgets/new", get(budget_new_handler))
+        .route("/budgets/{id}", get(budget_view_handler))
+        .route("/budgets/{id}/edit", get(budget_edit_handler))
         .with_state(app_state)
 }
 
@@ -154,6 +218,8 @@ async fn dashboard_handler(
 ) -> impl IntoResponse {
     let account_service = &app_state.account_service;
     let transaction_service = &app_state.transaction_service;
+    let budget_service = &app_state.budget_service;
+
     // Get all accounts
     let accounts = match account_service.get_accounts().await {
         Ok(accounts) => accounts,
@@ -221,6 +287,34 @@ async fn dashboard_handler(
 
     let monthly_net = monthly_income + monthly_expenses;
 
+    // Get active budgets
+    let active_budgets_data = match budget_service.get_active_budgets().await {
+        Ok(budgets) => budgets,
+        Err(_) => vec![],
+    };
+
+    // Convert budgets to BudgetWithSpending objects
+    let mut active_budgets = Vec::new();
+    for budget in active_budgets_data {
+        let spent = match budget_service.get_budget_spent(budget.id).await {
+            Ok(spent) => spent,
+            Err(_) => 0.0,
+        };
+
+        let remaining = match budget_service.get_budget_remaining(budget.id).await {
+            Ok(remaining) => remaining,
+            Err(_) => budget.amount,
+        };
+
+        active_budgets.push(BudgetWithSpending {
+            id: budget.id,
+            name: budget.name,
+            amount: budget.amount,
+            spent,
+            remaining,
+        });
+    }
+
     // Store the accounts count before moving accounts
     let accounts_count = accounts.len();
 
@@ -228,6 +322,7 @@ async fn dashboard_handler(
     let template = DashboardTemplate {
         accounts,
         recent_transactions,
+        active_budgets,
         total_balance,
         monthly_income,
         monthly_expenses,
@@ -486,6 +581,153 @@ async fn transaction_edit_handler(
         accounts,
         datetime_local,
     };
+
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => Html("<p>Error rendering template</p>").into_response(),
+    }
+}
+
+// DEPRECATED: This handler is legacy code and is no longer being used.
+// The application has moved to a React+TypeScript frontend.
+// This code is kept for reference purposes only and can be safely removed in a future cleanup.
+// Budget list handler
+async fn budget_list_handler(
+    State(app_state): State<AppState>,
+) -> impl IntoResponse {
+    let budget_service = &app_state.budget_service;
+    // Get all budgets
+    let budgets = match budget_service.get_budgets().await {
+        Ok(budgets) => budgets,
+        Err(_) => vec![],
+    };
+
+    // Calculate total allocated amount
+    let total_allocated = budgets.iter().fold(0.0, |acc, budget| acc + budget.amount);
+
+    // Convert budgets to BudgetDisplay objects
+    let budget_displays = budgets.into_iter().map(|budget| {
+        BudgetDisplay {
+            id: budget.id,
+            name: budget.name,
+            description: budget.description.unwrap_or_else(|| String::new()),
+            amount: budget.amount,
+            start_date: budget.start_date.format("%Y-%m-%d").to_string(),
+            end_date: budget.end_date.map_or_else(|| "Ongoing".to_string(), |d| d.format("%Y-%m-%d").to_string()),
+            created_at: budget.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+            updated_at: budget.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+        }
+    }).collect();
+
+    // Render the budget list template
+    let template = BudgetListTemplate { budgets: budget_displays, total_allocated };
+
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => Html("<p>Error rendering template</p>").into_response(),
+    }
+}
+
+// DEPRECATED: This handler is legacy code and is no longer being used.
+// The application has moved to a React+TypeScript frontend.
+// This code is kept for reference purposes only and can be safely removed in a future cleanup.
+// Budget view handler
+async fn budget_view_handler(
+    Path(id): Path<Uuid>,
+    State(app_state): State<AppState>,
+) -> impl IntoResponse {
+    let budget_service = &app_state.budget_service;
+    // Get the budget
+    let budget = match budget_service.get_budget(id).await {
+        Ok(Some(budget)) => budget,
+        Ok(None) => return Redirect::to("/budgets").into_response(),
+        Err(_) => return Html("<p>Error fetching budget</p>").into_response(),
+    };
+
+    // Get spent and remaining amounts
+    let spent = match budget_service.get_budget_spent(id).await {
+        Ok(spent) => spent,
+        Err(_) => 0.0,
+    };
+
+    let remaining = match budget_service.get_budget_remaining(id).await {
+        Ok(remaining) => remaining,
+        Err(_) => budget.amount,
+    };
+
+    // Convert budget to BudgetDisplay
+    let budget_display = BudgetDisplay {
+        id: budget.id,
+        name: budget.name,
+        description: budget.description.unwrap_or_else(|| String::new()),
+        amount: budget.amount,
+        start_date: budget.start_date.format("%Y-%m-%d").to_string(),
+        end_date: budget.end_date.map_or_else(|| "Ongoing".to_string(), |d| d.format("%Y-%m-%d").to_string()),
+        created_at: budget.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+        updated_at: budget.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+    };
+
+    // Render the budget view template
+    let template = BudgetViewTemplate { budget: budget_display, spent, remaining };
+
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => Html("<p>Error rendering template</p>").into_response(),
+    }
+}
+
+// DEPRECATED: This handler is legacy code and is no longer being used.
+// The application has moved to a React+TypeScript frontend.
+// This code is kept for reference purposes only and can be safely removed in a future cleanup.
+// Budget new handler
+async fn budget_new_handler() -> impl IntoResponse {
+    // Format current date for date input
+    let now = chrono::Utc::now();
+    let current_date = now.format("%Y-%m-%d").to_string();
+
+    // Render the budget new template
+    let template = BudgetNewTemplate { current_date };
+
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => Html("<p>Error rendering template</p>").into_response(),
+    }
+}
+
+// DEPRECATED: This handler is legacy code and is no longer being used.
+// The application has moved to a React+TypeScript frontend.
+// This code is kept for reference purposes only and can be safely removed in a future cleanup.
+// Budget edit handler
+async fn budget_edit_handler(
+    Path(id): Path<Uuid>,
+    State(app_state): State<AppState>,
+) -> impl IntoResponse {
+    let budget_service = &app_state.budget_service;
+    // Get the budget
+    let budget = match budget_service.get_budget(id).await {
+        Ok(Some(budget)) => budget,
+        Ok(None) => return Redirect::to("/budgets").into_response(),
+        Err(_) => return Html("<p>Error fetching budget</p>").into_response(),
+    };
+
+    // Format dates for date inputs
+    let start_date_local = budget.start_date.format("%Y-%m-%d").to_string();
+    let end_date_local = budget.end_date.map_or_else(String::new, |d| d.format("%Y-%m-%d").to_string());
+
+    // Convert budget to BudgetDisplay
+    let budget_display = BudgetDisplay {
+        id: budget.id,
+        name: budget.name,
+        description: budget.description.unwrap_or_else(|| String::new()),
+        amount: budget.amount,
+        start_date: budget.start_date.format("%Y-%m-%d").to_string(),
+        end_date: budget.end_date.map_or_else(|| "Ongoing".to_string(), |d| d.format("%Y-%m-%d").to_string()),
+        created_at: budget.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+        updated_at: budget.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+    };
+
+    // Render the budget edit template
+    let template = BudgetEditTemplate { budget: budget_display, start_date_local, end_date_local };
 
     match template.render() {
         Ok(html) => Html(html).into_response(),

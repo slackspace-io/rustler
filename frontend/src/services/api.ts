@@ -25,6 +25,17 @@ export interface Transaction {
   updated_at: string;
 }
 
+export interface Budget {
+  id: string;
+  name: string;
+  description?: string;
+  amount: number;
+  start_date: string;
+  end_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // API functions for accounts
 export const accountsApi = {
   // Get all accounts
@@ -153,5 +164,93 @@ export const transactionsApi = {
     if (!response.ok) {
       throw new Error(`Failed to delete transaction with ID ${id}`);
     }
+  },
+};
+
+// API functions for budgets
+export const budgetsApi = {
+  // Get all budgets
+  getBudgets: async (): Promise<Budget[]> => {
+    const response = await fetch(`${API_BASE_URL}/budgets`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch budgets');
+    }
+    return response.json();
+  },
+
+  // Get active budgets
+  getActiveBudgets: async (): Promise<Budget[]> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/active`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch active budgets');
+    }
+    return response.json();
+  },
+
+  // Get a single budget by ID
+  getBudget: async (id: string): Promise<Budget> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Create a new budget
+  createBudget: async (budget: Omit<Budget, 'id' | 'created_at' | 'updated_at'>): Promise<Budget> => {
+    const response = await fetch(`${API_BASE_URL}/budgets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(budget),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create budget');
+    }
+    return response.json();
+  },
+
+  // Update an existing budget
+  updateBudget: async (id: string, budget: Partial<Budget>): Promise<Budget> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(budget),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Delete a budget
+  deleteBudget: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete budget with ID ${id}`);
+    }
+  },
+
+  // Get the total spent amount for a budget
+  getBudgetSpent: async (id: string): Promise<number> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/spent`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch spent amount for budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Get the remaining amount for a budget
+  getBudgetRemaining: async (id: string): Promise<number> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/remaining`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch remaining amount for budget with ID ${id}`);
+    }
+    return response.json();
   },
 };

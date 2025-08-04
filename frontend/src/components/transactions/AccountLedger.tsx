@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { transactionsApi, accountsApi } from '../../services/api';
-import type { Transaction, Account } from '../../services/api';
+import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
+import type { Transaction, Account, Budget } from '../../services/api';
 
 interface AccountLedgerProps {
   accountId: string;
@@ -9,6 +9,7 @@ interface AccountLedgerProps {
 const AccountLedger = ({ accountId }: AccountLedgerProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +19,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
   const [isIncoming, setIsIncoming] = useState(false);
   const [category, setCategory] = useState('Uncategorized');
   const [payeeName, setPayeeName] = useState('');
+  const [budgetId, setBudgetId] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -62,6 +64,10 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         const transactionsData = await transactionsApi.getAccountTransactions(accountId);
         setTransactions(transactionsData);
 
+        // Fetch budgets
+        const budgetsData = await budgetsApi.getActiveBudgets();
+        setBudgets(budgetsData);
+
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch data. Please try again later.');
@@ -100,6 +106,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         description,
         amount: finalAmount,
         category,
+        budget_id: budgetId || undefined,
         transaction_date: new Date().toISOString(),
       });
 
@@ -116,6 +123,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       setAmount('');
       setPayeeName('');
       setCategory('Uncategorized');
+      setBudgetId('');
 
     } catch (err) {
       setFormError('Failed to create transaction. Please try again.');
@@ -175,6 +183,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                 <th>Date</th>
                 <th>Description</th>
                 <th>Category</th>
+                <th>Budget</th>
                 <th>Payee</th>
                 <th>Incoming</th>
                 <th>Outgoing</th>
@@ -201,6 +210,19 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                   >
                     {categories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <select
+                    value={budgetId}
+                    onChange={(e) => setBudgetId(e.target.value)}
+                  >
+                    <option value="">No Budget</option>
+                    {budgets.map(budget => (
+                      <option key={budget.id} value={budget.id}>
+                        {budget.name}
+                      </option>
                     ))}
                   </select>
                 </td>
@@ -268,6 +290,11 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                     <td>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
                     <td>{transaction.description}</td>
                     <td>{transaction.category}</td>
+                    <td>
+                      {transaction.budget_id ?
+                        budgets.find(b => b.id === transaction.budget_id)?.name || 'Unknown Budget'
+                        : '-'}
+                    </td>
                     <td>{transaction.payee_name || '-'}</td>
                     <td className="amount incoming">
                       {transaction.amount > 0 ? transaction.amount.toFixed(2) : ''}

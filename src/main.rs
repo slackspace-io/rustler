@@ -100,6 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let account_service = Arc::new(services::AccountService::new(db_pool.clone()));
     let transaction_service = Arc::new(services::TransactionService::new(db_pool.clone()));
     let category_service = Arc::new(services::CategoryService::new(db_pool.clone()));
+    let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()));
 
     // Set up CORS
     let cors = CorsLayer::new()
@@ -108,7 +109,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .allow_origin(Any);
 
     // Create API router
-    let api_router = routes::create_router(account_service.clone(), transaction_service.clone(), category_service.clone());
+    let api_router = routes::create_router(
+        account_service.clone(),
+        transaction_service.clone(),
+        category_service.clone(),
+        budget_service.clone()
+    );
 
     // Create main router with API routes and serve React frontend
     let app = Router::new()

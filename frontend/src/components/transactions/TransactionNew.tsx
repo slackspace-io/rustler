@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { transactionsApi, accountsApi } from '../../services/api';
-import type { Account } from '../../services/api';
+import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
+import type { Account, Budget } from '../../services/api';
 
 const TransactionNew = () => {
   const navigate = useNavigate();
@@ -9,6 +9,7 @@ const TransactionNew = () => {
   const preselectedAccountId = searchParams.get('source_account_id');
 
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +23,7 @@ const TransactionNew = () => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('Uncategorized');
+  const [budgetId, setBudgetId] = useState<string>('');
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -53,29 +55,35 @@ const TransactionNew = () => {
   ];
 
   useEffect(() => {
-    const fetchAccounts = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await accountsApi.getAccounts();
-        setAccounts(data);
+
+        // Fetch accounts
+        const accountsData = await accountsApi.getAccounts();
+        setAccounts(accountsData);
 
         // If there's a preselected account ID, set the account name too
         if (preselectedAccountId) {
-          const selectedAccount = data.find(account => account.id === preselectedAccountId);
+          const selectedAccount = accountsData.find(account => account.id === preselectedAccountId);
           if (selectedAccount) {
             setSourceAccountName(`${selectedAccount.name} (${selectedAccount.balance.toFixed(2)} ${selectedAccount.currency})`);
           }
         }
 
+        // Fetch budgets
+        const budgetsData = await budgetsApi.getActiveBudgets();
+        setBudgets(budgetsData);
+
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch accounts. Please try again later.');
+        setError('Failed to fetch data. Please try again later.');
         setLoading(false);
-        console.error('Error fetching accounts:', err);
+        console.error('Error fetching data:', err);
       }
     };
 
-    fetchAccounts();
+    fetchData();
   }, [preselectedAccountId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,6 +134,7 @@ const TransactionNew = () => {
           description,
           amount: finalAmount,
           category: isTransfer ? 'Transfer' : category,
+          budget_id: !isTransfer && budgetId ? budgetId : undefined,
           transaction_date: new Date(transactionDate).toISOString(),
         });
       } else {
@@ -138,6 +147,7 @@ const TransactionNew = () => {
           description: `${description} (From: ${cleanSourceAccountName})`,
           amount: finalAmount,
           category: isTransfer ? 'Transfer' : category,
+          budget_id: !isTransfer && budgetId ? budgetId : undefined,
           transaction_date: new Date(transactionDate).toISOString(),
         });
       }
@@ -303,6 +313,24 @@ const TransactionNew = () => {
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!isTransfer && (
+          <div className="form-group">
+            <label htmlFor="budget">Budget (Optional)</label>
+            <select
+              id="budget"
+              value={budgetId}
+              onChange={(e) => setBudgetId(e.target.value)}
+            >
+              <option value="">No Budget</option>
+              {budgets.map(budget => (
+                <option key={budget.id} value={budget.id}>
+                  {budget.name} (${budget.amount.toFixed(2)})
+                </option>
               ))}
             </select>
           </div>
