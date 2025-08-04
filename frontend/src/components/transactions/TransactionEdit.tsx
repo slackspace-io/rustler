@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
 import type { Account, Budget } from '../../services/api';
+import CategoryInput from '../common/CategoryInput';
 
 const TransactionEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,31 +25,7 @@ const TransactionEdit = () => {
     new Date().toISOString().split('T')[0]
   );
 
-  // Common categories
-  const categories = [
-    'Uncategorized',
-    'Income',
-    'Salary',
-    'Food',
-    'Groceries',
-    'Dining',
-    'Housing',
-    'Rent',
-    'Mortgage',
-    'Utilities',
-    'Transportation',
-    'Entertainment',
-    'Shopping',
-    'Health',
-    'Insurance',
-    'Education',
-    'Travel',
-    'Gifts',
-    'Savings',
-    'Investment',
-    'Transfer',
-    'Other'
-  ];
+  // Category is now handled by the CategoryInput component
 
   useEffect(() => {
     const fetchData = async () => {
@@ -203,15 +180,11 @@ const TransactionEdit = () => {
 
         <div className="form-group">
           <label htmlFor="category">Category</label>
-          <select
-            id="category"
+          <CategoryInput
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+            onChange={setCategory}
+            placeholder="Select or create a category"
+          />
         </div>
 
         <div className="form-group">
