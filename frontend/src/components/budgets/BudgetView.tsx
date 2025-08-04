@@ -89,18 +89,18 @@ const BudgetView = () => {
         <div className="summary-boxes">
           <div className="summary-box">
             <h2>Total Budget</h2>
-            <p className="total-amount">${budget.amount.toFixed(2)}</p>
+            <p className="total-amount">{budget.amount.toFixed(2)}</p>
           </div>
 
           <div className="summary-box">
             <h2>Spent</h2>
-            <p className="spent-amount">${spent.toFixed(2)}</p>
+            <p className="spent-amount">{spent.toFixed(2)}</p>
           </div>
 
           <div className="summary-box">
             <h2>Remaining</h2>
             <p className={`remaining-amount ${remaining >= 0 ? 'positive' : 'negative'}`}>
-              ${remaining.toFixed(2)}
+              {remaining.toFixed(2)}
             </p>
           </div>
         </div>
@@ -109,7 +109,7 @@ const BudgetView = () => {
           <h2>Budget Details</h2>
           <p><strong>Name:</strong> {budget.name}</p>
           <p><strong>Description:</strong> {budget.description || 'No description provided'}</p>
-          <p><strong>Amount:</strong> ${budget.amount.toFixed(2)}</p>
+          <p><strong>Amount:</strong> {budget.amount.toFixed(2)}</p>
           <p><strong>Start Date:</strong> {formatDate(budget.start_date)}</p>
           <p><strong>End Date:</strong> {formatDate(budget.end_date)}</p>
           <p><strong>Created:</strong> {new Date(budget.created_at).toLocaleDateString()}</p>

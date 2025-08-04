@@ -87,7 +87,6 @@ const BudgetNew = () => {
         <div className="form-group">
           <label htmlFor="amount">Budget Amount</label>
           <div className="input-with-prefix">
-            <span className="prefix">$</span>
             <input
               type="number"
               id="amount"

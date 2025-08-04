@@ -133,7 +133,7 @@ const TransactionEdit = () => {
             <option value="">Select Account</option>
             {accounts.map(account => (
               <option key={account.id} value={account.id}>
-                {account.name} ({account.balance.toFixed(2)} {account.currency})
+                {account.name} ({account.balance.toFixed(2)})
               </option>
             ))}
           </select>
@@ -171,10 +171,10 @@ const TransactionEdit = () => {
             onChange={(e) => setAmount(e.target.value)}
             step="0.01"
             required
-            placeholder="Use negative values for expenses"
+            placeholder="Use negative values for income"
           />
           <small>
-            Use positive values for income, negative for expenses
+            Use negative values for income, positive for expenses
           </small>
         </div>
 
@@ -197,7 +197,7 @@ const TransactionEdit = () => {
             <option value="">No Budget</option>
             {budgets.map(budget => (
               <option key={budget.id} value={budget.id}>
-                {budget.name} (${budget.amount.toFixed(2)})
+                {budget.name} ({budget.amount.toFixed(2)})
               </option>
             ))}
           </select>

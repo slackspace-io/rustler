@@ -73,7 +73,7 @@ const BudgetsList = () => {
 
       <div className="summary-box">
         <h2>Total Allocated</h2>
-        <p className="total-allocated">${totalAllocated.toFixed(2)}</p>
+        <p className="total-allocated">{totalAllocated.toFixed(2)}</p>
       </div>
 
       {budgets.length === 0 ? (
@@ -95,7 +95,7 @@ const BudgetsList = () => {
                 <td>
                   <Link to={`/budgets/${budget.id}`}>{budget.name}</Link>
                 </td>
-                <td>${budget.amount.toFixed(2)}</td>
+                <td>{budget.amount.toFixed(2)}</td>
                 <td>{formatDate(budget.start_date)}</td>
                 <td>{formatDate(budget.end_date)}</td>
                 <td>

@@ -44,7 +44,7 @@ const TransactionNew = () => {
         if (preselectedAccountId) {
           const selectedAccount = accountsData.find(account => account.id === preselectedAccountId);
           if (selectedAccount) {
-            setSourceAccountName(`${selectedAccount.name} (${selectedAccount.balance.toFixed(2)} ${selectedAccount.currency})`);
+            setSourceAccountName(`${selectedAccount.name} (${selectedAccount.balance.toFixed(2)})`);
           }
         }
 
@@ -87,7 +87,7 @@ const TransactionNew = () => {
 
       // For transfers, we need to adjust the amount and payee
       const finalAmount = isTransfer
-        ? Math.abs(parseFloat(amount)) * -1 // Outgoing from source account
+        ? Math.abs(parseFloat(amount)) // Outgoing from source account (positive)
         : parseFloat(amount);
 
       const finalPayeeName = isTransfer
@@ -141,7 +141,7 @@ const TransactionNew = () => {
           destination_account_id: sourceAccountId || undefined,
           payee_name: sourceAccountDisplayName,
           description: `Transfer from ${sourceAccountDisplayName}`,
-          amount: Math.abs(parseFloat(amount)), // Incoming to destination account
+          amount: -Math.abs(parseFloat(amount)), // Incoming to destination account (negative)
           category: 'Transfer',
           transaction_date: new Date(transactionDate).toISOString(),
         });
@@ -203,7 +203,7 @@ const TransactionNew = () => {
               // Check if the input matches an existing account
               const matchedAccount = accounts.find(
                 account => account.name === inputValue ||
-                           `${account.name} (${account.balance.toFixed(2)} ${account.currency})` === inputValue
+                           `${account.name} (${account.balance.toFixed(2)})` === inputValue
               );
 
               // If matched, set the account ID, otherwise clear it
@@ -214,7 +214,7 @@ const TransactionNew = () => {
           />
           <datalist id="source-accounts-list">
             {accounts.map(account => (
-              <option key={account.id} value={`${account.name} (${account.balance.toFixed(2)} ${account.currency})`} />
+              <option key={account.id} value={`${account.name} (${account.balance.toFixed(2)})`} />
             ))}
           </datalist>
         </div>
@@ -233,7 +233,7 @@ const TransactionNew = () => {
                 .filter(account => account.id !== sourceAccountId)
                 .map(account => (
                   <option key={account.id} value={account.id}>
-                    {account.name} ({account.balance.toFixed(2)} {account.currency})
+                    {account.name} ({account.balance.toFixed(2)})
                   </option>
                 ))
               }
@@ -273,10 +273,10 @@ const TransactionNew = () => {
             onChange={(e) => setAmount(e.target.value)}
             step="0.01"
             required
-            placeholder="Use negative values for expenses"
+            placeholder="Use negative values for income"
           />
           <small>
-            Use positive values for income, negative for expenses
+            Use negative values for income, positive for expenses
           </small>
         </div>
 
@@ -302,7 +302,7 @@ const TransactionNew = () => {
               <option value="">No Budget</option>
               {budgets.map(budget => (
                 <option key={budget.id} value={budget.id}>
-                  {budget.name} (${budget.amount.toFixed(2)})
+                  {budget.name} ({budget.amount.toFixed(2)})
                 </option>
               ))}
             </select>

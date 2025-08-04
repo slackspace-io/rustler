@@ -66,7 +66,7 @@ const AccountsList = () => {
 
       <div className="summary-box">
         <h2>Total Balance</h2>
-        <p className="total-balance">${totalBalance.toFixed(2)}</p>
+        <p className="total-balance">{totalBalance.toFixed(2)}</p>
       </div>
 
       {accounts.length === 0 ? (
@@ -78,7 +78,6 @@ const AccountsList = () => {
               <th>Name</th>
               <th>Type</th>
               <th>Balance</th>
-              <th>Currency</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -92,7 +91,6 @@ const AccountsList = () => {
                 <td className={account.balance >= 0 ? 'positive' : 'negative'}>
                   {account.balance.toFixed(2)}
                 </td>
-                <td>{account.currency}</td>
                 <td>
                   <div className="actions">
                     <Link to={`/accounts/${account.id}`} className="button small">View</Link>

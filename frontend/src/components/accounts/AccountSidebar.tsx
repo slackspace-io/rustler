@@ -64,7 +64,7 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount }: AccountSidebarPr
           >
             <div className="account-name">{account.name}</div>
             <div className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-              {account.balance.toFixed(2)} {account.currency}
+              {account.balance.toFixed(2)}
             </div>
           </li>
         ))}

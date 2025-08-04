@@ -219,7 +219,7 @@ const TransactionsList = () => {
       <div className="summary-box">
         <h2>Total Amount</h2>
         <p className={`total-amount ${totalAmount >= 0 ? 'positive' : 'negative'}`}>
-          ${totalAmount.toFixed(2)}
+          {totalAmount.toFixed(2)}
         </p>
       </div>
 
