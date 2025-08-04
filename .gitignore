@@ -2,3 +2,5 @@
 /.output.txt
 /.env
 /src/routes/web.rs.bak
+/test_fix_null_destination.sh
+/test_transactions.sh
