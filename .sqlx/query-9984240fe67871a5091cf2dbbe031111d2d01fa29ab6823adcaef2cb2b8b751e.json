@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT t.destination_account_id, SUM(t.amount) as total_amount\n        FROM transactions t\n        JOIN accounts a ON t.destination_account_id = a.id\n        WHERE a.account_type = 'PAYEE'\n        GROUP BY t.destination_account_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "destination_account_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_amount",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "9984240fe67871a5091cf2dbbe031111d2d01fa29ab6823adcaef2cb2b8b751e"
+}
