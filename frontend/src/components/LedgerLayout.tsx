@@ -23,6 +23,7 @@ const LedgerLayout = () => {
         ) : (
           <div className="no-account-selected">
             <p>Please select an account from the sidebar to view transactions.</p>
+            <p className="help-text">You can choose from both On Budget and Off Budget accounts listed in the sidebar.</p>
           </div>
         )}
       </div>

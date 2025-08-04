@@ -838,12 +838,21 @@ a.button.small {
 
 .no-account-selected {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100%;
   color: var(--color-text-muted);
   font-style: italic;
   transition: color 0.3s ease;
+}
+
+.no-account-selected .help-text {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  font-style: normal;
+  max-width: 400px;
 }
 
 /* Editable cell styles */
