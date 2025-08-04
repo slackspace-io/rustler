@@ -214,15 +214,20 @@ impl BudgetService {
         .fetch_one(&self.db)
         .await?;
 
-        // Second, get outgoing transactions (negative amounts) where source is not on-budget and destination is
+        // Second, get outgoing transactions (negative amounts) where:
+        // 1. destination is on-budget and source is not on-budget, OR
+        // 2. source is on-budget and destination is not on-budget
         let incoming_negative = sqlx::query_scalar::<_, f64>(
             r#"
             SELECT COALESCE(SUM(ABS(t.amount)), 0.0)
             FROM transactions t
             JOIN accounts dest ON t.destination_account_id = dest.id
             JOIN accounts src ON t.source_account_id = src.id
-            WHERE dest.account_type = 'On Budget'
-            AND src.account_type != 'On Budget'
+            WHERE (
+                (dest.account_type = 'On Budget' AND src.account_type != 'On Budget')
+                OR
+                (src.account_type = 'On Budget' AND dest.account_type != 'On Budget')
+            )
             AND t.amount < 0
             AND t.transaction_date >= $1
             AND t.transaction_date < $2
