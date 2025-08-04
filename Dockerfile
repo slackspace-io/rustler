@@ -40,7 +40,7 @@ RUN mkdir -p src && \
 
 # Copy the actual source code
 COPY src/ src/
-
+COPY .sqlx/ .sqlx/
 # Copy the built frontend from the previous stage
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
