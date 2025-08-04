@@ -32,12 +32,6 @@ RUN apt-get update && \
 # Copy Cargo files for dependency caching
 COPY Cargo.toml Cargo.lock ./
 
-# Create a dummy main.rs to build dependencies
-RUN mkdir -p src && \
-    echo "fn main() {}" > src/main.rs && \
-    cargo build --release && \
-    rm -rf src
-
 # Copy the actual source code
 COPY src/ src/
 COPY .sqlx/ .sqlx/
