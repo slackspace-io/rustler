@@ -16,7 +16,7 @@ const TransactionEdit = () => {
 
   // Form state
   const [sourceAccountId, setSourceAccountId] = useState('');
-  const [payeeName, setPayeeName] = useState('');
+  const [destinationName, setDestinationName] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('Uncategorized');
@@ -47,7 +47,7 @@ const TransactionEdit = () => {
 
         // Initialize form with transaction data
         setSourceAccountId(transaction.source_account_id);
-        setPayeeName(transaction.payee_name || '');
+        setDestinationName(transaction.destination_name || '');
         setDescription(transaction.description);
         setAmount(transaction.amount.toString());
         setCategory(transaction.category);
@@ -89,7 +89,7 @@ const TransactionEdit = () => {
 
       await transactionsApi.updateTransaction(id, {
         source_account_id: sourceAccountId,
-        payee_name: payeeName || undefined,
+        destination_name: destinationName || undefined,
         description,
         amount: parseFloat(amount),
         category,
@@ -140,12 +140,12 @@ const TransactionEdit = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="payee">Payee (Optional)</label>
+          <label htmlFor="destination">Destination (Optional)</label>
           <input
             type="text"
-            id="payee"
-            value={payeeName}
-            onChange={(e) => setPayeeName(e.target.value)}
+            id="destination"
+            value={destinationName}
+            onChange={(e) => setDestinationName(e.target.value)}
             placeholder="Who was this payment to/from?"
           />
         </div>

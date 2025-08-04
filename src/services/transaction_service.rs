@@ -48,10 +48,16 @@ impl TransactionService {
             .await
     }
 
-    /// Get transactions for a specific account
-    pub async fn get_account_transactions(&self, source_account_id: Uuid) -> Result<Vec<Transaction>, sqlx::Error> {
-        sqlx::query_as::<_, Transaction>("SELECT * FROM transactions WHERE source_account_id = $1 ORDER BY transaction_date DESC")
-            .bind(source_account_id)
+    /// Get transactions for a specific account (both as source and destination)
+    pub async fn get_account_transactions(&self, account_id: Uuid) -> Result<Vec<Transaction>, sqlx::Error> {
+        sqlx::query_as::<_, Transaction>(
+            r#"
+            SELECT * FROM transactions
+            WHERE source_account_id = $1 OR destination_account_id = $1
+            ORDER BY transaction_date DESC
+            "#
+        )
+            .bind(account_id)
             .fetch_all(&self.db)
             .await
     }
@@ -72,6 +78,46 @@ impl TransactionService {
         // Start a transaction to update both the transaction table and the account balance(s)
         let mut tx = self.db.begin().await?;
 
+        // Determine if this is a transfer (destination matches an on or off budget account)
+        // or an external account (which should be created if it doesn't exist)
+        let destination_account_id = if let Some(dest_id) = req.destination_account_id {
+            // If destination_account_id is provided, use it directly
+            dest_id
+        } else {
+            // Get the destination name to use for matching or creating an account
+            let dest_name = req.destination_name.as_ref().map(|s| s.as_str()).unwrap_or(&req.description);
+
+            // Check if there's an existing account that matches the destination name
+            let existing_account = sqlx::query!(
+                "SELECT id FROM accounts WHERE name = $1",
+                dest_name
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            if let Some(record) = existing_account {
+                // Use the existing account
+                record.id
+            } else {
+                // Create a new external account
+                let new_account_id = Uuid::new_v4();
+                sqlx::query(
+                    r#"
+                    INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
+                    VALUES ($1, $2, 'External', 0.00, 'USD', $3, $4)
+                    "#,
+                )
+                .bind(new_account_id)
+                .bind(dest_name)
+                .bind(now)
+                .bind(now)
+                .execute(&mut *tx)
+                .await?;
+
+                new_account_id
+            }
+        };
+
         // Create the transaction
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
@@ -82,7 +128,7 @@ impl TransactionService {
         )
         .bind(Uuid::new_v4())
         .bind(req.source_account_id)
-        .bind(req.destination_account_id)
+        .bind(destination_account_id)
         .bind(&req.description)
         .bind(req.amount)
         .bind(&req.category)
@@ -122,7 +168,7 @@ impl TransactionService {
         )
         .bind(req.amount)
         .bind(now)
-        .bind(req.destination_account_id)
+        .bind(destination_account_id)
         .execute(&mut *tx)
         .await?;
 
@@ -172,8 +218,48 @@ impl TransactionService {
             }
 
             // Handle destination account updates
+            let mut new_destination_id = None;
+
             if let Some(destination_account_id) = req.destination_account_id {
+                // If destination_account_id is provided, use it directly
                 params.push(format!("destination_account_id = '{}'", destination_account_id));
+                new_destination_id = Some(destination_account_id);
+            } else if let Some(dest_name) = &req.destination_name {
+                // If destination_name is provided but not destination_account_id,
+                // check if there's an existing account that matches the destination name
+                let existing_account = sqlx::query!(
+                    "SELECT id FROM accounts WHERE name = $1",
+                    dest_name
+                )
+                .fetch_optional(&mut *tx)
+                .await?;
+
+                if let Some(record) = existing_account {
+                    // Use the existing account
+                    params.push(format!("destination_account_id = '{}'", record.id));
+                    new_destination_id = Some(record.id);
+                } else {
+                    // Create a new external account
+                    let new_account_id = Uuid::new_v4();
+                    sqlx::query(
+                        r#"
+                        INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
+                        VALUES ($1, $2, 'External', 0.00, 'USD', $3, $4)
+                        "#,
+                    )
+                    .bind(new_account_id)
+                    .bind(dest_name)
+                    .bind(now)
+                    .bind(now)
+                    .execute(&mut *tx)
+                    .await?;
+
+                    params.push(format!("destination_account_id = '{}'", new_account_id));
+                    new_destination_id = Some(new_account_id);
+                }
+
+                // Also update the destination_name field in the transaction
+                params.push(format!("destination_name = '{}'", dest_name));
             }
 
             if !params.is_empty() {

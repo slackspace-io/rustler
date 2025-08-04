@@ -91,12 +91,20 @@ const AccountView = () => {
       <div className="account-transactions">
         <div className="section-header">
           <h2>Transactions</h2>
-          <Link
-            to={`/transactions/new?source_account_id=${id}`}
-            className="button"
-          >
-            Add Transaction
-          </Link>
+          <div className="button-group">
+            <Link
+              to={`/transactions/new?source_account_id=${id}`}
+              className="button"
+            >
+              Add Transaction
+            </Link>
+            <Link
+              to={`/accounts/${id}/import`}
+              className="button"
+            >
+              Import from CSV
+            </Link>
+          </div>
         </div>
 
         {transactions.length === 0 ? (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { accountsApi } from '../../services/api';
 import type { Account } from '../../services/api';
+import { ACCOUNT_TYPE } from '../../constants/accountTypes';
 
 interface AccountSidebarProps {
   selectedAccountId: string | null;
@@ -17,12 +18,14 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount }: AccountSidebarPr
       try {
         setLoading(true);
         const data = await accountsApi.getAccounts();
-        setAccounts(data);
 
-        // If no account is selected and we have accounts, select the first one
-        if (!selectedAccountId && data.length > 0) {
-          onSelectAccount(data[0].id);
-        }
+        // Filter out external accounts, only show on-budget and off-budget accounts
+        const filteredAccounts = data.filter(account =>
+          account.account_type === ACCOUNT_TYPE.ON_BUDGET ||
+          account.account_type === ACCOUNT_TYPE.OFF_BUDGET
+        );
+
+        setAccounts(filteredAccounts);
 
         setLoading(false);
       } catch (err) {
@@ -52,23 +55,48 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount }: AccountSidebarPr
     );
   }
 
+  // Group accounts by budget status
+  const onBudgetAccounts = accounts.filter(account => account.account_type === ACCOUNT_TYPE.ON_BUDGET);
+  const offBudgetAccounts = accounts.filter(account => account.account_type === ACCOUNT_TYPE.OFF_BUDGET);
+
+  // Render account list item
+  const renderAccountItem = (account: Account) => (
+    <li
+      key={account.id}
+      className={`account-item ${selectedAccountId === account.id ? 'selected' : ''}`}
+      onClick={() => onSelectAccount(account.id)}
+    >
+      <div className="account-name">{account.name}</div>
+      <div className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
+        {account.balance.toFixed(2)}
+      </div>
+    </li>
+  );
+
   return (
     <div className="account-sidebar">
       <h2>Accounts</h2>
-      <ul className="account-list">
-        {accounts.map(account => (
-          <li
-            key={account.id}
-            className={`account-item ${selectedAccountId === account.id ? 'selected' : ''}`}
-            onClick={() => onSelectAccount(account.id)}
-          >
-            <div className="account-name">{account.name}</div>
-            <div className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-              {account.balance.toFixed(2)}
-            </div>
-          </li>
-        ))}
-      </ul>
+
+      {/* On Budget Accounts */}
+      {onBudgetAccounts.length > 0 && (
+        <>
+          <h3 className="account-group-heading">On Budget</h3>
+          <ul className="account-list">
+            {onBudgetAccounts.map(renderAccountItem)}
+          </ul>
+        </>
+      )}
+
+      {/* Off Budget Accounts */}
+      {offBudgetAccounts.length > 0 && (
+        <>
+          <h3 className="account-group-heading">Off Budget</h3>
+          <ul className="account-list">
+            {offBudgetAccounts.map(renderAccountItem)}
+          </ul>
+        </>
+      )}
+
       <div className="account-sidebar-actions">
         <a href="/accounts/new" className="button">Add Account</a>
       </div>

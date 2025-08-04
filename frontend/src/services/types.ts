@@ -21,7 +21,8 @@ export interface Transaction {
   id: string;
   source_account_id: string;
   destination_account_id?: string;
-  payee_name?: string;
+  payee_name?: string; // Keeping for backward compatibility
+  destination_name?: string;
   description: string;
   amount: number;
   category: string;
@@ -40,4 +41,14 @@ export interface Budget {
   end_date?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface MonthlyBudgetStatus {
+  incoming_funds: number;
+  budgeted_amount: number;
+  remaining_to_budget: number;
+}
+
+export interface Settings {
+  numberFormat: 'decimal' | 'comma';
 }

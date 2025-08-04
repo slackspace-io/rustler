@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
 import type { Account, Budget } from '../../services/api';
 import CategoryInput from '../common/CategoryInput';
+import { useSettings } from '../../contexts/useSettings';
 
 const TransactionNew = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedAccountId = searchParams.get('source_account_id');
+  const { formatNumber } = useSettings();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -20,11 +22,12 @@ const TransactionNew = () => {
   const [sourceAccountName, setSourceAccountName] = useState('');
   const [destinationAccountId, setDestinationAccountId] = useState('');
   const [isTransfer, setIsTransfer] = useState(false);
-  const [payeeName, setPayeeName] = useState('');
+  const [destinationName, setDestinationName] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('Uncategorized');
   const [budgetId, setBudgetId] = useState<string>('');
+  const [budgetName, setBudgetName] = useState('');
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -44,13 +47,21 @@ const TransactionNew = () => {
         if (preselectedAccountId) {
           const selectedAccount = accountsData.find(account => account.id === preselectedAccountId);
           if (selectedAccount) {
-            setSourceAccountName(`${selectedAccount.name} (${selectedAccount.balance.toFixed(2)})`);
+            setSourceAccountName(`${selectedAccount.name} (${formatNumber(selectedAccount.balance)})`);
           }
         }
 
         // Fetch budgets
         const budgetsData = await budgetsApi.getActiveBudgets();
         setBudgets(budgetsData);
+
+        // If there's a preselected budget ID, set the budget name too
+        if (budgetId) {
+          const selectedBudget = budgetsData.find(budget => budget.id === budgetId);
+          if (selectedBudget) {
+            setBudgetName(`${selectedBudget.name} (${formatNumber(selectedBudget.amount)})`);
+          }
+        }
 
         setLoading(false);
       } catch (err) {
@@ -61,7 +72,7 @@ const TransactionNew = () => {
     };
 
     fetchData();
-  }, [preselectedAccountId]);
+  }, [preselectedAccountId, budgetId, formatNumber]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,14 +96,14 @@ const TransactionNew = () => {
       setSaving(true);
       setError(null);
 
-      // For transfers, we need to adjust the amount and payee
+      // For transfers, we need to adjust the amount and destination
       const finalAmount = isTransfer
         ? Math.abs(parseFloat(amount)) // Outgoing from source account (positive)
         : parseFloat(amount);
 
-      const finalPayeeName = isTransfer
+      const finalDestinationName = isTransfer
         ? accounts.find(a => a.id === destinationAccountId)?.name || 'Transfer'
-        : payeeName;
+        : destinationName;
 
       // Extract the clean account name (without balance and currency)
       let cleanSourceAccountName = sourceAccountName;
@@ -107,7 +118,7 @@ const TransactionNew = () => {
         await transactionsApi.createTransaction({
           source_account_id: sourceAccountId,
           destination_account_id: isTransfer ? destinationAccountId : undefined,
-          payee_name: finalPayeeName || undefined,
+          destination_name: finalDestinationName || undefined,
           description,
           amount: finalAmount,
           category: isTransfer ? 'Transfer' : category,
@@ -120,7 +131,7 @@ const TransactionNew = () => {
         await transactionsApi.createTransaction({
           source_account_id: accounts[0]?.id, // Use the first account as a fallback
           destination_account_id: isTransfer ? destinationAccountId : undefined,
-          payee_name: finalPayeeName || undefined,
+          destination_name: finalDestinationName || undefined,
           description: `${description} (From: ${cleanSourceAccountName})`,
           amount: finalAmount,
           category: isTransfer ? 'Transfer' : category,
@@ -139,7 +150,7 @@ const TransactionNew = () => {
         await transactionsApi.createTransaction({
           source_account_id: destinationAccountId,
           destination_account_id: sourceAccountId || undefined,
-          payee_name: sourceAccountDisplayName,
+          destination_name: sourceAccountDisplayName,
           description: `Transfer from ${sourceAccountDisplayName}`,
           amount: -Math.abs(parseFloat(amount)), // Incoming to destination account (negative)
           category: 'Transfer',
@@ -203,7 +214,7 @@ const TransactionNew = () => {
               // Check if the input matches an existing account
               const matchedAccount = accounts.find(
                 account => account.name === inputValue ||
-                           `${account.name} (${account.balance.toFixed(2)})` === inputValue
+                           `${account.name} (${formatNumber(account.balance)})` === inputValue
               );
 
               // If matched, set the account ID, otherwise clear it
@@ -214,7 +225,7 @@ const TransactionNew = () => {
           />
           <datalist id="source-accounts-list">
             {accounts.map(account => (
-              <option key={account.id} value={`${account.name} (${account.balance.toFixed(2)})`} />
+              <option key={account.id} value={`${account.name} (${formatNumber(account.balance)})`} />
             ))}
           </datalist>
         </div>
@@ -233,7 +244,7 @@ const TransactionNew = () => {
                 .filter(account => account.id !== sourceAccountId)
                 .map(account => (
                   <option key={account.id} value={account.id}>
-                    {account.name} ({account.balance.toFixed(2)})
+                    {account.name} ({formatNumber(account.balance)})
                   </option>
                 ))
               }
@@ -241,12 +252,12 @@ const TransactionNew = () => {
           </div>
         ) : (
           <div className="form-group">
-            <label htmlFor="payee">Payee (Optional)</label>
+            <label htmlFor="destination">Destination (Optional)</label>
             <input
               type="text"
-              id="payee"
-              value={payeeName}
-              onChange={(e) => setPayeeName(e.target.value)}
+              id="destination"
+              value={destinationName}
+              onChange={(e) => setDestinationName(e.target.value)}
               placeholder="Who was this payment to/from?"
             />
           </div>
@@ -294,18 +305,31 @@ const TransactionNew = () => {
         {!isTransfer && (
           <div className="form-group">
             <label htmlFor="budget">Budget (Optional)</label>
-            <select
+            <input
+              type="text"
               id="budget"
-              value={budgetId}
-              onChange={(e) => setBudgetId(e.target.value)}
-            >
-              <option value="">No Budget</option>
+              value={budgetName}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                setBudgetName(inputValue);
+
+                // Check if the input matches an existing budget
+                const matchedBudget = budgets.find(
+                  budget => budget.name === inputValue ||
+                           `${budget.name} (${formatNumber(budget.amount)})` === inputValue
+                );
+
+                // If matched, set the budget ID, otherwise clear it
+                setBudgetId(matchedBudget ? matchedBudget.id : '');
+              }}
+              list="budgets-list"
+              placeholder="Select an existing budget"
+            />
+            <datalist id="budgets-list">
               {budgets.map(budget => (
-                <option key={budget.id} value={budget.id}>
-                  {budget.name} ({budget.amount.toFixed(2)})
-                </option>
+                <option key={budget.id} value={`${budget.name} (${formatNumber(budget.amount)})`} />
               ))}
-            </select>
+            </datalist>
           </div>
         )}
 

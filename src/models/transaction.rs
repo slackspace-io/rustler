@@ -12,6 +12,8 @@ pub struct Transaction {
     pub source_account_id: Uuid,
     /// ID of the destination account (required for double entry accounting)
     pub destination_account_id: Uuid,
+    /// Name of the destination (used for display purposes)
+    pub destination_name: Option<String>,
     /// Description of the transaction
     pub description: String,
     /// Amount of the transaction (always positive for transfers)
@@ -33,8 +35,10 @@ pub struct Transaction {
 pub struct CreateTransactionRequest {
     /// ID of the source account for this transaction
     pub source_account_id: Uuid,
-    /// ID of the destination account (required for double entry accounting)
-    pub destination_account_id: Uuid,
+    /// ID of the destination account (optional - if not provided, will create or find an external account)
+    pub destination_account_id: Option<Uuid>,
+    /// Name of the destination (used when destination_account_id is not provided)
+    pub destination_name: Option<String>,
     pub description: String,
     pub amount: f64,
     pub category: String,
@@ -46,8 +50,10 @@ pub struct CreateTransactionRequest {
 /// Data required to update an existing transaction
 #[derive(Debug, Deserialize)]
 pub struct UpdateTransactionRequest {
-    /// ID of the destination account (required for double entry accounting)
+    /// ID of the destination account (optional)
     pub destination_account_id: Option<Uuid>,
+    /// Name of the destination (used when destination_account_id is not provided)
+    pub destination_name: Option<String>,
     pub description: Option<String>,
     pub amount: Option<f64>,
     pub category: Option<String>,

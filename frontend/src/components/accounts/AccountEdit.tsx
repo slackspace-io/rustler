@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { accountsApi } from '../../services/api';
+import { ACCOUNT_TYPES } from '../../constants/accountTypes';
 
 const AccountEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -99,12 +100,9 @@ const AccountEdit = () => {
             value={accountType}
             onChange={(e) => setAccountType(e.target.value)}
           >
-            <option value="Checking">Checking</option>
-            <option value="Savings">Savings</option>
-            <option value="Credit Card">Credit Card</option>
-            <option value="Investment">Investment</option>
-            <option value="Cash">Cash</option>
-            <option value="Other">Other</option>
+            {ACCOUNT_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
           </select>
         </div>
 

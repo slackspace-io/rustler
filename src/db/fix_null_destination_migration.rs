@@ -24,38 +24,39 @@ pub async fn fix_null_destination_accounts(pool: &Pool<Postgres>) -> Result<(), 
 
     info!("Found {} transactions with NULL destination_account_id", null_count);
 
-    // 2. Create a special "Unknown Payee" account to use for transactions with NULL destination_account_id
+    // 2. Create a special "Unknown Destination" account to use for transactions with NULL destination_account_id
     let now = chrono::Utc::now();
-    let unknown_payee_id = Uuid::new_v4();
+    let unknown_destination_id = Uuid::new_v4();
 
-    // Check if the "Unknown Payee" account already exists
-    let unknown_payee = sqlx::query!(
-        "SELECT id FROM accounts WHERE name = 'Unknown Payee' AND account_type = 'PAYEE'"
+    // Check if the "Unknown Destination" account already exists
+    // Look for both 'DESTINATION' and 'External' account types for backward compatibility
+    let unknown_destination = sqlx::query!(
+        "SELECT id FROM accounts WHERE name = 'Unknown Destination' AND (account_type = 'DESTINATION' OR account_type = 'External')"
     )
     .fetch_optional(&mut *tx)
     .await?;
 
-    let unknown_payee_id = if let Some(record) = unknown_payee {
-        info!("Using existing 'Unknown Payee' account: {}", record.id);
+    let unknown_destination_id = if let Some(record) = unknown_destination {
+        info!("Using existing 'Unknown Destination' account: {}", record.id);
         record.id
     } else {
-        info!("Creating 'Unknown Payee' account: {}", unknown_payee_id);
+        info!("Creating 'Unknown Destination' account: {}", unknown_destination_id);
         sqlx::query(
             r#"
             INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
-            VALUES ($1, 'Unknown Payee', 'PAYEE', 0.00, 'USD', $2, $3)
+            VALUES ($1, 'Unknown Destination', 'External', 0.00, 'USD', $2, $3)
             "#,
         )
-        .bind(unknown_payee_id)
+        .bind(unknown_destination_id)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
         .await?;
-        unknown_payee_id
+        unknown_destination_id
     };
 
-    // 3. Update all transactions with NULL destination_account_id to use the "Unknown Payee" account
-    info!("Updating transactions with NULL destination_account_id to use 'Unknown Payee' account...");
+    // 3. Update all transactions with NULL destination_account_id to use the "Unknown Destination" account
+    info!("Updating transactions with NULL destination_account_id to use 'Unknown Destination' account...");
     let updated_count = sqlx::query(
         r#"
         UPDATE transactions
@@ -63,14 +64,14 @@ pub async fn fix_null_destination_accounts(pool: &Pool<Postgres>) -> Result<(), 
         WHERE destination_account_id IS NULL
         "#,
     )
-    .bind(unknown_payee_id)
+    .bind(unknown_destination_id)
     .execute(&mut *tx)
     .await?;
 
     info!("Updated {} transactions", updated_count.rows_affected());
 
-    // 4. Update the "Unknown Payee" account balance
-    info!("Updating 'Unknown Payee' account balance...");
+    // 4. Update the "Unknown Destination" account balance
+    info!("Updating 'Unknown Destination' account balance...");
     let total_amount = sqlx::query_scalar::<_, Option<f64>>(
         r#"
         SELECT SUM(amount)
@@ -78,12 +79,12 @@ pub async fn fix_null_destination_accounts(pool: &Pool<Postgres>) -> Result<(), 
         WHERE destination_account_id = $1
         "#,
     )
-    .bind(unknown_payee_id)
+    .bind(unknown_destination_id)
     .fetch_one(&mut *tx)
     .await?;
 
     if let Some(amount) = total_amount {
-        info!("Setting 'Unknown Payee' account balance to: {}", amount);
+        info!("Setting 'Unknown Destination' account balance to: {}", amount);
         sqlx::query(
             r#"
             UPDATE accounts
@@ -93,7 +94,7 @@ pub async fn fix_null_destination_accounts(pool: &Pool<Postgres>) -> Result<(), 
         )
         .bind(amount)
         .bind(now)
-        .bind(unknown_payee_id)
+        .bind(unknown_destination_id)
         .execute(&mut *tx)
         .await?;
     }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { accountsApi, transactionsApi } from '../services/api';
 import type { Account, Transaction } from '../services/api';
+import { ACCOUNT_TYPE } from '../constants/accountTypes';
 
 const Dashboard = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -81,6 +82,20 @@ const Dashboard = () => {
     return <div className="error">{error}</div>;
   }
 
+  // Group accounts by type
+
+  // Use case-insensitive comparison for more flexibility
+  const onBudgetAccounts = accounts.filter(account =>
+    account.account_type.toLowerCase() === ACCOUNT_TYPE.ON_BUDGET.toLowerCase());
+  const offBudgetAccounts = accounts.filter(account =>
+    account.account_type.toLowerCase() === ACCOUNT_TYPE.OFF_BUDGET.toLowerCase());
+
+  // Calculate totals for each group
+  const onBudgetTotal = onBudgetAccounts.reduce((sum, account) => sum + account.balance, 0);
+  const offBudgetTotal = offBudgetAccounts.reduce((sum, account) => sum + account.balance, 0);
+  // Calculate combined total
+  const combinedTotal = onBudgetTotal + offBudgetTotal;
+
   return (
     <div className="dashboard">
       <h1>Dashboard</h1>
@@ -110,64 +125,101 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="dashboard-accounts">
-        <div className="section-header">
-          <h2>Accounts</h2>
-          <Link to="/accounts" className="view-all">View All</Link>
-        </div>
-
-        {accounts.length === 0 ? (
-          <p>No accounts found. <Link to="/accounts/new">Create your first account</Link> to get started.</p>
-        ) : (
-          <div className="accounts-grid">
-            {accounts.slice(0, 4).map(account => (
-              <div key={account.id} className="account-card">
-                <h3>{account.name}</h3>
-                <p className="account-type">{account.account_type}</p>
-                <p className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-                  {account.balance.toFixed(2)}
-                </p>
-                <Link to={`/accounts/${account.id}`} className="card-link">View Details</Link>
+      <div className="dashboard-content">
+        {/* Left sidebar with accounts grouped by type */}
+        <div className="accounts-sidebar">
+          {accounts.length === 0 ? (
+            <p>No accounts found. <Link to="/accounts/new">Create your first account</Link> to get started.</p>
+          ) : (
+            <>
+              {/* On Budget Accounts */}
+              <div className="account-group">
+                <h2>On Budget Accounts</h2>
+                <p className="group-total">Total: {onBudgetTotal.toFixed(2)}</p>
+                <ul className="account-list">
+                  {onBudgetAccounts.map(account => (
+                    <li key={account.id} className="account-item">
+                      <Link to={`/accounts/${account.id}`}>
+                        <span className="account-name">{account.name}</span>
+                        <span className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
+                          {account.balance.toFixed(2)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      <div className="dashboard-transactions">
-        <div className="section-header">
-          <h2>Recent Transactions</h2>
-          <Link to="/transactions" className="view-all">View All</Link>
+              {/* Off Budget Accounts */}
+              <div className="account-group">
+                <h2>Off Budget Accounts</h2>
+                <p className="group-total">Total: {offBudgetTotal.toFixed(2)}</p>
+                <ul className="account-list">
+                  {offBudgetAccounts.map(account => (
+                    <li key={account.id} className="account-item">
+                      <Link to={`/accounts/${account.id}`}>
+                        <span className="account-name">{account.name}</span>
+                        <span className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
+                          {account.balance.toFixed(2)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Combined Total */}
+              <div className="account-group combined-total">
+                <h2>Combined Total</h2>
+                <p className="group-total total-combined">Total: {combinedTotal.toFixed(2)}</p>
+              </div>
+
+              <div className="account-actions">
+                <Link to="/accounts/new" className="button">Add Account</Link>
+                <Link to="/accounts" className="button secondary">View All Accounts</Link>
+              </div>
+            </>
+          )}
         </div>
 
-        {recentTransactions.length === 0 ? (
-          <p>No transactions found. <Link to="/transactions/new">Create your first transaction</Link> to get started.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Account</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTransactions.map(transaction => (
-                <tr key={transaction.id}>
-                  <td>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
-                  <td>{getAccountName(transaction.source_account_id)}</td>
-                  <td>{transaction.description}</td>
-                  <td>{transaction.category}</td>
-                  <td className={transaction.amount >= 0 ? 'positive' : 'negative'}>
-                    {transaction.amount.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {/* Right side content */}
+        <div className="dashboard-main">
+          <div className="dashboard-transactions">
+            <div className="section-header">
+              <h2>Recent Transactions</h2>
+              <Link to="/transactions" className="view-all">View All</Link>
+            </div>
+
+            {recentTransactions.length === 0 ? (
+              <p>No transactions found. <Link to="/transactions/new">Create your first transaction</Link> to get started.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Account</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTransactions.map(transaction => (
+                    <tr key={transaction.id}>
+                      <td>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
+                      <td>{getAccountName(transaction.source_account_id)}</td>
+                      <td>{transaction.description}</td>
+                      <td>{transaction.category}</td>
+                      <td className={transaction.amount >= 0 ? 'positive' : 'negative'}>
+                        {transaction.amount.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +53,8 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
       );
       setFilteredCategories(filtered);
     }
+    // Reset selected index when filtered categories change
+    setSelectedIndex(-1);
   }, [value, categories]);
 
   // Handle click outside to close suggestions
@@ -76,15 +79,18 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
     setShowSuggestions(true);
+    setSelectedIndex(-1);
   };
 
   const handleInputFocus = () => {
     setShowSuggestions(true);
+    setSelectedIndex(-1);
   };
 
   const handleSelectCategory = (categoryName: string) => {
     onChange(categoryName);
     setShowSuggestions(false);
+    setSelectedIndex(-1);
   };
 
   const handleCreateCategory = async () => {
@@ -111,6 +117,29 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
       handleCreateCategory();
     } else if (e.key === 'Escape') {
       setShowSuggestions(false);
+      setSelectedIndex(-1);
+    } else if (e.key === 'ArrowDown' && showSuggestions) {
+      e.preventDefault();
+      if (filteredCategories.length > 0) {
+        setSelectedIndex(prev => (prev < filteredCategories.length - 1 ? prev + 1 : prev));
+      }
+    } else if (e.key === 'ArrowUp' && showSuggestions) {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
+    } else if (e.key === 'Tab' && showSuggestions && selectedIndex >= 0) {
+      e.preventDefault();
+      if (filteredCategories[selectedIndex]) {
+        handleSelectCategory(filteredCategories[selectedIndex].name);
+        // Move focus to the next form field
+        const form = inputRef.current?.form;
+        if (form) {
+          const inputs = Array.from(form.elements) as HTMLElement[];
+          const currentIndex = inputs.indexOf(inputRef.current as HTMLElement);
+          if (currentIndex >= 0 && currentIndex < inputs.length - 1) {
+            (inputs[currentIndex + 1] as HTMLElement).focus();
+          }
+        }
+      }
     }
   };
 
@@ -136,11 +165,12 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
             <div className="suggestion-item error">{error}</div>
           ) : filteredCategories.length > 0 ? (
             <>
-              {filteredCategories.map(category => (
+              {filteredCategories.map((category, index) => (
                 <div
                   key={category.id}
-                  className="suggestion-item"
+                  className={`suggestion-item ${index === selectedIndex ? 'selected' : ''}`}
                   onClick={() => handleSelectCategory(category.name)}
+                  onMouseEnter={() => setSelectedIndex(index)}
                 >
                   {category.name}
                 </div>

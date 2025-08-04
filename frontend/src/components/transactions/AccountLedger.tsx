@@ -1,14 +1,15 @@
-import { useState, useEffect, KeyboardEvent } from 'react';
+import { useState, useEffect, type KeyboardEvent } from 'react';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
 import type { Transaction, Account, Budget } from '../../services/api';
 import CategoryInput from '../common/CategoryInput';
+import { useSettings } from '../../contexts/useSettings';
 
 interface AccountLedgerProps {
   accountId: string;
 }
 
 // Define the editable fields and their types
-type EditableField = 'description' | 'category' | 'budget_id' | 'payee_name' | 'amount' | 'transaction_date';
+type EditableField = 'description' | 'category' | 'budget_id' | 'destination_name' | 'amount' | 'transaction_date';
 
 // Interface for tracking which field is being edited
 interface EditingState {
@@ -17,8 +18,10 @@ interface EditingState {
 }
 
 const AccountLedger = ({ accountId }: AccountLedgerProps) => {
+  const { formatNumber } = useSettings();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
+  const [allAccounts, setAllAccounts] = useState<Account[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +37,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
   const [incomingAmount, setIncomingAmount] = useState('');
   const [outgoingAmount, setOutgoingAmount] = useState('');
   const [category, setCategory] = useState('Uncategorized');
-  const [payeeName, setPayeeName] = useState('');
+  const [destinationName, setDestinationName] = useState('');
   const [budgetId, setBudgetId] = useState<string>('');
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -54,6 +57,10 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         // Fetch account details
         const accountData = await accountsApi.getAccount(accountId);
         setAccount(accountData);
+
+        // Fetch all accounts for looking up names
+        const allAccountsData = await accountsApi.getAccounts();
+        setAllAccounts(allAccountsData);
 
         // Fetch transactions for this account
         const transactionsData = await transactionsApi.getAccountTransactions(accountId);
@@ -95,12 +102,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       setFormError(null);
 
       // Handle incoming amount (negative to increase balance)
-      if (hasIncoming) {
+      if (hasOutgoing) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
-          payee_name: payeeName || undefined,
-          description: hasOutgoing ? `${description} (Incoming)` : description,
-          amount: -Math.abs(parseFloat(incomingAmount)), // Negative value to increase balance
+          destination_name: destinationName || undefined,
+          description: hasOutgoing ? `${description} (Outgoing)` : description,
+          amount: Math.abs(parseFloat(outgoingAmount)), // Negative value to increase balance
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -108,12 +115,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       }
 
       // Handle outgoing amount (negative)
-      if (hasOutgoing) {
+      if (hasIncoming) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
-          payee_name: payeeName || undefined,
-          description: hasIncoming ? `${description} (Outgoing)` : description,
-          amount: -Math.abs(parseFloat(outgoingAmount)), // Ensure negative
+          destination_name: destinationName || undefined,
+          description: hasIncoming ? `${description} (Incoming)` : description,
+          amount: -Math.abs(parseFloat(incomingAmount)),
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -132,7 +139,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       setDescription('');
       setIncomingAmount('');
       setOutgoingAmount('');
-      setPayeeName('');
+      setDestinationName('');
       setCategory('Uncategorized');
       setBudgetId('');
       setTransactionDate(new Date().toISOString().split('T')[0]);
@@ -182,8 +189,15 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       case 'budget_id':
         initialValue = transaction.budget_id || '';
         break;
-      case 'payee_name':
-        initialValue = transaction.payee_name || '';
+      case 'destination_name':
+        // If this account is the destination, we're actually showing the source account name
+        // but we don't allow editing it in this case
+        if (transaction.destination_account_id === accountId) {
+          const sourceName = allAccounts.find(a => a.id === transaction.source_account_id)?.name || '';
+          initialValue = sourceName;
+        } else {
+          initialValue = transaction.destination_name || '';
+        }
         break;
       case 'amount':
         initialValue = transaction.amount.toString();
@@ -237,6 +251,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       return;
     }
 
+    // Don't allow editing destination_name when this account is the destination
+    if (field === 'destination_name' && transaction.destination_account_id === accountId) {
+      setEditError('Cannot edit source account name');
+      return;
+    }
+
     try {
       setEditSaving(true);
       setEditError(null);
@@ -254,8 +274,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         case 'budget_id':
           updateData.budget_id = editValue || undefined;
           break;
-        case 'payee_name':
-          updateData.payee_name = editValue.trim() || undefined;
+        case 'destination_name':
+          updateData.destination_name = editValue.trim() || undefined;
           break;
         case 'amount':
           updateData.amount = parseFloat(editValue);
@@ -304,7 +324,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       <div className="account-header">
         <h2>{account.name}</h2>
         <div className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-          Balance: {account.balance.toFixed(2)}
+          Balance: {formatNumber(account.balance)}
         </div>
       </div>
 
@@ -319,9 +339,9 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                 <th>Description</th>
                 <th>Category</th>
                 <th>Budget</th>
-                <th>Payee</th>
-                <th>Incoming</th>
+                <th>Destination</th>
                 <th>Outgoing</th>
+                <th>Incoming</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -368,20 +388,9 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                 <td>
                   <input
                     type="text"
-                    value={payeeName}
-                    onChange={(e) => setPayeeName(e.target.value)}
-                    placeholder="Payee (optional)"
-                  />
-                </td>
-                <td>
-                  <label>Incoming</label>
-                  <input
-                    type="number"
-                    value={incomingAmount}
-                    onChange={(e) => setIncomingAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
+                    value={destinationName}
+                    onChange={(e) => setDestinationName(e.target.value)}
+                    placeholder="Destination (optional)"
                   />
                 </td>
                 <td>
@@ -390,6 +399,17 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                     type="number"
                     value={outgoingAmount}
                     onChange={(e) => setOutgoingAmount(e.target.value)}
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                  />
+                </td>
+                <td>
+                  <label>Incoming</label>
+                  <input
+                    type="number"
+                    value={incomingAmount}
+                    onChange={(e) => setIncomingAmount(e.target.value)}
                     placeholder="0.00"
                     step="0.01"
                     min="0"
@@ -526,12 +546,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                       )}
                     </td>
 
-                    {/* Payee */}
+                    {/* Destination */}
                     <td
-                      onClick={() => handleStartEdit(transaction, 'payee_name')}
-                      className={editing?.transactionId === transaction.id && editing.field === 'payee_name' ? 'editing' : ''}
+                      onClick={() => transaction.destination_account_id !== accountId && handleStartEdit(transaction, 'destination_name')}
+                      className={`${editing?.transactionId === transaction.id && editing.field === 'destination_name' ? 'editing' : ''} ${transaction.destination_account_id === accountId ? 'non-editable' : ''}`}
                     >
-                      {editing?.transactionId === transaction.id && editing.field === 'payee_name' ? (
+                      {editing?.transactionId === transaction.id && editing.field === 'destination_name' ? (
                         <div className="edit-field">
                           <input
                             type="text"
@@ -539,7 +559,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                             onChange={(e) => setEditValue(e.target.value)}
                             onKeyDown={handleEditKeyDown}
                             autoFocus
-                            placeholder="Payee (optional)"
+                            placeholder="Destination (optional)"
                           />
                           <div className="edit-actions">
                             <button onClick={handleSaveEdit} disabled={editSaving}>
@@ -550,38 +570,15 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                           {editError && <div className="edit-error">{editError}</div>}
                         </div>
                       ) : (
-                        transaction.payee_name || '-'
+                        // If this account is the destination, show the source account name
+                        // Otherwise, show the destination name
+                        transaction.destination_account_id === accountId
+                          ? allAccounts.find(a => a.id === transaction.source_account_id)?.name || 'Unknown Source'
+                          : transaction.destination_name || '-'
                       )}
                     </td>
 
-                    {/* Amount (Incoming/Outgoing) */}
-                    <td
-                      className={`amount incoming ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
-                      onClick={() => transaction.amount <= 0 && handleStartEdit(transaction, 'amount')}
-                    >
-                      {editing?.transactionId === transaction.id && editing.field === 'amount' && transaction.amount <= 0 ? (
-                        <div className="edit-field">
-                          <input
-                            type="number"
-                            value={Math.abs(parseFloat(editValue)).toString()}
-                            onChange={(e) => setEditValue((-Math.abs(parseFloat(e.target.value))).toString())}
-                            onKeyDown={handleEditKeyDown}
-                            autoFocus
-                            step="0.01"
-                            min="0"
-                          />
-                          <div className="edit-actions">
-                            <button onClick={handleSaveEdit} disabled={editSaving}>
-                              {editSaving ? 'Saving...' : 'Save'}
-                            </button>
-                            <button onClick={handleCancelEdit} disabled={editSaving}>Cancel</button>
-                          </div>
-                          {editError && <div className="edit-error">{editError}</div>}
-                        </div>
-                      ) : (
-                        transaction.amount < 0 ? Math.abs(transaction.amount).toFixed(2) : ''
-                      )}
-                    </td>
+                    {/* Amount (Outgoing/Incoming) */}
                     <td
                       className={`amount outgoing ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
                       onClick={() => transaction.amount > 0 && handleStartEdit(transaction, 'amount')}
@@ -607,6 +604,33 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                         </div>
                       ) : (
                         transaction.amount > 0 ? transaction.amount.toFixed(2) : ''
+                      )}
+                    </td>
+                    <td
+                      className={`amount incoming ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
+                      onClick={() => transaction.amount <= 0 && handleStartEdit(transaction, 'amount')}
+                    >
+                      {editing?.transactionId === transaction.id && editing.field === 'amount' && transaction.amount <= 0 ? (
+                        <div className="edit-field">
+                          <input
+                            type="number"
+                            value={Math.abs(parseFloat(editValue)).toString()}
+                            onChange={(e) => setEditValue((-Math.abs(parseFloat(e.target.value))).toString())}
+                            onKeyDown={handleEditKeyDown}
+                            autoFocus
+                            step="0.01"
+                            min="0"
+                          />
+                          <div className="edit-actions">
+                            <button onClick={handleSaveEdit} disabled={editSaving}>
+                              {editSaving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button onClick={handleCancelEdit} disabled={editSaving}>Cancel</button>
+                          </div>
+                          {editError && <div className="edit-error">{editError}</div>}
+                        </div>
+                      ) : (
+                        transaction.amount < 0 ? Math.abs(transaction.amount).toFixed(2) : ''
                       )}
                     </td>
 

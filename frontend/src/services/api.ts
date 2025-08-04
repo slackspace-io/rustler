@@ -2,10 +2,10 @@
 const API_BASE_URL = '/api';
 
 // Import types from types.ts
-import type { Account, Category, Transaction, Budget } from './types.ts';
+import type { Account, Category, Transaction, Budget, MonthlyBudgetStatus } from './types.ts';
 
 // Re-export types for convenience
-export type { Account, Category, Transaction, Budget };
+export type { Account, Category, Transaction, Budget, MonthlyBudgetStatus };
 
 // API functions for accounts
 export const accountsApi = {
@@ -136,6 +136,32 @@ export const transactionsApi = {
       throw new Error(`Failed to delete transaction with ID ${id}`);
     }
   },
+
+  // Import transactions from CSV
+  importTransactions: async (importData: {
+    account_id: string;
+    column_mapping: {
+      description: number | null;
+      amount: number | null;
+      category: number | null;
+      destination_name: number | null;
+      transaction_date: number | null;
+      budget_id: number | null;
+    };
+    data: string[][];
+  }): Promise<{ success: number; failed: number }> => {
+    const response = await fetch(`${API_BASE_URL}/accounts/${importData.account_id}/import-csv`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(importData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to import transactions');
+    }
+    return response.json();
+  },
 };
 
 // API functions for categories
@@ -218,6 +244,15 @@ export const budgetsApi = {
     return response.json();
   },
 
+  // Get monthly budget status
+  getMonthlyBudgetStatus: async (year: number, month: number): Promise<MonthlyBudgetStatus> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/monthly-status?year=${year}&month=${month}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch monthly budget status for ${year}-${month}`);
+    }
+    return response.json();
+  },
+
   // Get a single budget by ID
   getBudget: async (id: string): Promise<Budget> => {
     const response = await fetch(`${API_BASE_URL}/budgets/${id}`);
@@ -281,6 +316,15 @@ export const budgetsApi = {
     const response = await fetch(`${API_BASE_URL}/budgets/${id}/remaining`);
     if (!response.ok) {
       throw new Error(`Failed to fetch remaining amount for budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Get the total spent amount not associated with any budget
+  getUnbudgetedSpent: async (): Promise<number> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/unbudgeted-spent`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch unbudgeted spent amount');
     }
     return response.json();
   },

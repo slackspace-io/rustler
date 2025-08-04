@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountsApi } from '../../services/api';
+import { ACCOUNT_TYPE, ACCOUNT_TYPES } from '../../constants/accountTypes';
 
 const AccountNew = () => {
   const navigate = useNavigate();
@@ -9,7 +10,7 @@ const AccountNew = () => {
 
   // Form state
   const [name, setName] = useState('');
-  const [accountType, setAccountType] = useState('Checking');
+  const [accountType, setAccountType] = useState(ACCOUNT_TYPE.ON_BUDGET);
   const [balance, setBalance] = useState('0');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,12 +67,9 @@ const AccountNew = () => {
             value={accountType}
             onChange={(e) => setAccountType(e.target.value)}
           >
-            <option value="Checking">Checking</option>
-            <option value="Savings">Savings</option>
-            <option value="Credit Card">Credit Card</option>
-            <option value="Investment">Investment</option>
-            <option value="Cash">Cash</option>
-            <option value="Other">Other</option>
+            {ACCOUNT_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
           </select>
         </div>
 

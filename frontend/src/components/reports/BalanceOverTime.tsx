@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { accountsApi, transactionsApi } from '../../services/api';
 import type { Account, Transaction } from '../../services/api';
+import { ACCOUNT_TYPE } from '../../constants/accountTypes';
 
 interface BalanceDataPoint {
   date: string;
@@ -23,6 +24,22 @@ const BalanceOverTime = () => {
   const [chartData, setChartData] = useState<BalanceDataPoint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [accountTypeFilter, setAccountTypeFilter] = useState<string>('on-budget'); // 'on-budget' or 'off-budget'
+
+  // Update selected accounts when account type filter changes
+  const handleAccountTypeFilterChange = (filterType: string) => {
+    setAccountTypeFilter(filterType);
+
+    // Filter accounts based on the new filter (excluding external accounts)
+    const newFilteredAccounts = accounts.filter(account => {
+      if (filterType === 'on-budget') return account.account_type === ACCOUNT_TYPE.ON_BUDGET;
+      if (filterType === 'off-budget') return account.account_type === ACCOUNT_TYPE.OFF_BUDGET;
+      return false; // Don't include any other account types
+    });
+
+    // Update selected accounts to include all filtered accounts
+    setSelectedAccounts(newFilteredAccounts.map(account => account.id));
+  }
 
   // Function to calculate date range based on preset
   const calculateDateRange = (preset: DatePreset): { start: Date, end: Date } => {
@@ -78,10 +95,20 @@ const BalanceOverTime = () => {
     const fetchAccounts = async () => {
       try {
         const accountsData = await accountsApi.getAccounts();
-        setAccounts(accountsData);
 
-        // Default to selecting all accounts
-        setSelectedAccounts(accountsData.map(account => account.id));
+        // Filter out external accounts
+        const filteredAccountsData = accountsData.filter(
+          account => account.account_type === ACCOUNT_TYPE.ON_BUDGET ||
+                    account.account_type === ACCOUNT_TYPE.OFF_BUDGET
+        );
+
+        setAccounts(filteredAccountsData);
+
+        // Default to selecting on-budget accounts
+        const onBudgetAccounts = filteredAccountsData.filter(
+          account => account.account_type === ACCOUNT_TYPE.ON_BUDGET
+        );
+        setSelectedAccounts(onBudgetAccounts.map(account => account.id));
 
         // Apply default preset (last month)
         applyPreset('last-month');
@@ -266,6 +293,23 @@ const BalanceOverTime = () => {
     });
   };
 
+  // Filter accounts based on account type (only on-budget and off-budget)
+  const filteredAccounts = accounts.filter(account => {
+    if (accountTypeFilter === 'on-budget') return account.account_type === ACCOUNT_TYPE.ON_BUDGET;
+    if (accountTypeFilter === 'off-budget') return account.account_type === ACCOUNT_TYPE.OFF_BUDGET;
+    return false; // Don't include any other account types
+  });
+
+  // Handle select all accounts
+  const handleSelectAll = () => {
+    setSelectedAccounts(filteredAccounts.map(account => account.id));
+  };
+
+  // Handle select none
+  const handleSelectNone = () => {
+    setSelectedAccounts([]);
+  };
+
   const getRandomColor = (index: number) => {
     const colors = [
       '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE',
@@ -358,7 +402,36 @@ const BalanceOverTime = () => {
 
         <div className="account-selection">
           <h3>Select Accounts</h3>
-          {accounts.map(account => (
+
+          <div className="account-filter">
+            <label>
+              <input
+                type="radio"
+                name="accountTypeFilter"
+                value="on-budget"
+                checked={accountTypeFilter === 'on-budget'}
+                onChange={() => handleAccountTypeFilterChange('on-budget')}
+              />
+              On Budget Accounts
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="accountTypeFilter"
+                value="off-budget"
+                checked={accountTypeFilter === 'off-budget'}
+                onChange={() => handleAccountTypeFilterChange('off-budget')}
+              />
+              Off Budget Accounts
+            </label>
+          </div>
+
+          <div className="select-buttons">
+            <button type="button" onClick={handleSelectAll} className="button small">Select All</button>
+            <button type="button" onClick={handleSelectNone} className="button small">Select None</button>
+          </div>
+
+          {filteredAccounts.map(account => (
             <div key={account.id} className="account-checkbox">
               <label>
                 <input
