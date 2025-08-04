@@ -8,6 +8,8 @@ A personal finance application built with Rust, providing a web-based interface 
 - **Transaction Tracking**: Record and categorize financial transactions
 - **Automatic Balance Updates**: Account balances are automatically updated when transactions are created, modified, or deleted
 - **Filtering**: Filter transactions by account, category, and date range
+- **Dark Mode Support**: Toggle between light and dark themes for comfortable viewing in any environment
+- **Theme Persistence**: User theme preference is saved and restored between sessions
 - **RESTful API**: Access all functionality through a well-structured API
 
 ## Technology Stack
@@ -26,6 +28,8 @@ A personal finance application built with Rust, providing a web-based interface 
 - npm (v7 or later)
 
 ## Setup
+
+### Standard Setup
 
 1. Clone the repository:
    ```bash
@@ -54,6 +58,26 @@ A personal finance application built with Rust, providing a web-based interface 
    
    # The application will automatically run migrations on startup
    ```
+
+### Docker Setup
+
+You can also run the application using Docker:
+
+1. Using Docker Compose (recommended):
+   ```bash
+   docker-compose up -d
+   ```
+   
+   This will start both the PostgreSQL database and the application.
+
+2. Using pre-built Docker image:
+   ```bash
+   docker run -p 3000:3000 \
+     -e DATABASE_URL=postgres://username:password@host/rustler \
+     ghcr.io/yourusername/rustler:dev
+   ```
+
+For more details on Docker usage, see [DOCKER.md](DOCKER.md).
 
 ## Building and Running
 
@@ -160,8 +184,42 @@ npm test
 
 - `frontend/src/components`: React components
 - `frontend/src/services`: API service functions
+- `frontend/src/context`: Context providers (including theme context)
 - `frontend/src/assets`: Static assets (images, etc.)
 - `frontend/public`: Public files (favicon, etc.)
+
+## Theme Support
+
+Rustler includes a comprehensive theme system with both light and dark modes:
+
+### Features
+
+- **Theme Toggle**: A moon/sun icon in the header allows users to switch between light and dark modes
+- **System Preference Detection**: Automatically detects and applies the user's system theme preference
+- **Local Storage Persistence**: Theme preference is saved to localStorage and restored on subsequent visits
+- **CSS Variables**: Theme colors are implemented using CSS variables for consistent styling
+
+### Implementation Details
+
+- The theme state is managed through React Context API in `frontend/src/context/ThemeContext.ts` and `ThemeProvider.tsx`
+- Theme variables are defined in `frontend/src/App.css` with separate values for light and dark modes
+- The current theme is applied to the document using the `data-theme` attribute
+
+### For Developers
+
+If you're extending the application with new components:
+
+1. Use the existing CSS variables for colors (e.g., `var(--color-bg-primary)`, `var(--color-text-primary)`)
+2. Add transitions for color changes: `transition: color 0.3s ease, background-color 0.3s ease`
+3. Access the current theme in components using the `useTheme` hook:
+   ```tsx
+   import { useTheme } from '../context/ThemeContext';
+   
+   function MyComponent() {
+     const { theme, toggleTheme } = useTheme();
+     // Use theme value or toggleTheme function
+   }
+   ```
 
 ## API Endpoints
 

@@ -5,11 +5,61 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Light theme (default) */
+  --color-bg-primary: #f8f9fa;
+  --color-bg-secondary: #fff;
+  --color-bg-tertiary: #e9ecef;
+  --color-text-primary: #333;
+  --color-text-secondary: #555;
+  --color-text-muted: #6c757d;
+  --color-border: #ddd;
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-primary: #646cff;
+  --color-primary-hover: #535bf2;
+  --color-secondary: #6c757d;
+  --color-secondary-hover: #5a6268;
+  --color-danger: #dc3545;
+  --color-danger-hover: #c82333;
+  --color-success: #28a745;
+  --color-success-hover: #218838;
+  --color-positive: #28a745;
+  --color-negative: #dc3545;
+  --color-highlight: #f0f8ff;
+  --color-selected: #e6f7ff;
+  --color-selected-border: #91d5ff;
+}
+
+[data-theme="dark"] {
+  --color-bg-primary: #121212;
+  --color-bg-secondary: #1e1e1e;
+  --color-bg-tertiary: #2c2c2c;
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #b0b0b0;
+  --color-text-muted: #909090;
+  --color-border: #444;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-primary: #747bff;
+  --color-primary-hover: #8388ff;
+  --color-secondary: #909090;
+  --color-secondary-hover: #a0a0a0;
+  --color-danger: #e74c3c;
+  --color-danger-hover: #f55a4e;
+  --color-success: #2ecc71;
+  --color-success-hover: #40d47e;
+  --color-positive: #2ecc71;
+  --color-negative: #e74c3c;
+  --color-highlight: #2a3a4a;
+  --color-selected: #2a4a6a;
+  --color-selected-border: #4a6a8a;
+}
+
 body {
   font-family: Arial, sans-serif;
   line-height: 1.6;
-  color: #333;
-  background-color: #f8f9fa;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .container {
@@ -20,10 +70,11 @@ body {
 
 /* Header and navigation */
 header {
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: var(--color-bg-secondary);
+  box-shadow: 0 2px 4px var(--color-shadow);
   padding: 1rem 0;
   margin-bottom: 2rem;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 header .container {
@@ -35,8 +86,9 @@ header .container {
 .logo {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #333;
+  color: var(--color-text-primary);
   text-decoration: none;
+  transition: color 0.3s ease;
 }
 
 nav ul {
@@ -49,13 +101,34 @@ nav ul li {
 }
 
 nav ul li a {
-  color: #333;
+  color: var(--color-text-primary);
   text-decoration: none;
-  transition: color 0.3s;
+  transition: color 0.3s ease;
 }
 
 nav ul li a:hover {
-  color: #646cff;
+  color: var(--color-primary);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.5rem;
+  margin-left: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease;
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-highlight);
 }
 
 /* Main content */
@@ -65,66 +138,78 @@ main {
 
 h1 {
   margin-bottom: 1rem;
-  color: #333;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 h2 {
   margin-bottom: 0.75rem;
-  color: #444;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 h3 {
   margin-bottom: 0.5rem;
-  color: #555;
+  color: var(--color-text-secondary);
+  transition: color 0.3s ease;
 }
 
 /* Form styles */
 form {
-  background-color: #fff;
+  background-color: var(--color-bg-secondary);
   padding: 1.5rem;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--color-shadow);
   margin-bottom: 1.5rem;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 input, select, textarea, button {
   font-family: inherit;
   font-size: 1rem;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   margin-bottom: 1rem;
   width: 100%;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 button {
-  background-color: #646cff;
+  background-color: var(--color-primary);
   color: white;
   border: none;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s ease;
   padding: 0.5rem 1rem;
   width: auto;
 }
 
 button:hover {
-  background-color: #535bf2;
+  background-color: var(--color-primary-hover);
 }
 
 button.secondary {
-  background-color: #6c757d;
+  background-color: var(--color-secondary);
 }
 
 button.secondary:hover {
-  background-color: #5a6268;
+  background-color: var(--color-secondary-hover);
 }
 
 button.danger {
-  background-color: #dc3545;
+  background-color: var(--color-danger);
 }
 
 button.danger:hover {
-  background-color: #c82333;
+  background-color: var(--color-danger-hover);
 }
 
 button.small {
@@ -137,47 +222,54 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 1.5rem;
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: var(--color-bg-secondary);
+  box-shadow: 0 2px 4px var(--color-shadow);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 th, td {
   padding: 0.75rem;
   text-align: left;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--color-border);
+  transition: border-color 0.3s ease;
 }
 
 th {
-  background-color: #f8f9fa;
+  background-color: var(--color-bg-tertiary);
   font-weight: bold;
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-highlight);
+  transition: background-color 0.3s ease;
 }
 
 /* Link styles */
 a {
-  color: #646cff;
+  color: var(--color-primary);
   text-decoration: none;
+  transition: color 0.3s ease;
 }
 
 a:hover {
   text-decoration: underline;
+  color: var(--color-primary-hover);
 }
 
 a.button {
   display: inline-block;
-  background-color: #646cff;
+  background-color: var(--color-primary);
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 4px;
   text-decoration: none;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s ease;
 }
 
 a.button:hover {
-  background-color: #535bf2;
+  background-color: var(--color-primary-hover);
   text-decoration: none;
 }
 
@@ -199,21 +291,26 @@ a.button.small {
 }
 
 .summary-card {
-  background-color: #fff;
+  background-color: var(--color-bg-secondary);
   padding: 1.5rem;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--color-shadow);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .summary-card h2 {
   font-size: 1.25rem;
   margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .summary-card .amount {
   font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 1rem;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .summary-card .card-link {
@@ -234,12 +331,13 @@ a.button.small {
 
 .accounts-sidebar {
   flex: 0 0 300px;
-  background-color: #fff;
+  background-color: var(--color-bg-secondary);
   padding: 1.25rem;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--color-shadow);
   max-height: 800px;
   overflow-y: auto;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .dashboard-main {
@@ -254,34 +352,40 @@ a.button.small {
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  transition: color 0.3s ease, border-color 0.3s ease;
 }
 
 .group-total {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-muted);
   margin-bottom: 0.75rem;
+  transition: color 0.3s ease;
 }
 
 /* Combined total styles */
 .combined-total {
   margin-top: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
-  background-color: #f8f9fa;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg-tertiary);
   padding: 1rem;
   border-radius: 4px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .combined-total h2 {
   font-size: 1.2rem;
-  color: #333;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .total-combined {
   font-size: 1.1rem;
   font-weight: bold;
-  color: #333;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .account-actions {
@@ -386,6 +490,39 @@ a.button.small {
   font-weight: bold;
 }
 
+/* Account Groups Styles */
+.account-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.account-group {
+  background-color: #fff;
+  padding: 1.25rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.group-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.group-balance {
+  font-size: 1.125rem;
+  font-weight: bold;
+}
+
 /* Filters */
 .filters {
   background-color: #fff;
@@ -422,11 +559,13 @@ a.button.small {
 
 /* Utility classes */
 .positive {
-  color: #28a745;
+  color: var(--color-positive);
+  transition: color 0.3s ease;
 }
 
 .negative {
-  color: #dc3545;
+  color: var(--color-negative);
+  transition: color 0.3s ease;
 }
 
 .actions {
@@ -435,20 +574,26 @@ a.button.small {
 }
 
 .error {
-  color: #dc3545;
-  background-color: #f8d7da;
+  color: var(--color-negative);
+  background-color: #f8d7da; /* Light theme error background */
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1rem;
+  transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+[data-theme="dark"] .error {
+  background-color: #442726; /* Dark theme error background */
 }
 
 /* Monthly Budget Status Styles */
 .monthly-budget-status {
-  background-color: #fff;
+  background-color: var(--color-bg-secondary);
   padding: 1.5rem;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--color-shadow);
   margin-bottom: 1.5rem;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .budget-status-grid {
@@ -462,12 +607,15 @@ a.button.small {
   font-size: 1.5rem;
   font-weight: bold;
   margin: 0.5rem 0;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--color-text-muted);
   margin-top: 0.25rem;
+  transition: color 0.3s ease;
 }
 
 .budget-progress {
@@ -476,22 +624,24 @@ a.button.small {
 
 .progress-bar-container {
   height: 12px;
-  background-color: #e9ecef;
+  background-color: var(--color-bg-tertiary);
   border-radius: 6px;
   overflow: hidden;
   margin-bottom: 0.5rem;
+  transition: background-color 0.3s ease;
 }
 
 .progress-bar {
   height: 100%;
   border-radius: 6px;
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, background-color 0.3s ease;
 }
 
 .progress-text {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--color-text-muted);
   text-align: center;
+  transition: color 0.3s ease;
 }
 
 /* Ledger Layout Styles */
@@ -503,8 +653,9 @@ a.button.small {
 
 .ledger-sidebar {
   flex: 0 0 250px;
-  border-right: 1px solid #eee;
+  border-right: 1px solid var(--color-border);
   padding-right: 1rem;
+  transition: border-color 0.3s ease;
 }
 
 .ledger-content {
@@ -520,6 +671,8 @@ a.button.small {
 
 .account-sidebar h2 {
   margin-bottom: 1rem;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .account-list {
@@ -534,46 +687,53 @@ a.button.small {
   border-radius: 4px;
   margin-bottom: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
   border: 1px solid transparent;
+  color: var(--color-text-primary);
 }
 
 .account-item:hover {
-  background-color: #f0f0f0;
+  background-color: var(--color-highlight);
 }
 
 .account-item.selected {
-  background-color: #e6f7ff;
-  border-color: #91d5ff;
+  background-color: var(--color-selected);
+  border-color: var(--color-selected-border);
 }
 
 .account-name {
   font-weight: bold;
   margin-bottom: 0.25rem;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .account-balance {
   font-size: 0.9rem;
+  transition: color 0.3s ease;
 }
 
 .account-balance.positive {
-  color: #52c41a;
+  color: var(--color-positive);
 }
 
 .account-balance.negative {
-  color: #f5222d;
+  color: var(--color-negative);
 }
 
 .account-sidebar-actions {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--color-border);
+  transition: border-color 0.3s ease;
 }
 
 .account-sidebar-loading,
 .account-sidebar-error,
 .account-sidebar-empty {
   padding: 1rem;
+  color: var(--color-text-muted);
+  transition: color 0.3s ease;
 }
 
 /* Account Ledger Styles */
@@ -603,12 +763,15 @@ a.button.small {
 .ledger-table td {
   padding: 0.75rem;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
+  transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
 .ledger-table th {
-  background-color: #f8f9fa;
+  background-color: var(--color-bg-tertiary);
   font-weight: bold;
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .ledger-table .amount {
@@ -616,15 +779,18 @@ a.button.small {
 }
 
 .ledger-table .amount.incoming {
-  color: #52c41a;
+  color: var(--color-positive);
+  transition: color 0.3s ease;
 }
 
 .ledger-table .amount.outgoing {
-  color: #f5222d;
+  color: var(--color-negative);
+  transition: color 0.3s ease;
 }
 
 .new-transaction-row {
-  background-color: #f8f9fa;
+  background-color: var(--color-bg-tertiary);
+  transition: background-color 0.3s ease;
 }
 
 .new-transaction-row input,
@@ -632,6 +798,10 @@ a.button.small {
   margin-bottom: 0;
   padding: 0.4rem;
   font-size: 0.9rem;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .new-transaction-row button {
@@ -642,7 +812,8 @@ a.button.small {
 .no-transactions {
   text-align: center;
   padding: 2rem;
-  color: #999;
+  color: var(--color-text-muted);
+  transition: color 0.3s ease;
 }
 
 .no-account-selected {
@@ -650,8 +821,9 @@ a.button.small {
   justify-content: center;
   align-items: center;
   height: 100%;
-  color: #999;
+  color: var(--color-text-muted);
   font-style: italic;
+  transition: color 0.3s ease;
 }
 
 /* Editable cell styles */
@@ -661,17 +833,17 @@ a.button.small {
 }
 
 .ledger-table td:hover {
-  background-color: #f0f8ff;
+  background-color: var(--color-highlight);
 }
 
 .ledger-table td.editing {
-  background-color: #e6f7ff;
+  background-color: var(--color-selected);
   padding: 0;
 }
 
 .ledger-table td.non-editable {
   cursor: default;
-  color: #666;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
@@ -689,6 +861,10 @@ a.button.small {
   margin-bottom: 0.5rem;
   padding: 0.4rem;
   font-size: 0.9rem;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .edit-actions {
@@ -704,9 +880,10 @@ a.button.small {
 }
 
 .edit-error {
-  color: #dc3545;
+  color: var(--color-negative);
   font-size: 0.8rem;
   margin-top: 0.25rem;
+  transition: color 0.3s ease;
 }
 
 /* Reports Styles */
@@ -721,35 +898,38 @@ a.button.small {
 }
 
 .reports-navigation button {
-  background-color: #f8f9fa;
-  color: #333;
-  border: 1px solid #ddd;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
   padding: 0.5rem 1rem;
   cursor: pointer;
   border-radius: 4px;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   width: auto;
 }
 
 .reports-navigation button:hover {
-  background-color: #e9ecef;
+  background-color: var(--color-highlight);
 }
 
 .reports-navigation button.active {
-  background-color: #646cff;
+  background-color: var(--color-primary);
   color: white;
-  border-color: #646cff;
+  border-color: var(--color-primary);
 }
 
 .report-content {
-  background-color: #fff;
+  background-color: var(--color-bg-secondary);
   padding: 1.5rem;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--color-shadow);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .balance-over-time h2 {
   margin-bottom: 1.5rem;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .report-filters {
@@ -758,7 +938,8 @@ a.button.small {
   gap: 2rem;
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border);
+  transition: border-color 0.3s ease;
 }
 
 .date-range {
@@ -773,6 +954,8 @@ a.button.small {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .account-selection {
@@ -782,6 +965,8 @@ a.button.small {
 
 .account-selection h3 {
   margin-bottom: 1rem;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .account-checkbox {
@@ -793,11 +978,14 @@ a.button.small {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
 }
 
 .account-checkbox input[type="checkbox"] {
   width: auto;
   margin-bottom: 0;
+  accent-color: var(--color-primary);
 }
 
 .chart-container {
@@ -808,8 +996,9 @@ a.button.small {
 .no-data {
   text-align: center;
   padding: 2rem;
-  color: #999;
+  color: var(--color-text-muted);
   font-style: italic;
+  transition: color 0.3s ease;
 }
 
 /* Responsive adjustments */
@@ -821,10 +1010,11 @@ a.button.small {
   .ledger-sidebar {
     flex: 0 0 auto;
     border-right: none;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--color-border);
     padding-right: 0;
     padding-bottom: 1rem;
     margin-bottom: 1rem;
+    transition: border-color 0.3s ease;
   }
 
   .account-list {

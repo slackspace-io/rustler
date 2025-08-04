@@ -27,6 +27,7 @@ const TransactionNew = () => {
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('Uncategorized');
   const [budgetId, setBudgetId] = useState<string>('');
+  const [budgetName, setBudgetName] = useState('');
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -54,6 +55,14 @@ const TransactionNew = () => {
         const budgetsData = await budgetsApi.getActiveBudgets();
         setBudgets(budgetsData);
 
+        // If there's a preselected budget ID, set the budget name too
+        if (budgetId) {
+          const selectedBudget = budgetsData.find(budget => budget.id === budgetId);
+          if (selectedBudget) {
+            setBudgetName(`${selectedBudget.name} (${formatNumber(selectedBudget.amount)})`);
+          }
+        }
+
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch data. Please try again later.');
@@ -63,7 +72,7 @@ const TransactionNew = () => {
     };
 
     fetchData();
-  }, [preselectedAccountId]);
+  }, [preselectedAccountId, budgetId, formatNumber]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,18 +305,31 @@ const TransactionNew = () => {
         {!isTransfer && (
           <div className="form-group">
             <label htmlFor="budget">Budget (Optional)</label>
-            <select
+            <input
+              type="text"
               id="budget"
-              value={budgetId}
-              onChange={(e) => setBudgetId(e.target.value)}
-            >
-              <option value="">No Budget</option>
+              value={budgetName}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                setBudgetName(inputValue);
+
+                // Check if the input matches an existing budget
+                const matchedBudget = budgets.find(
+                  budget => budget.name === inputValue ||
+                           `${budget.name} (${formatNumber(budget.amount)})` === inputValue
+                );
+
+                // If matched, set the budget ID, otherwise clear it
+                setBudgetId(matchedBudget ? matchedBudget.id : '');
+              }}
+              list="budgets-list"
+              placeholder="Select an existing budget"
+            />
+            <datalist id="budgets-list">
               {budgets.map(budget => (
-                <option key={budget.id} value={budget.id}>
-                  {budget.name} ({formatNumber(budget.amount)})
-                </option>
+                <option key={budget.id} value={`${budget.name} (${formatNumber(budget.amount)})`} />
               ))}
-            </select>
+            </datalist>
           </div>
         )}
 

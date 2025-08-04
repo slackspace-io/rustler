@@ -136,6 +136,32 @@ export const transactionsApi = {
       throw new Error(`Failed to delete transaction with ID ${id}`);
     }
   },
+
+  // Import transactions from CSV
+  importTransactions: async (importData: {
+    account_id: string;
+    column_mapping: {
+      description: number | null;
+      amount: number | null;
+      category: number | null;
+      destination_name: number | null;
+      transaction_date: number | null;
+      budget_id: number | null;
+    };
+    data: string[][];
+  }): Promise<{ success: number; failed: number }> => {
+    const response = await fetch(`${API_BASE_URL}/accounts/${importData.account_id}/import-csv`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(importData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to import transactions');
+    }
+    return response.json();
+  },
 };
 
 // API functions for categories
