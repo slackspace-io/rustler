@@ -107,7 +107,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
           source_account_id: accountId,
           destination_name: destinationName || undefined,
           description: hasOutgoing ? `${description} (Outgoing)` : description,
-          amount: -Math.abs(parseFloat(outgoingAmount)), // Negative value to increase balance
+          amount: Math.abs(parseFloat(outgoingAmount)), // Negative value to increase balance
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -120,7 +120,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
           source_account_id: accountId,
           destination_name: destinationName || undefined,
           description: hasIncoming ? `${description} (Incoming)` : description,
-          amount: Math.abs(parseFloat(incomingAmount)),
+          amount: -Math.abs(parseFloat(incomingAmount)),
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -394,7 +394,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                   />
                 </td>
                 <td>
-                  <label>Outgoing</label>
+                  <label>Oustgoing</label>
                   <input
                     type="number"
                     value={outgoingAmount}
@@ -405,7 +405,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                   />
                 </td>
                 <td>
-                  <label>Incoming</label>
+                  <label>Isncoming</label>
                   <input
                     type="number"
                     value={incomingAmount}
