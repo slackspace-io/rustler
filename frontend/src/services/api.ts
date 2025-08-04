@@ -2,10 +2,10 @@
 const API_BASE_URL = '/api';
 
 // Import types from types.ts
-import type { Account, Category, Transaction, Budget } from './types.ts';
+import type { Account, Category, Transaction, Budget, MonthlyBudgetStatus } from './types.ts';
 
 // Re-export types for convenience
-export type { Account, Category, Transaction, Budget };
+export type { Account, Category, Transaction, Budget, MonthlyBudgetStatus };
 
 // API functions for accounts
 export const accountsApi = {
@@ -214,6 +214,15 @@ export const budgetsApi = {
     const response = await fetch(`${API_BASE_URL}/budgets/active`);
     if (!response.ok) {
       throw new Error('Failed to fetch active budgets');
+    }
+    return response.json();
+  },
+
+  // Get monthly budget status
+  getMonthlyBudgetStatus: async (year: number, month: number): Promise<MonthlyBudgetStatus> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/monthly-status?year=${year}&month=${month}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch monthly budget status for ${year}-${month}`);
     }
     return response.json();
   },

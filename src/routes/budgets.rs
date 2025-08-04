@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Query},
     http::StatusCode,
     Json,
     Router,
@@ -7,14 +7,31 @@ use axum::{
 };
 use uuid::Uuid;
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 
 use crate::models::{Budget, CreateBudgetRequest, UpdateBudgetRequest};
 use crate::services::BudgetService;
+
+// Query parameters for monthly budget status
+#[derive(Debug, Deserialize)]
+struct MonthlyBudgetQuery {
+    year: i32,
+    month: u32,
+}
+
+// Response structure for monthly budget status
+#[derive(Debug, Serialize)]
+struct MonthlyBudgetStatus {
+    incoming_funds: f64,
+    budgeted_amount: f64,
+    remaining_to_budget: f64,
+}
 
 pub fn router(budget_service: Arc<BudgetService>) -> Router {
     Router::new()
         .route("/budgets", get(get_budgets))
         .route("/budgets/active", get(get_active_budgets))
+        .route("/budgets/monthly-status", get(get_monthly_budget_status))
         .route("/budgets", post(create_budget))
         .route("/budgets/{id}", get(get_budget))
         .route("/budgets/{id}", put(update_budget))
@@ -142,6 +159,32 @@ async fn get_budget_remaining(
         Ok(remaining) => Ok(Json(remaining)),
         Err(err) => {
             eprintln!("Error getting budget remaining: {:?}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Handler to get the monthly budget status
+async fn get_monthly_budget_status(
+    Query(query): Query<MonthlyBudgetQuery>,
+    State(state): State<Arc<BudgetService>>,
+) -> Result<Json<MonthlyBudgetStatus>, StatusCode> {
+    // Validate month value (1-12)
+    if query.month < 1 || query.month > 12 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Call the budget service to get the monthly budget status
+    match state.get_monthly_budget_status(query.year, query.month).await {
+        Ok((incoming_funds, budgeted_amount, remaining_to_budget)) => {
+            Ok(Json(MonthlyBudgetStatus {
+                incoming_funds,
+                budgeted_amount,
+                remaining_to_budget,
+            }))
+        },
+        Err(err) => {
+            eprintln!("Error getting monthly budget status: {:?}", err);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

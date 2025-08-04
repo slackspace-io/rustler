@@ -442,6 +442,58 @@ a.button.small {
   margin-bottom: 1rem;
 }
 
+/* Monthly Budget Status Styles */
+.monthly-budget-status {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.budget-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.monthly-income, .budgeted-amount, .remaining-amount {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0.5rem 0;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+.budget-progress {
+  margin-top: 1.5rem;
+}
+
+.progress-bar-container {
+  height: 12px;
+  background-color: #e9ecef;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.875rem;
+  color: #666;
+  text-align: center;
+}
+
 /* Ledger Layout Styles */
 .ledger-layout {
   display: flex;

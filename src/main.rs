@@ -71,6 +71,15 @@ async fn api_root_handler() -> Html<String> {
         <li><code>POST /api/transactions</code> - Create a new transaction</li>
         <li><code>PUT /api/transactions/{{id}}</code> - Update a transaction</li>
         <li><code>DELETE /api/transactions/{{id}}</code> - Delete a transaction</li>
+        <li><code>GET /api/budgets</code> - List all budgets</li>
+        <li><code>GET /api/budgets/active</code> - List active budgets</li>
+        <li><code>GET /api/budgets/monthly-status?year=YYYY&month=MM</code> - Get monthly budget status</li>
+        <li><code>GET /api/budgets/{{id}}</code> - Get a specific budget</li>
+        <li><code>POST /api/budgets</code> - Create a new budget</li>
+        <li><code>PUT /api/budgets/{{id}}</code> - Update a budget</li>
+        <li><code>DELETE /api/budgets/{{id}}</code> - Delete a budget</li>
+        <li><code>GET /api/budgets/{{id}}/spent</code> - Get total spent amount for a budget</li>
+        <li><code>GET /api/budgets/{{id}}/remaining</code> - Get remaining amount for a budget</li>
     </ul>
 
     <p><a href="/">Go to Web Interface</a></p>

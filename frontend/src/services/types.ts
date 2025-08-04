@@ -42,3 +42,9 @@ export interface Budget {
   created_at: string;
   updated_at: string;
 }
+
+export interface MonthlyBudgetStatus {
+  incoming_funds: number;
+  budgeted_amount: number;
+  remaining_to_budget: number;
+}
