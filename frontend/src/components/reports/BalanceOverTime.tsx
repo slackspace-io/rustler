@@ -24,6 +24,55 @@ const BalanceOverTime = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Function to calculate date range based on preset
+  const calculateDateRange = (preset: DatePreset): { start: Date, end: Date } => {
+    const end = new Date();
+    const start = new Date();
+
+    switch (preset) {
+      case 'last-month':
+        start.setMonth(start.getMonth() - 1);
+        setGranularity('day');
+        break;
+      case '3-months':
+        start.setMonth(start.getMonth() - 3);
+        setGranularity('week');
+        break;
+      case '6-months':
+        start.setMonth(start.getMonth() - 6);
+        setGranularity('week');
+        break;
+      case 'ytd':
+        start.setMonth(0);
+        start.setDate(1);
+        setGranularity('week');
+        break;
+      case '1-year':
+        start.setFullYear(start.getFullYear() - 1);
+        setGranularity('month');
+        break;
+      case 'all-time':
+        // Set to a date far in the past or the earliest transaction date
+        start.setFullYear(start.getFullYear() - 5);
+        setGranularity('month');
+        break;
+      default:
+        // Default to last month
+        start.setMonth(start.getMonth() - 1);
+        setGranularity('day');
+    }
+
+    return { start, end };
+  };
+
+  // Function to apply a preset
+  const applyPreset = (preset: DatePreset) => {
+    setActivePreset(preset);
+    const { start, end } = calculateDateRange(preset);
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+  };
+
   // Load accounts on component mount
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -34,13 +83,8 @@ const BalanceOverTime = () => {
         // Default to selecting all accounts
         setSelectedAccounts(accountsData.map(account => account.id));
 
-        // Set default date range to last 30 days
-        const end = new Date();
-        const start = new Date();
-        start.setDate(start.getDate() - 30);
-
-        setStartDate(start.toISOString().split('T')[0]);
-        setEndDate(end.toISOString().split('T')[0]);
+        // Apply default preset (last month)
+        applyPreset('last-month');
 
         setLoading(false);
       } catch (err) {
@@ -120,13 +164,61 @@ const BalanceOverTime = () => {
           }
         }
 
-        // Generate data points for each day in the date range
+        // Helper function to get the start of the week
+        const getStartOfWeek = (date: Date): Date => {
+          const result = new Date(date);
+          result.setDate(result.getDate() - result.getDay()); // Set to Sunday
+          return result;
+        };
+
+        // Helper function to format date based on granularity
+        const formatDateByGranularity = (date: Date): string => {
+          if (granularity === 'day') {
+            return date.toISOString().split('T')[0];
+          } else if (granularity === 'week') {
+            const weekStart = getStartOfWeek(date);
+            return `${weekStart.toISOString().split('T')[0]}`;
+          } else if (granularity === 'month') {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          }
+          return date.toISOString().split('T')[0]; // Default to day
+        };
+
+        // Helper function to advance date based on granularity
+        const advanceDate = (date: Date): void => {
+          if (granularity === 'day') {
+            date.setDate(date.getDate() + 1);
+          } else if (granularity === 'week') {
+            date.setDate(date.getDate() + 7);
+          } else if (granularity === 'month') {
+            date.setMonth(date.getMonth() + 1);
+          } else {
+            date.setDate(date.getDate() + 1); // Default to day
+          }
+        };
+
+        // Helper function to check if a transaction falls within the current period
+        const isTransactionInPeriod = (transaction: Transaction, periodStart: Date, periodEnd: Date): boolean => {
+          const transactionTime = new Date(transaction.transaction_date).getTime();
+          return transactionTime >= periodStart.getTime() && transactionTime < periodEnd.getTime();
+        };
+
+        // Generate data points based on granularity
         const data: BalanceDataPoint[] = [];
         const currentDate = new Date(startDate);
         const lastDate = new Date(endDate);
 
         while (currentDate <= lastDate) {
-          const dateString = currentDate.toISOString().split('T')[0];
+          // Determine the end of the current period
+          const periodEnd = new Date(currentDate);
+          advanceDate(periodEnd);
+
+          // If period end is after lastDate, cap it at lastDate
+          if (periodEnd > lastDate) {
+            periodEnd.setTime(lastDate.getTime() + 1); // Add 1ms to include lastDate
+          }
+
+          const dateString = formatDateByGranularity(currentDate);
           const dataPoint: BalanceDataPoint = { date: dateString };
 
           // Add balance for each selected account
@@ -136,21 +228,20 @@ const BalanceOverTime = () => {
 
           data.push(dataPoint);
 
-          // Find transactions on this day and update balances
-          const dayTransactions = filteredTransactions.filter(transaction => {
-            const transactionDate = new Date(transaction.transaction_date).toISOString().split('T')[0];
-            return transactionDate === dateString;
-          });
+          // Find transactions in this period and update balances
+          const periodTransactions = filteredTransactions.filter(transaction =>
+            isTransactionInPeriod(transaction, currentDate, periodEnd)
+          );
 
           // Update account balances based on transactions
-          for (const transaction of dayTransactions) {
+          for (const transaction of periodTransactions) {
             if (selectedAccounts.includes(transaction.source_account_id)) {
               accountBalances[transaction.source_account_id] -= transaction.amount;
             }
           }
 
-          // Move to next day
-          currentDate.setDate(currentDate.getDate() + 1);
+          // Move to next period
+          advanceDate(currentDate);
         }
 
         setChartData(data);
@@ -196,13 +287,59 @@ const BalanceOverTime = () => {
       <h2>Account Balance Over Time</h2>
 
       <div className="report-filters">
+        <div className="date-presets">
+          <h3>Date Range</h3>
+          <div className="preset-buttons">
+            <button
+              className={activePreset === 'last-month' ? 'active' : ''}
+              onClick={() => applyPreset('last-month')}
+            >
+              Last Month
+            </button>
+            <button
+              className={activePreset === '3-months' ? 'active' : ''}
+              onClick={() => applyPreset('3-months')}
+            >
+              3 Months
+            </button>
+            <button
+              className={activePreset === '6-months' ? 'active' : ''}
+              onClick={() => applyPreset('6-months')}
+            >
+              6 Months
+            </button>
+            <button
+              className={activePreset === 'ytd' ? 'active' : ''}
+              onClick={() => applyPreset('ytd')}
+            >
+              YTD
+            </button>
+            <button
+              className={activePreset === '1-year' ? 'active' : ''}
+              onClick={() => applyPreset('1-year')}
+            >
+              1 Year
+            </button>
+            <button
+              className={activePreset === 'all-time' ? 'active' : ''}
+              onClick={() => applyPreset('all-time')}
+            >
+              All Time
+            </button>
+          </div>
+        </div>
+
         <div className="date-range">
+          <h3>Custom Range</h3>
           <label>
             Start Date:
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setActivePreset('custom');
+              }}
             />
           </label>
 
@@ -211,7 +348,10 @@ const BalanceOverTime = () => {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setActivePreset('custom');
+              }}
             />
           </label>
         </div>
