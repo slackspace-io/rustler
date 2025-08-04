@@ -617,6 +617,16 @@ a.button.small {
   padding: 0;
 }
 
+.ledger-table td.non-editable {
+  cursor: default;
+  color: #666;
+  font-style: italic;
+}
+
+.ledger-table td.non-editable:hover {
+  background-color: inherit;
+}
+
 .edit-field {
   padding: 0.5rem;
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, KeyboardEvent } from 'react';
+import { useState, useEffect, type KeyboardEvent } from 'react';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
 import type { Transaction, Account, Budget } from '../../services/api';
 import CategoryInput from '../common/CategoryInput';
@@ -19,6 +19,7 @@ interface EditingState {
 const AccountLedger = ({ accountId }: AccountLedgerProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
+  const [allAccounts, setAllAccounts] = useState<Account[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,10 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         // Fetch account details
         const accountData = await accountsApi.getAccount(accountId);
         setAccount(accountData);
+
+        // Fetch all accounts for looking up names
+        const allAccountsData = await accountsApi.getAccounts();
+        setAllAccounts(allAccountsData);
 
         // Fetch transactions for this account
         const transactionsData = await transactionsApi.getAccountTransactions(accountId);
@@ -183,7 +188,14 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         initialValue = transaction.budget_id || '';
         break;
       case 'destination_name':
-        initialValue = transaction.destination_name || '';
+        // If this account is the destination, we're actually showing the source account name
+        // but we don't allow editing it in this case
+        if (transaction.destination_account_id === accountId) {
+          const sourceName = allAccounts.find(a => a.id === transaction.source_account_id)?.name || '';
+          initialValue = sourceName;
+        } else {
+          initialValue = transaction.destination_name || '';
+        }
         break;
       case 'amount':
         initialValue = transaction.amount.toString();
@@ -234,6 +246,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
 
     if (field === 'amount' && (isNaN(parseFloat(editValue)) || parseFloat(editValue) === 0)) {
       setEditError('Please enter a valid amount');
+      return;
+    }
+
+    // Don't allow editing destination_name when this account is the destination
+    if (field === 'destination_name' && transaction.destination_account_id === accountId) {
+      setEditError('Cannot edit source account name');
       return;
     }
 
@@ -528,8 +546,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
 
                     {/* Destination */}
                     <td
-                      onClick={() => handleStartEdit(transaction, 'destination_name')}
-                      className={editing?.transactionId === transaction.id && editing.field === 'destination_name' ? 'editing' : ''}
+                      onClick={() => transaction.destination_account_id !== accountId && handleStartEdit(transaction, 'destination_name')}
+                      className={`${editing?.transactionId === transaction.id && editing.field === 'destination_name' ? 'editing' : ''} ${transaction.destination_account_id === accountId ? 'non-editable' : ''}`}
                     >
                       {editing?.transactionId === transaction.id && editing.field === 'destination_name' ? (
                         <div className="edit-field">
@@ -550,7 +568,11 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                           {editError && <div className="edit-error">{editError}</div>}
                         </div>
                       ) : (
-                        transaction.destination_name || '-'
+                        // If this account is the destination, show the source account name
+                        // Otherwise, show the destination name
+                        transaction.destination_account_id === accountId
+                          ? allAccounts.find(a => a.id === transaction.source_account_id)?.name || 'Unknown Source'
+                          : transaction.destination_name || '-'
                       )}
                     </td>
 

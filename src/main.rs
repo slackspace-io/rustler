@@ -96,6 +96,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Run migration to fix NULL destination_account_id values
     db::fix_null_destination_accounts(&db_pool).await?;
 
+    // Run migration to add destination_name column
+    db::add_destination_name_column(&db_pool).await?;
+
     // Check database connection
     db::check_db_connection(&db_pool).await?;
 
