@@ -17,14 +17,14 @@
 }
 
 .categories-grid {
-  background-color: #fff;
+  background-color: var(--color-bg-secondary);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;
 }
 
 .new-category-form {
-  background-color: #fff;
+  background-color: var(--color-bg-secondary);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;

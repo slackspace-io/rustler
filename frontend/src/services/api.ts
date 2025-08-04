@@ -319,4 +319,13 @@ export const budgetsApi = {
     }
     return response.json();
   },
+
+  // Get the total spent amount not associated with any budget
+  getUnbudgetedSpent: async (): Promise<number> => {
+    const response = await fetch(`${API_BASE_URL}/budgets/unbudgeted-spent`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch unbudgeted spent amount');
+    }
+    return response.json();
+  },
 };

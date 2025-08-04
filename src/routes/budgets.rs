@@ -32,6 +32,7 @@ pub fn router(budget_service: Arc<BudgetService>) -> Router {
         .route("/budgets", get(get_budgets))
         .route("/budgets/active", get(get_active_budgets))
         .route("/budgets/monthly-status", get(get_monthly_budget_status))
+        .route("/budgets/unbudgeted-spent", get(get_unbudgeted_spent))
         .route("/budgets", post(create_budget))
         .route("/budgets/{id}", get(get_budget))
         .route("/budgets/{id}", put(update_budget))
@@ -185,6 +186,20 @@ async fn get_monthly_budget_status(
         },
         Err(err) => {
             eprintln!("Error getting monthly budget status: {:?}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Handler to get the total spent amount not associated with any budget
+async fn get_unbudgeted_spent(
+    State(state): State<Arc<BudgetService>>,
+) -> Result<Json<f64>, StatusCode> {
+    // Call the budget service to get the unbudgeted spent amount
+    match state.get_unbudgeted_spent().await {
+        Ok(spent) => Ok(Json(spent)),
+        Err(err) => {
+            eprintln!("Error getting unbudgeted spent: {:?}", err);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

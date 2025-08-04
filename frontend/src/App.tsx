@@ -13,6 +13,7 @@ import TransactionsList from './components/transactions/TransactionsList'
 import TransactionNew from './components/transactions/TransactionNew'
 import TransactionEdit from './components/transactions/TransactionEdit'
 import TransactionImport from './components/transactions/TransactionImport'
+import QuickAddTransaction from './components/transactions/QuickAddTransaction'
 import BudgetsList from './components/budgets/BudgetsList'
 import BudgetNew from './components/budgets/BudgetNew'
 import BudgetView from './components/budgets/BudgetView'
@@ -76,6 +77,7 @@ const AppContent = () => {
           {/* Transaction routes */}
           <Route path="/transactions" element={<TransactionsList />} />
           <Route path="/transactions/new" element={<TransactionNew />} />
+          <Route path="/transactions/quick-add" element={<QuickAddTransaction />} />
           <Route path="/transactions/:id/edit" element={<TransactionEdit />} />
 
           {/* Budget routes */}

@@ -147,8 +147,16 @@ const TransactionsList = () => {
     <div className="transactions-list">
       <div className="header-actions">
         <h1>Transactions</h1>
-        <Link to="/transactions/new" className="button">Add New Transaction</Link>
+        <div className="button-group">
+          <Link to="/transactions/new" className="button">Add New Transaction</Link>
+          <Link to="/transactions/quick-add" className="button desktop-quick-add">Quick Add</Link>
+        </div>
       </div>
+
+      {/* Floating action button for mobile quick add */}
+      <Link to="/transactions/quick-add" className="mobile-quick-add-fab">
+        +
+      </Link>
 
       <div className="filters">
         <h2>Filters</h2>

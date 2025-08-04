@@ -3,11 +3,17 @@ import { Link } from 'react-router-dom';
 import { budgetsApi } from '../../services/api';
 import type { Budget, MonthlyBudgetStatus } from '../../services/api';
 
+interface BudgetWithSpent extends Budget {
+  spent: number;
+}
+
 const BudgetsList = () => {
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgets, setBudgets] = useState<BudgetWithSpent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalAllocated, setTotalAllocated] = useState(0);
+  const [unbudgetedSpent, setUnbudgetedSpent] = useState(0);
+  const [unbudgetedSpentLoading, setUnbudgetedSpentLoading] = useState(true);
   const [monthlyStatus, setMonthlyStatus] = useState<MonthlyBudgetStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
 
@@ -21,7 +27,16 @@ const BudgetsList = () => {
       try {
         setLoading(true);
         const data = await budgetsApi.getBudgets();
-        setBudgets(data);
+
+        // Fetch spent amount for each budget
+        const budgetsWithSpent = await Promise.all(
+          data.map(async (budget) => {
+            const spent = await budgetsApi.getBudgetSpent(budget.id);
+            return { ...budget, spent };
+          })
+        );
+
+        setBudgets(budgetsWithSpent);
 
         // Calculate total allocated amount
         const total = data.reduce((sum, budget) => sum + budget.amount, 0);
@@ -47,8 +62,21 @@ const BudgetsList = () => {
       }
     };
 
+    const fetchUnbudgetedSpent = async () => {
+      try {
+        setUnbudgetedSpentLoading(true);
+        const spent = await budgetsApi.getUnbudgetedSpent();
+        setUnbudgetedSpent(spent);
+        setUnbudgetedSpentLoading(false);
+      } catch (err) {
+        console.error('Error fetching unbudgeted spent amount:', err);
+        setUnbudgetedSpentLoading(false);
+      }
+    };
+
     fetchBudgets();
     fetchMonthlyStatus();
+    fetchUnbudgetedSpent();
   }, [currentYear, currentMonth]);
 
   const handleDeleteBudget = async (id: string) => {
@@ -153,9 +181,21 @@ const BudgetsList = () => {
         )}
       </div>
 
-      <div className="summary-box">
-        <h2>Total Allocated</h2>
-        <p className="total-allocated">{totalAllocated.toFixed(2)}</p>
+      <div className="summary-section">
+        <div className="summary-box">
+          <h2>Total Allocated</h2>
+          <p className="total-allocated">{totalAllocated.toFixed(2)}</p>
+        </div>
+
+        <div className="summary-box">
+          <h2>Unbudgeted Spent</h2>
+          {unbudgetedSpentLoading ? (
+            <p>Loading...</p>
+          ) : (
+            <p className="unbudgeted-spent">{unbudgetedSpent.toFixed(2)}</p>
+          )}
+          <p className="subtitle">Amount spent not part of any budget</p>
+        </div>
       </div>
 
       {budgets.length === 0 ? (
@@ -166,6 +206,8 @@ const BudgetsList = () => {
             <tr>
               <th>Name</th>
               <th>Amount</th>
+              <th>Spent</th>
+              <th>Remaining</th>
               <th>Start Date</th>
               <th>End Date</th>
               <th>Actions</th>
@@ -178,6 +220,8 @@ const BudgetsList = () => {
                   <Link to={`/budgets/${budget.id}`}>{budget.name}</Link>
                 </td>
                 <td>{budget.amount.toFixed(2)}</td>
+                <td>{budget.spent.toFixed(2)}</td>
+                <td>{(budget.amount - budget.spent).toFixed(2)}</td>
                 <td>{formatDate(budget.start_date)}</td>
                 <td>{formatDate(budget.end_date)}</td>
                 <td>

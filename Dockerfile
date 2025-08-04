@@ -77,5 +77,7 @@ EXPOSE 3000
 RUN useradd -m rustler
 USER rustler
 
-# Set the entrypoint
-ENTRYPOINT ["/app/rustler"]
+# Set the entrypoint and command
+# Use a shell form to ensure proper signal handling and error output
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["exec /app/rustler"]

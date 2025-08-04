@@ -29,6 +29,7 @@ const TransactionImport = () => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   // CSV import state
   const [file, setFile] = useState<File | null>(null);
@@ -92,19 +93,71 @@ const TransactionImport = () => {
     const lines = content.split('\n');
     const parsedData: string[][] = [];
 
-    lines.forEach(line => {
-      // Handle quoted values with commas inside
-      const regex = /(?:^|,)(?:"([^"]*(?:""[^"]*)*)"|([^,]*))/g;
-      const row: string[] = [];
-      let match;
+    // Set reasonable limits to prevent memory issues
+    const MAX_COLUMNS = 100;
+    const MAX_ROWS = 5000; // Limit to 5000 rows to prevent processing extremely large files
 
-      while ((match = regex.exec(line + ',')) !== null) {
-        const value = match[1] || match[2] || '';
-        row.push(value.trim());
-      }
+    // Limit the number of lines to process
+    const linesToProcess = lines.slice(0, MAX_ROWS);
 
-      if (row.length > 0 && row.some(cell => cell.trim() !== '')) {
-        parsedData.push(row);
+    // Show warning to user if file is too large
+    if (lines.length > MAX_ROWS) {
+      console.warn(`CSV file contains ${lines.length} rows, but only the first ${MAX_ROWS} will be processed.`);
+      setWarning(`Your CSV file contains ${lines.length} rows, but only the first ${MAX_ROWS} will be processed to ensure stable performance. Consider splitting your file into smaller chunks if you need to import all data.`);
+    } else {
+      setWarning(null);
+    }
+
+    linesToProcess.forEach(line => {
+      try {
+        // Skip empty lines
+        if (!line.trim()) {
+          return;
+        }
+
+        // Safer approach to parse CSV
+        // First, handle the special case of quoted fields that may contain commas
+        const row: string[] = [];
+        let columnCount = 0;
+
+        // Add a trailing comma to ensure the last field is captured
+        // but do it safely with a length check
+        const processLine = line.length < 10000 ? line + ',' : line;
+
+        let inQuotes = false;
+        let currentField = '';
+
+        for (let i = 0; i < processLine.length && columnCount < MAX_COLUMNS; i++) {
+          const char = processLine[i];
+
+          if (char === '"') {
+            inQuotes = !inQuotes;
+            // Handle escaped quotes (two double quotes in a row)
+            if (i + 1 < processLine.length && processLine[i + 1] === '"' && inQuotes) {
+              currentField += '"';
+              i++; // Skip the next quote
+            }
+          } else if (char === ',' && !inQuotes) {
+            // End of field
+            row.push(currentField.trim());
+            currentField = '';
+            columnCount++;
+          } else {
+            currentField += char;
+          }
+        }
+
+        // Add the last field if we didn't hit the column limit
+        if (columnCount < MAX_COLUMNS && currentField.trim()) {
+          row.push(currentField.trim());
+        }
+
+        if (row.length > 0 && row.some(cell => cell.trim() !== '')) {
+          parsedData.push(row);
+        }
+      } catch (error) {
+        console.error("Error parsing CSV line:", error);
+        // Continue with next line instead of failing the entire import
       }
     });
 
@@ -267,11 +320,25 @@ const TransactionImport = () => {
                 setFile(null);
                 setCsvData([]);
                 setCsvColumns([]);
+                setWarning(null);
               }}
             >
               Change File
             </button>
           </div>
+
+          {warning && (
+            <div className="warning-message" style={{
+              backgroundColor: '#fff3cd',
+              color: '#856404',
+              padding: '10px 15px',
+              borderRadius: '4px',
+              marginBottom: '15px',
+              border: '1px solid #ffeeba'
+            }}>
+              <p style={{ margin: 0 }}><strong>Warning:</strong> {warning}</p>
+            </div>
+          )}
 
           {csvColumns.length > 0 && (
             <>

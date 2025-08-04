@@ -291,4 +291,19 @@ impl BudgetService {
 
         Ok((incoming_funds, budgeted_amount, remaining_to_budget))
     }
+
+    /// Get the total spent amount not associated with any budget
+    pub async fn get_unbudgeted_spent(&self) -> Result<f64, sqlx::Error> {
+        let spent = sqlx::query_scalar::<_, f64>(
+            r#"
+            SELECT COALESCE(SUM(amount), 0.0)
+            FROM transactions
+            WHERE budget_id IS NULL
+            "#,
+        )
+        .fetch_one(&self.db)
+        .await?;
+
+        Ok(spent)
+    }
 }
