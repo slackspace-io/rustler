@@ -340,8 +340,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                 <th>Category</th>
                 <th>Budget</th>
                 <th>Destination</th>
-                <th>Incoming</th>
                 <th>Outgoing</th>
+                <th>Incoming</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -394,7 +394,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                   />
                 </td>
                 <td>
-                  <label>Oustgoing</label>
+                  <label>Outgoing</label>
                   <input
                     type="number"
                     value={outgoingAmount}
@@ -405,7 +405,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                   />
                 </td>
                 <td>
-                  <label>Isncoming</label>
+                  <label>Incoming</label>
                   <input
                     type="number"
                     value={incomingAmount}
