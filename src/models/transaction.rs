@@ -33,8 +33,8 @@ pub struct Transaction {
 pub struct CreateTransactionRequest {
     /// ID of the source account for this transaction
     pub source_account_id: Uuid,
-    /// ID of the destination account (required for double entry accounting)
-    pub destination_account_id: Uuid,
+    /// ID of the destination account (optional - if not provided, will create or find an external account)
+    pub destination_account_id: Option<Uuid>,
     pub description: String,
     pub amount: f64,
     pub category: String,

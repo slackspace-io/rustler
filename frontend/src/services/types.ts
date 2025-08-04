@@ -21,7 +21,8 @@ export interface Transaction {
   id: string;
   source_account_id: string;
   destination_account_id?: string;
-  payee_name?: string;
+  payee_name?: string; // Keeping for backward compatibility
+  destination_name?: string;
   description: string;
   amount: number;
   category: string;

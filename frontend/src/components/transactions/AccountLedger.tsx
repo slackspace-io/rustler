@@ -8,7 +8,7 @@ interface AccountLedgerProps {
 }
 
 // Define the editable fields and their types
-type EditableField = 'description' | 'category' | 'budget_id' | 'payee_name' | 'amount' | 'transaction_date';
+type EditableField = 'description' | 'category' | 'budget_id' | 'destination_name' | 'amount' | 'transaction_date';
 
 // Interface for tracking which field is being edited
 interface EditingState {
@@ -34,7 +34,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
   const [incomingAmount, setIncomingAmount] = useState('');
   const [outgoingAmount, setOutgoingAmount] = useState('');
   const [category, setCategory] = useState('Uncategorized');
-  const [payeeName, setPayeeName] = useState('');
+  const [destinationName, setDestinationName] = useState('');
   const [budgetId, setBudgetId] = useState<string>('');
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -98,7 +98,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       if (hasIncoming) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
-          payee_name: payeeName || undefined,
+          destination_name: destinationName || undefined,
           description: hasOutgoing ? `${description} (Incoming)` : description,
           amount: -Math.abs(parseFloat(incomingAmount)), // Negative value to increase balance
           category,
@@ -111,7 +111,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       if (hasOutgoing) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
-          payee_name: payeeName || undefined,
+          destination_name: destinationName || undefined,
           description: hasIncoming ? `${description} (Outgoing)` : description,
           amount: -Math.abs(parseFloat(outgoingAmount)), // Ensure negative
           category,
@@ -132,7 +132,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       setDescription('');
       setIncomingAmount('');
       setOutgoingAmount('');
-      setPayeeName('');
+      setDestinationName('');
       setCategory('Uncategorized');
       setBudgetId('');
       setTransactionDate(new Date().toISOString().split('T')[0]);
@@ -182,8 +182,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       case 'budget_id':
         initialValue = transaction.budget_id || '';
         break;
-      case 'payee_name':
-        initialValue = transaction.payee_name || '';
+      case 'destination_name':
+        initialValue = transaction.destination_name || '';
         break;
       case 'amount':
         initialValue = transaction.amount.toString();
@@ -254,8 +254,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         case 'budget_id':
           updateData.budget_id = editValue || undefined;
           break;
-        case 'payee_name':
-          updateData.payee_name = editValue.trim() || undefined;
+        case 'destination_name':
+          updateData.destination_name = editValue.trim() || undefined;
           break;
         case 'amount':
           updateData.amount = parseFloat(editValue);
@@ -319,7 +319,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                 <th>Description</th>
                 <th>Category</th>
                 <th>Budget</th>
-                <th>Payee</th>
+                <th>Destination</th>
                 <th>Incoming</th>
                 <th>Outgoing</th>
                 <th>Actions</th>
@@ -368,9 +368,9 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                 <td>
                   <input
                     type="text"
-                    value={payeeName}
-                    onChange={(e) => setPayeeName(e.target.value)}
-                    placeholder="Payee (optional)"
+                    value={destinationName}
+                    onChange={(e) => setDestinationName(e.target.value)}
+                    placeholder="Destination (optional)"
                   />
                 </td>
                 <td>
@@ -526,12 +526,12 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                       )}
                     </td>
 
-                    {/* Payee */}
+                    {/* Destination */}
                     <td
-                      onClick={() => handleStartEdit(transaction, 'payee_name')}
-                      className={editing?.transactionId === transaction.id && editing.field === 'payee_name' ? 'editing' : ''}
+                      onClick={() => handleStartEdit(transaction, 'destination_name')}
+                      className={editing?.transactionId === transaction.id && editing.field === 'destination_name' ? 'editing' : ''}
                     >
-                      {editing?.transactionId === transaction.id && editing.field === 'payee_name' ? (
+                      {editing?.transactionId === transaction.id && editing.field === 'destination_name' ? (
                         <div className="edit-field">
                           <input
                             type="text"
@@ -539,7 +539,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                             onChange={(e) => setEditValue(e.target.value)}
                             onKeyDown={handleEditKeyDown}
                             autoFocus
-                            placeholder="Payee (optional)"
+                            placeholder="Destination (optional)"
                           />
                           <div className="edit-actions">
                             <button onClick={handleSaveEdit} disabled={editSaving}>
@@ -550,7 +550,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                           {editError && <div className="edit-error">{editError}</div>}
                         </div>
                       ) : (
-                        transaction.payee_name || '-'
+                        transaction.destination_name || '-'
                       )}
                     </td>
 

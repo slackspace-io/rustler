@@ -72,6 +72,43 @@ impl TransactionService {
         // Start a transaction to update both the transaction table and the account balance(s)
         let mut tx = self.db.begin().await?;
 
+        // Determine if this is a transfer (destination matches an on or off budget account)
+        // or an external account (which should be created if it doesn't exist)
+        let destination_account_id = if let Some(dest_id) = req.destination_account_id {
+            // If destination_account_id is provided, use it directly
+            dest_id
+        } else {
+            // Check if there's an existing account that matches the destination name
+            let existing_account = sqlx::query!(
+                "SELECT id FROM accounts WHERE name = $1",
+                req.description
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            if let Some(record) = existing_account {
+                // Use the existing account
+                record.id
+            } else {
+                // Create a new external account
+                let new_account_id = Uuid::new_v4();
+                sqlx::query(
+                    r#"
+                    INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
+                    VALUES ($1, $2, 'DESTINATION', 0.00, 'USD', $3, $4)
+                    "#,
+                )
+                .bind(new_account_id)
+                .bind(&req.description)
+                .bind(now)
+                .bind(now)
+                .execute(&mut *tx)
+                .await?;
+
+                new_account_id
+            }
+        };
+
         // Create the transaction
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
@@ -82,7 +119,7 @@ impl TransactionService {
         )
         .bind(Uuid::new_v4())
         .bind(req.source_account_id)
-        .bind(req.destination_account_id)
+        .bind(destination_account_id)
         .bind(&req.description)
         .bind(req.amount)
         .bind(&req.category)
@@ -122,7 +159,7 @@ impl TransactionService {
         )
         .bind(req.amount)
         .bind(now)
-        .bind(req.destination_account_id)
+        .bind(destination_account_id)
         .execute(&mut *tx)
         .await?;
 

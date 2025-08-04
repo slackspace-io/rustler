@@ -20,7 +20,7 @@ const TransactionNew = () => {
   const [sourceAccountName, setSourceAccountName] = useState('');
   const [destinationAccountId, setDestinationAccountId] = useState('');
   const [isTransfer, setIsTransfer] = useState(false);
-  const [payeeName, setPayeeName] = useState('');
+  const [destinationName, setDestinationName] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
   const [category, setCategory] = useState('Uncategorized');
@@ -85,14 +85,14 @@ const TransactionNew = () => {
       setSaving(true);
       setError(null);
 
-      // For transfers, we need to adjust the amount and payee
+      // For transfers, we need to adjust the amount and destination
       const finalAmount = isTransfer
         ? Math.abs(parseFloat(amount)) // Outgoing from source account (positive)
         : parseFloat(amount);
 
-      const finalPayeeName = isTransfer
+      const finalDestinationName = isTransfer
         ? accounts.find(a => a.id === destinationAccountId)?.name || 'Transfer'
-        : payeeName;
+        : destinationName;
 
       // Extract the clean account name (without balance and currency)
       let cleanSourceAccountName = sourceAccountName;
@@ -107,7 +107,7 @@ const TransactionNew = () => {
         await transactionsApi.createTransaction({
           source_account_id: sourceAccountId,
           destination_account_id: isTransfer ? destinationAccountId : undefined,
-          payee_name: finalPayeeName || undefined,
+          destination_name: finalDestinationName || undefined,
           description,
           amount: finalAmount,
           category: isTransfer ? 'Transfer' : category,
@@ -120,7 +120,7 @@ const TransactionNew = () => {
         await transactionsApi.createTransaction({
           source_account_id: accounts[0]?.id, // Use the first account as a fallback
           destination_account_id: isTransfer ? destinationAccountId : undefined,
-          payee_name: finalPayeeName || undefined,
+          destination_name: finalDestinationName || undefined,
           description: `${description} (From: ${cleanSourceAccountName})`,
           amount: finalAmount,
           category: isTransfer ? 'Transfer' : category,
@@ -139,7 +139,7 @@ const TransactionNew = () => {
         await transactionsApi.createTransaction({
           source_account_id: destinationAccountId,
           destination_account_id: sourceAccountId || undefined,
-          payee_name: sourceAccountDisplayName,
+          destination_name: sourceAccountDisplayName,
           description: `Transfer from ${sourceAccountDisplayName}`,
           amount: -Math.abs(parseFloat(amount)), // Incoming to destination account (negative)
           category: 'Transfer',
@@ -241,12 +241,12 @@ const TransactionNew = () => {
           </div>
         ) : (
           <div className="form-group">
-            <label htmlFor="payee">Payee (Optional)</label>
+            <label htmlFor="destination">Destination (Optional)</label>
             <input
               type="text"
-              id="payee"
-              value={payeeName}
-              onChange={(e) => setPayeeName(e.target.value)}
+              id="destination"
+              value={destinationName}
+              onChange={(e) => setDestinationName(e.target.value)}
               placeholder="Who was this payment to/from?"
             />
           </div>
