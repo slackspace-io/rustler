@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { transactionsApi, accountsApi } from '../../services/api';
-import type { Account } from '../../services/api';
+import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
+import type { Account, Budget } from '../../services/api';
 import AccountInput from '../common/AccountInput';
+import CategoryInput from '../common/CategoryInput';
 
 const QuickAddTransaction = () => {
   const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +21,10 @@ const QuickAddTransaction = () => {
   const [destinationAccountId, setDestinationAccountId] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
+  const [category, setCategory] = useState('Uncategorized');
+  const [budgetId, setBudgetId] = useState<string>('');
+  const [budgetName, setBudgetName] = useState('');
+  const [budgetError, setBudgetError] = useState<string | null>(null);
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -54,9 +60,11 @@ const QuickAddTransaction = () => {
   }, []);
 
   useEffect(() => {
-    const fetchAccounts = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+
+        // Fetch accounts
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
 
@@ -65,15 +73,19 @@ const QuickAddTransaction = () => {
           setSourceAccountId(accountsData[0].id);
         }
 
+        // Fetch budgets
+        const budgetsData = await budgetsApi.getActiveBudgets();
+        setBudgets(budgetsData);
+
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch accounts. Please try again later.');
+        setError('Failed to fetch data. Please try again later.');
         setLoading(false);
-        console.error('Error fetching accounts:', err);
+        console.error('Error fetching data:', err);
       }
     };
 
-    fetchAccounts();
+    fetchData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +111,8 @@ const QuickAddTransaction = () => {
         destination_account_id: destinationAccountId || undefined,
         description,
         amount: parseFloat(amount),
-        category: 'Uncategorized', // Default category for quick add
+        category, // Use the selected category
+        budget_id: budgetId || undefined, // Include budget if selected
         transaction_date: new Date(transactionDate).toISOString(),
       });
 
@@ -207,6 +220,68 @@ const QuickAddTransaction = () => {
           <small style={isAndroid ? { fontSize: '14px', marginTop: '4px', display: 'block' } : {}}>
             Money will be withdrawn from source account and deposited into destination account
           </small>
+        </div>
+
+        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+          <label htmlFor="category" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Category</label>
+          <CategoryInput
+            value={category}
+            onChange={setCategory}
+            placeholder="Select or create a category"
+            className={isAndroid ? 'android-input' : ''}
+          />
+        </div>
+
+        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+          <label htmlFor="budget" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Budget (Optional)</label>
+          <input
+            type="text"
+            id="budget"
+            value={budgetName}
+            onChange={(e) => {
+              const inputValue = e.target.value;
+              setBudgetName(inputValue);
+              setBudgetError(null);
+
+              if (inputValue === '') {
+                // Empty input is valid (budget is optional)
+                setBudgetId('');
+                return;
+              }
+
+              // Check if the input matches an existing budget
+              const matchedBudget = budgets.find(
+                budget => budget.name === inputValue ||
+                         budget.name.toLowerCase() === inputValue.toLowerCase()
+              );
+
+              // If matched, set the budget ID, otherwise set error
+              if (matchedBudget) {
+                setBudgetId(matchedBudget.id);
+              } else {
+                setBudgetId('');
+                setBudgetError('Please select an existing budget from the list');
+              }
+            }}
+            list="budgets-list"
+            placeholder="Select an existing budget"
+            className={`mobile-input ${budgetError ? 'error-input' : ''}`}
+            style={isAndroid ? {
+              height: '56px',
+              fontSize: '16px',
+              width: '100%',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cccccc'
+            } : {}}
+          />
+          <datalist id="budgets-list">
+            {budgets.map(budget => (
+              <option key={budget.id} value={budget.name} />
+            ))}
+          </datalist>
+          {budgetError && <div className="field-error" style={isAndroid ? { fontSize: '14px', color: 'red', marginTop: '4px' } : {}}>{budgetError}</div>}
         </div>
 
         <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
