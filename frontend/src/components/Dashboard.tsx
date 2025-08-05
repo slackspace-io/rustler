@@ -99,7 +99,23 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <h1>Dashboard</h1>
+      <div className="header-actions">
+        <h1>Dashboard</h1>
+        <button
+          onClick={() => navigate('/transactions/quick-add')}
+          className="button quick-add-button"
+          style={{
+            padding: '10px 16px',
+            fontSize: '16px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}
+        >
+          Quick Add
+        </button>
+      </div>
 
       <div className="dashboard-summary">
         <div className="summary-card">
@@ -189,20 +205,6 @@ const Dashboard = () => {
             <div className="section-header">
               <h2>Recent Transactions</h2>
               <div className="header-actions">
-                <button
-                  onClick={() => navigate('/transactions/quick-add')}
-                  className="button quick-add-button"
-                  style={{
-                    padding: '10px 16px',
-                    fontSize: '16px',
-                    borderRadius: '8px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                  }}
-                >
-                  Quick Add
-                </button>
                 <Link to="/transactions" className="view-all">View All</Link>
               </div>
             </div>
