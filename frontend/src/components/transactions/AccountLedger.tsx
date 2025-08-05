@@ -28,6 +28,12 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // State for multi-selection
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState('');
+  const [bulkBudgetId, setBulkBudgetId] = useState('');
+
   // Ref for the description input field
   const descriptionInputRef = useRef<HTMLInputElement>(null);
 
@@ -277,6 +283,43 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
     setEditError(null);
   };
 
+  // Handle selecting/deselecting a single transaction
+  const handleSelectTransaction = (transactionId: string) => {
+    setSelectedTransactions(prev => {
+      if (prev.includes(transactionId)) {
+        return prev.filter(id => id !== transactionId);
+      } else {
+        return [...prev, transactionId];
+      }
+    });
+  };
+
+  // Handle selecting/deselecting all transactions
+  const handleSelectAllTransactions = () => {
+    if (selectedTransactions.length === transactions.length) {
+      // If all are selected, deselect all
+      setSelectedTransactions([]);
+    } else {
+      // Otherwise, select all
+      setSelectedTransactions(transactions.map(t => t.id));
+    }
+  };
+
+  // Handle opening the bulk edit modal
+  const handleOpenBulkEditModal = () => {
+    if (selectedTransactions.length > 0) {
+      // Reset bulk edit form values
+      setBulkCategory('');
+      setBulkBudgetId('');
+      setShowBulkEditModal(true);
+    }
+  };
+
+  // Handle closing the bulk edit modal
+  const handleCloseBulkEditModal = () => {
+    setShowBulkEditModal(false);
+  };
+
   // Handle key press events during editing
   const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
     if (e.key === 'Escape') {
@@ -398,8 +441,114 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
     return <div>Account not found</div>;
   }
 
+  // Handle bulk update of transactions
+  const handleBulkUpdate = async (bulkCategory: string, bulkBudgetId: string) => {
+    if (selectedTransactions.length === 0) return;
+
+    try {
+      // Create a new category if it doesn't exist
+      if (bulkCategory && bulkCategory.trim() !== '') {
+        const categoryExists = categories.some(
+          cat => cat.name.toLowerCase() === bulkCategory.toLowerCase()
+        );
+
+        if (!categoryExists) {
+          try {
+            // Create the new category
+            const newCategory = await categoriesApi.createCategory({ name: bulkCategory });
+            console.log('Created new category during bulk edit:', newCategory);
+
+            // Update the categories list
+            setCategories(prevCategories => [...prevCategories, newCategory]);
+          } catch (err) {
+            console.error('Error creating category during bulk edit:', err);
+            // Continue with transaction update even if category creation fails
+          }
+        }
+      }
+
+      // Update each selected transaction
+      const updatePromises = selectedTransactions.map(transactionId => {
+        const updateData: Partial<Transaction> = {};
+
+        if (bulkCategory) {
+          updateData.category = bulkCategory;
+        }
+
+        if (bulkBudgetId) {
+          updateData.budget_id = bulkBudgetId === 'none' ? undefined : bulkBudgetId;
+        }
+
+        return transactionsApi.updateTransaction(transactionId, updateData);
+      });
+
+      await Promise.all(updatePromises);
+
+      // Refresh transactions
+      const updatedTransactions = await transactionsApi.getAccountTransactions(accountId);
+      setTransactions(updatedTransactions);
+
+      // Clear selection and close modal
+      setSelectedTransactions([]);
+      setShowBulkEditModal(false);
+    } catch (err) {
+      console.error('Error updating transactions in bulk:', err);
+      alert('Failed to update transactions. Please try again.');
+    }
+  };
+
   return (
     <div className="account-ledger">
+      {/* Bulk Edit Modal */}
+      {showBulkEditModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Bulk Edit Transactions</h3>
+              <button className="close-button" onClick={handleCloseBulkEditModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Editing {selectedTransactions.length} transaction(s)</p>
+
+              <div className="form-group">
+                <label>Category</label>
+                <CategoryInput
+                  value={bulkCategory}
+                  onChange={setBulkCategory}
+                  placeholder="Select or create a category"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="bulk-budget">Budget</label>
+                <select
+                  id="bulk-budget"
+                  value={bulkBudgetId}
+                  onChange={(e) => setBulkBudgetId(e.target.value)}
+                >
+                  <option value="">No Change</option>
+                  <option value="none">No Budget</option>
+                  {budgets.map(budget => (
+                    <option key={budget.id} value={budget.id}>
+                      {budget.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button onClick={handleCloseBulkEditModal}>Cancel</button>
+              <button
+                onClick={() => handleBulkUpdate(bulkCategory, bulkBudgetId)}
+                className="primary"
+              >
+                Update Transactions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="account-header">
         <h2>{account.name}</h2>
         <div className={`account-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
@@ -436,7 +585,7 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="transaction-category">Category</label>
+          <label>Category</label>
           <CategoryInput
             value={category}
             onChange={setCategory}
@@ -506,10 +655,28 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
 
       {/* Transactions Table */}
       <div className="ledger-container">
+        {/* Bulk actions */}
+        <div className="bulk-actions">
+          <button
+            onClick={handleOpenBulkEditModal}
+            disabled={selectedTransactions.length === 0}
+            className="button"
+          >
+            Bulk Edit ({selectedTransactions.length} selected)
+          </button>
+        </div>
         <div className="ledger-table-wrapper">
           <table className="ledger-table">
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={transactions.length > 0 && selectedTransactions.length === transactions.length}
+                    onChange={handleSelectAllTransactions}
+                    aria-label="Select all transactions"
+                  />
+                </th>
                 <th>Date</th>
                 <th>Description</th>
                 <th>Category</th>
@@ -531,6 +698,15 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
               ) : (
                 transactions.map(transaction => (
                   <tr key={transaction.id}>
+                    {/* Checkbox for selecting transaction */}
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selectedTransactions.includes(transaction.id)}
+                        onChange={() => handleSelectTransaction(transaction.id)}
+                        aria-label={`Select transaction ${transaction.description}`}
+                      />
+                    </td>
                     {/* Transaction Date */}
                     <td
                       onClick={() => handleStartEdit(transaction, 'transaction_date')}

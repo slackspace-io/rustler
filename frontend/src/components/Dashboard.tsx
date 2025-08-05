@@ -67,11 +67,11 @@ const Dashboard = () => {
         setMonthlyIncome(income);
 
         const expenses = monthlyTransactions
-          .filter(t => t.amount > 0)
+          .filter(t => t.amount > 0 && t.category !== "Initial Balance")
           .reduce((sum, t) => sum + t.amount, 0);
-        setMonthlyExpenses(-expenses);
+        setMonthlyExpenses(expenses);
 
-        setMonthlyNet(income - Math.abs(expenses));
+        setMonthlyNet(income - expenses);
 
         setLoading(false);
       } catch (err) {
@@ -160,7 +160,7 @@ const Dashboard = () => {
 
         <div className="summary-card">
           <h2>Monthly Expenses</h2>
-          <p className="amount negative">{Math.abs(monthlyExpenses).toFixed(2)}</p>
+          <p className="amount negative">{monthlyExpenses.toFixed(2)}</p>
         </div>
 
         <div className="summary-card">
