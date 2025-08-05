@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { accountsApi, transactionsApi } from '../services/api';
 import type { Account, Transaction } from '../services/api';
 import { ACCOUNT_TYPE } from '../constants/accountTypes';
+import './MobileDashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +17,19 @@ const Dashboard = () => {
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [monthlyExpenses, setMonthlyExpenses] = useState(0);
   const [monthlyNet, setMonthlyNet] = useState(0);
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  // Update isMobile state when window is resized
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,16 +62,16 @@ const Dashboard = () => {
         );
 
         const income = monthlyTransactions
-          .filter(t => t.amount > 0)
-          .reduce((sum, t) => sum + t.amount, 0);
+          .filter(t => t.amount < 0)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
         setMonthlyIncome(income);
 
         const expenses = monthlyTransactions
-          .filter(t => t.amount < 0)
+          .filter(t => t.amount > 0)
           .reduce((sum, t) => sum + t.amount, 0);
-        setMonthlyExpenses(expenses);
+        setMonthlyExpenses(-expenses);
 
-        setMonthlyNet(income + expenses);
+        setMonthlyNet(income - Math.abs(expenses));
 
         setLoading(false);
       } catch (err) {
@@ -101,21 +115,36 @@ const Dashboard = () => {
     <div className="dashboard">
       <div className="header-actions">
         <h1>Dashboard</h1>
-        <button
-          onClick={() => navigate('/transactions/quick-add')}
-          className="button quick-add-button"
-          style={{
-            padding: '10px 16px',
-            fontSize: '16px',
-            borderRadius: '8px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-          }}
-        >
-          Quick Add
-        </button>
+        {!isMobile && (
+          <button
+            onClick={() => navigate('/transactions/quick-add')}
+            className="button quick-add-button"
+            style={{
+              padding: '10px 16px',
+              fontSize: '16px',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}
+          >
+            Quick Add
+          </button>
+        )}
       </div>
+
+      {/* Floating Action Button for mobile */}
+      {isMobile && (
+        <div className="fab-container">
+          <button
+            className="fab"
+            onClick={() => navigate('/transactions/quick-add')}
+            aria-label="Add Transaction"
+          >
+            +
+          </button>
+        </div>
+      )}
 
       <div className="dashboard-summary">
         <div className="summary-card">
@@ -152,7 +181,11 @@ const Dashboard = () => {
               {/* On Budget Accounts */}
               <div className="account-group">
                 <h2>On Budget Accounts</h2>
-                <p className="group-total">Total: {onBudgetTotal.toFixed(2)}</p>
+                <p className="group-total">
+                  <strong>Total:</strong> <span className={onBudgetTotal >= 0 ? 'positive' : 'negative'}>
+                    {onBudgetTotal.toFixed(2)}
+                  </span>
+                </p>
                 <ul className="account-list">
                   {onBudgetAccounts.map(account => (
                     <li key={account.id} className="account-item">
@@ -170,7 +203,11 @@ const Dashboard = () => {
               {/* Off Budget Accounts */}
               <div className="account-group">
                 <h2>Off Budget Accounts</h2>
-                <p className="group-total">Total: {offBudgetTotal.toFixed(2)}</p>
+                <p className="group-total">
+                  <strong>Total:</strong> <span className={offBudgetTotal >= 0 ? 'positive' : 'negative'}>
+                    {offBudgetTotal.toFixed(2)}
+                  </span>
+                </p>
                 <ul className="account-list">
                   {offBudgetAccounts.map(account => (
                     <li key={account.id} className="account-item">
@@ -188,7 +225,11 @@ const Dashboard = () => {
               {/* Combined Total */}
               <div className="account-group combined-total">
                 <h2>Combined Total</h2>
-                <p className="group-total total-combined">Total: {combinedTotal.toFixed(2)}</p>
+                <p className="group-total total-combined">
+                  <strong>Total:</strong> <span className={combinedTotal >= 0 ? 'positive' : 'negative'}>
+                    {combinedTotal.toFixed(2)}
+                  </span>
+                </p>
               </div>
 
               <div className="account-actions">

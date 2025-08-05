@@ -1,0 +1,47 @@
+{
+  "name": "Rustler Finance",
+  "short_name": "Rustler",
+  "description": "Personal finance management application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4a6da7",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Transaction",
+      "short_name": "Add",
+      "description": "Quickly add a new transaction",
+      "url": "/transactions/quick-add",
+      "icons": [{ "src": "/icons/add-transaction.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Accounts",
+      "short_name": "Accounts",
+      "description": "View your account balances",
+      "url": "/accounts",
+      "icons": [{ "src": "/icons/accounts.png", "sizes": "192x192" }]
+    }
+  ],
+  "orientation": "portrait",
+  "categories": ["finance", "productivity"]
+}

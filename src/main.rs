@@ -155,7 +155,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api", get(api_root_handler))
         .nest("/api", api_router)
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
-        // Serve index.html for all other routes to support client-side routing
+        // Serve static files directly from the root of frontend/dist (manifest.json, sw.js, etc.)
+        // Using ServeFile for specific files to ensure correct MIME types
+        .route_service("/manifest.json", tower_http::services::ServeFile::new("frontend/dist/manifest.json"))
+        .route_service("/sw.js", tower_http::services::ServeFile::new("frontend/dist/sw.js"))
+        // Serve the root index.html
+        .route_service("/", tower_http::services::ServeFile::new("frontend/dist/index.html"))
+        // Use the spa_fallback_handler for client-side routing
         .fallback(spa_fallback_handler)
         .layer(TraceLayer::new_for_http())
         .layer(cors);

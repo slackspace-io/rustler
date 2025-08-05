@@ -1,0 +1,160 @@
+/* Mobile Dashboard Styles */
+
+/* Mobile-specific styles for the dashboard */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 10px;
+  }
+
+  .dashboard-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card {
+    width: 100%;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .dashboard-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .accounts-sidebar {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .dashboard-main {
+    width: 100%;
+  }
+
+  /* Improve touch targets */
+  .account-item a {
+    padding: 12px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 48px;
+  }
+
+  /* Make the table responsive */
+  .dashboard-transactions table {
+    width: 100%;
+    display: block;
+    overflow-x: auto;
+  }
+
+  .dashboard-transactions th,
+  .dashboard-transactions td {
+    padding: 12px 8px;
+    min-height: 48px;
+    white-space: nowrap;
+  }
+
+  /* Hide less important columns on small screens */
+  .dashboard-transactions th:nth-child(4),
+  .dashboard-transactions td:nth-child(4) {
+    display: none;
+  }
+
+  /* Floating action button for quick add */
+  .fab-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+  }
+
+  .fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: #4a6da7;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+  }
+
+  .fab:active {
+    transform: scale(0.95);
+    background-color: #3a5d97;
+  }
+
+  /* Header actions for mobile */
+  .header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .header-actions h1 {
+    margin: 0;
+  }
+
+  .header-actions .button {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Account groups */
+  .account-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: var(--color-bg-secondary);
+  }
+
+  .account-group h2 {
+    margin-top: 0;
+    font-size: 18px;
+  }
+
+  .account-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .account-item {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .account-item:last-child {
+    border-bottom: none;
+  }
+
+  .account-name {
+    font-weight: 500;
+  }
+
+  .account-balance {
+    font-weight: 700;
+  }
+
+  .account-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .account-actions .button {
+    width: 100%;
+    text-align: center;
+    padding: 12px;
+    font-size: 16px;
+  }
+}
