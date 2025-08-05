@@ -4,6 +4,21 @@
   margin: 0 auto;
 }
 
+.amount {
+  text-align: right;
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.no-category-row {
+  background-color: rgba(0, 0, 0, 0.03);
+  font-style: italic;
+}
+
+.no-category-row td {
+  color: #777;
+}
+
 .categories-container {
   display: grid;
   grid-template-columns: 2fr 1fr;

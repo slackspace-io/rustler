@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import { categoriesApi } from '../../services/api';
-import type { Category } from '../../services/api';
+import type { Category, CategorySpending } from '../../services/api';
 import './Categories.css';
 
 const CategoriesList = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // State for category spending
+  const [categorySpending, setCategorySpending] = useState<CategorySpending[]>([]);
+  const [loadingSpending, setLoadingSpending] = useState(true);
+  const [spendingError, setSpendingError] = useState<string | null>(null);
 
   // State for new category form
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -21,9 +26,10 @@ const CategoriesList = () => {
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Fetch categories on component mount
+  // Fetch categories and spending on component mount
   useEffect(() => {
     fetchCategories();
+    fetchCategorySpending();
   }, []);
 
   const fetchCategories = async () => {
@@ -36,6 +42,19 @@ const CategoriesList = () => {
       console.error('Error fetching categories:', err);
       setError('Failed to load categories');
       setLoading(false);
+    }
+  };
+
+  const fetchCategorySpending = async () => {
+    try {
+      setLoadingSpending(true);
+      const data = await categoriesApi.getCategorySpending();
+      setCategorySpending(data);
+      setLoadingSpending(false);
+    } catch (err) {
+      console.error('Error fetching category spending:', err);
+      setSpendingError('Failed to load category spending');
+      setLoadingSpending(false);
     }
   };
 
@@ -156,28 +175,50 @@ const CategoriesList = () => {
     return <div>Loading categories...</div>;
   }
 
+  // Format currency
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  // Combine category data with spending data
+  const getCategorySpending = (categoryName: string): number => {
+    const spendingItem = categorySpending.find(item => item.category === categoryName);
+    return spendingItem ? spendingItem.amount : 0;
+  };
+
+  // Find "No category" spending if it exists
+  const noCategorySpending = categorySpending.find(item => item.category === 'No category');
+
   return (
     <div className="categories-list">
       <h1>Categories</h1>
 
       {error && <div className="error">{error}</div>}
+      {spendingError && <div className="error">{spendingError}</div>}
 
       <div className="categories-container">
         <div className="categories-grid">
-          <h2>Manage Categories</h2>
+          <h2>Categories and Spending</h2>
 
-          {categories.length === 0 ? (
-            <p>No categories found. Create your first category below.</p>
+          {(loading || loadingSpending) ? (
+            <div>Loading data...</div>
+          ) : categories.length === 0 && categorySpending.length === 0 ? (
+            <p>No categories or spending data found. Create your first category below.</p>
           ) : (
             <table className="categories-table">
               <thead>
                 <tr>
                   <th>Name</th>
                   <th>Description</th>
+                  <th>Amount Spent</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
+                {/* Regular categories */}
                 {categories.map(category => (
                   <tr key={category.id}>
                     <td>
@@ -205,6 +246,7 @@ const CategoriesList = () => {
                         category.description || '-'
                       )}
                     </td>
+                    <td className="amount">{formatCurrency(getCategorySpending(category.name))}</td>
                     <td>
                       {editingCategoryId === category.id ? (
                         <div className="edit-actions">
@@ -242,6 +284,23 @@ const CategoriesList = () => {
                     </td>
                   </tr>
                 ))}
+
+                {/* "No category" row if it exists in spending data */}
+                {noCategorySpending && (
+                  <tr className="no-category-row">
+                    <td>No category</td>
+                    <td>Transactions without assigned category</td>
+                    <td className="amount">{formatCurrency(noCategorySpending.amount)}</td>
+                    <td>-</td>
+                  </tr>
+                )}
+
+                {/* Show message if no data */}
+                {categories.length === 0 && !noCategorySpending && (
+                  <tr>
+                    <td colSpan={4}>No categories or spending data available</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}

@@ -6,6 +6,7 @@ import { useSettings } from '../../contexts/useSettings';
 
 interface AccountLedgerProps {
   accountId: string;
+  refreshKey?: number;
 }
 
 // Define the editable fields and their types
@@ -17,7 +18,7 @@ interface EditingState {
   field: EditableField;
 }
 
-const AccountLedger = ({ accountId }: AccountLedgerProps) => {
+const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
   const { formatNumber } = useSettings();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
@@ -82,7 +83,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
     };
 
     fetchData();
-  }, [accountId]);
+  }, [accountId, refreshKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

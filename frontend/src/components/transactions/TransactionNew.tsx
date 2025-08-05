@@ -28,6 +28,7 @@ const TransactionNew = () => {
   const [category, setCategory] = useState('Uncategorized');
   const [budgetId, setBudgetId] = useState<string>('');
   const [budgetName, setBudgetName] = useState('');
+  const [budgetError, setBudgetError] = useState<string | null>(null);
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -89,6 +90,13 @@ const TransactionNew = () => {
 
     if (!description) {
       setError('Description is required');
+      return;
+    }
+
+    // Validate budget selection if a budget name is entered
+    if (!isTransfer && budgetName && !budgetId) {
+      setBudgetError('Please select an existing budget from the list');
+      setError('Please correct the errors in the form');
       return;
     }
 
@@ -158,8 +166,14 @@ const TransactionNew = () => {
         });
       }
 
-      // Redirect to transactions list on success
-      navigate('/transactions');
+      // If we're coming from the ledger page, redirect back there with refresh signal
+      const referrer = document.referrer;
+      if (referrer && referrer.includes('/ledger')) {
+        navigate('/ledger', { state: { refresh: true, timestamp: Date.now() } });
+      } else {
+        // Otherwise redirect to transactions list
+        navigate('/transactions');
+      }
     } catch (err) {
       setError('Failed to create transaction. Please try again.');
       console.error('Error creating transaction:', err);
@@ -312,6 +326,13 @@ const TransactionNew = () => {
               onChange={(e) => {
                 const inputValue = e.target.value;
                 setBudgetName(inputValue);
+                setBudgetError(null);
+
+                if (inputValue === '') {
+                  // Empty input is valid (budget is optional)
+                  setBudgetId('');
+                  return;
+                }
 
                 // Check if the input matches an existing budget
                 const matchedBudget = budgets.find(
@@ -319,17 +340,24 @@ const TransactionNew = () => {
                            `${budget.name} (${formatNumber(budget.amount)})` === inputValue
                 );
 
-                // If matched, set the budget ID, otherwise clear it
-                setBudgetId(matchedBudget ? matchedBudget.id : '');
+                // If matched, set the budget ID, otherwise set error
+                if (matchedBudget) {
+                  setBudgetId(matchedBudget.id);
+                } else {
+                  setBudgetId('');
+                  setBudgetError('Please select an existing budget from the list');
+                }
               }}
               list="budgets-list"
               placeholder="Select an existing budget"
+              className={budgetError ? 'error-input' : ''}
             />
             <datalist id="budgets-list">
               {budgets.map(budget => (
                 <option key={budget.id} value={`${budget.name} (${formatNumber(budget.amount)})`} />
               ))}
             </datalist>
+            {budgetError && <div className="field-error">{budgetError}</div>}
           </div>
         )}
 

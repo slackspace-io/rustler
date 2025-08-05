@@ -49,6 +49,11 @@ export interface MonthlyBudgetStatus {
   remaining_to_budget: number;
 }
 
+export interface CategorySpending {
+  category: string;
+  amount: number;
+}
+
 export interface Settings {
   numberFormat: 'decimal' | 'comma';
 }

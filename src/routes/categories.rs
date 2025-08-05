@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Query},
     http::StatusCode,
     Json,
     Router,
@@ -7,9 +7,11 @@ use axum::{
 };
 use uuid::Uuid;
 use std::sync::Arc;
+use serde::Deserialize;
+use chrono::Utc;
 
 use crate::models::{Category, CreateCategoryRequest, UpdateCategoryRequest};
-use crate::services::CategoryService;
+use crate::services::{CategoryService, TransactionService};
 
 pub fn router(category_service: Arc<CategoryService>) -> Router {
     Router::new()

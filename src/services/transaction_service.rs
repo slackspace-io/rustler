@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
 use crate::models::{Transaction, CreateTransactionRequest, UpdateTransactionRequest};
@@ -13,6 +13,42 @@ impl TransactionService {
     /// Create a new TransactionService with the given database pool
     pub fn new(db: Pool<Postgres>) -> Self {
         Self { db }
+    }
+
+    /// Get spending by category, with optional filtering by date range
+    pub async fn get_spending_by_category(
+        &self,
+        start_date: Option<DateTime<Utc>>,
+        end_date: Option<DateTime<Utc>>,
+    ) -> Result<Vec<(String, f64)>, sqlx::Error> {
+        let mut query = String::from(
+            "SELECT COALESCE(category, 'No category') as category, SUM(amount) as total_amount
+             FROM transactions
+             WHERE 1=1"
+        );
+
+        if let Some(start_date) = start_date {
+            query.push_str(&format!(" AND transaction_date >= '{}'", start_date));
+        }
+
+        if let Some(end_date) = end_date {
+            query.push_str(&format!(" AND transaction_date <= '{}'", end_date));
+        }
+
+        query.push_str(" GROUP BY category ORDER BY total_amount DESC");
+
+        let rows = sqlx::query(&query)
+            .fetch_all(&self.db)
+            .await?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            let category: String = row.get("category");
+            let amount: f64 = row.get("total_amount");
+            result.push((category, amount));
+        }
+
+        Ok(result)
     }
 
     /// Get all transactions, with optional filtering

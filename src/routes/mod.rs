@@ -3,6 +3,7 @@ mod transactions;
 mod categories;
 mod budgets;
 mod web;
+mod category_spending;
 
 use axum::{
     Router,
@@ -17,9 +18,10 @@ pub fn create_router(
 ) -> Router {
     Router::new()
         .merge(accounts::router(account_service))
-        .merge(transactions::router(transaction_service))
+        .merge(transactions::router(transaction_service.clone()))
         .merge(categories::router(category_service))
         .merge(budgets::router(budget_service))
+        .merge(category_spending::router(transaction_service))
 }
 
 pub use web::router as web_router_impl;

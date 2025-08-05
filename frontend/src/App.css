@@ -594,6 +594,25 @@ a.button.small {
   background-color: #442726; /* Dark theme error background */
 }
 
+/* Error input field styling */
+.error-input {
+  border-color: var(--color-negative) !important;
+  background-color: rgba(248, 215, 218, 0.2) !important; /* Light red background with transparency */
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+[data-theme="dark"] .error-input {
+  background-color: rgba(68, 39, 38, 0.2) !important; /* Dark red background with transparency */
+}
+
+/* Field-specific error message */
+.field-error {
+  color: var(--color-negative);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  transition: color 0.3s ease;
+}
+
 /* Monthly Budget Status Styles */
 .monthly-budget-status {
   background-color: var(--color-bg-secondary);

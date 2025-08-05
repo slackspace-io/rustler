@@ -6,18 +6,23 @@ import { ACCOUNT_TYPE } from '../../constants/accountTypes';
 interface AccountSidebarProps {
   selectedAccountId: string | null;
   onSelectAccount: (accountId: string) => void;
+  refreshKey?: number;
 }
 
-const AccountSidebar = ({ selectedAccountId, onSelectAccount }: AccountSidebarProps) => {
+const AccountSidebar = ({ selectedAccountId, onSelectAccount, refreshKey = 0 }: AccountSidebarProps) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('AccountSidebar: useEffect triggered with refreshKey =', refreshKey);
+
     const fetchAccounts = async () => {
       try {
         setLoading(true);
+        console.log('AccountSidebar: Fetching accounts data...');
         const data = await accountsApi.getAccounts();
+        console.log('AccountSidebar: Accounts data received:', data);
 
         // Filter out external accounts, only show on-budget and off-budget accounts
         const filteredAccounts = data.filter(account =>
@@ -25,6 +30,7 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount }: AccountSidebarPr
           account.account_type === ACCOUNT_TYPE.OFF_BUDGET
         );
 
+        console.log('AccountSidebar: Setting filtered accounts:', filteredAccounts);
         setAccounts(filteredAccounts);
 
         setLoading(false);
@@ -36,7 +42,7 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount }: AccountSidebarPr
     };
 
     fetchAccounts();
-  }, [selectedAccountId, onSelectAccount]);
+  }, [selectedAccountId, onSelectAccount, refreshKey]);
 
   if (loading) {
     return <div className="account-sidebar-loading">Loading accounts...</div>;

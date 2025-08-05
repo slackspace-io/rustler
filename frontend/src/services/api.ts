@@ -2,16 +2,18 @@
 const API_BASE_URL = '/api';
 
 // Import types from types.ts
-import type { Account, Category, Transaction, Budget, MonthlyBudgetStatus } from './types.ts';
+import type { Account, Category, Transaction, Budget, MonthlyBudgetStatus, CategorySpending } from './types.ts';
 
 // Re-export types for convenience
-export type { Account, Category, Transaction, Budget, MonthlyBudgetStatus };
+export type { Account, Category, Transaction, Budget, MonthlyBudgetStatus, CategorySpending };
 
 // API functions for accounts
 export const accountsApi = {
   // Get all accounts
   getAccounts: async (): Promise<Account[]> => {
-    const response = await fetch(`${API_BASE_URL}/accounts`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/accounts?${cacheBuster}`);
     if (!response.ok) {
       throw new Error('Failed to fetch accounts');
     }
@@ -20,7 +22,9 @@ export const accountsApi = {
 
   // Get a single account by ID
   getAccount: async (id: string): Promise<Account> => {
-    const response = await fetch(`${API_BASE_URL}/accounts/${id}`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/accounts/${id}?${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch account with ID ${id}`);
     }
@@ -81,7 +85,9 @@ export const transactionsApi = {
 
   // Get transactions for a specific account
   getAccountTransactions: async (accountId: string): Promise<Transaction[]> => {
-    const response = await fetch(`${API_BASE_URL}/accounts/${accountId}/transactions`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/accounts/${accountId}/transactions?${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch transactions for account with ID ${accountId}`);
     }
@@ -171,6 +177,25 @@ export const categoriesApi = {
     const response = await fetch(`${API_BASE_URL}/categories`);
     if (!response.ok) {
       throw new Error('Failed to fetch categories');
+    }
+    return response.json();
+  },
+
+  // Get spending by category
+  getCategorySpending: async (startDate?: string, endDate?: string): Promise<CategorySpending[]> => {
+    let url = `${API_BASE_URL}/categories/spending`;
+
+    // Add date range parameters if provided
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    const queryString = params.toString();
+    if (queryString) url += `?${queryString}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to fetch category spending');
     }
     return response.json();
   },

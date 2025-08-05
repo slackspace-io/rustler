@@ -229,8 +229,8 @@ const Dashboard = () => {
                       <td>{getAccountName(transaction.source_account_id)}</td>
                       <td>{transaction.description}</td>
                       <td>{transaction.category}</td>
-                      <td className={transaction.amount >= 0 ? 'positive' : 'negative'}>
-                        {transaction.amount.toFixed(2)}
+                      <td className={transaction.amount < 0 ? 'positive' : 'negative'}>
+                        {transaction.amount < 0 ? Math.abs(transaction.amount).toFixed(2) : `-${transaction.amount.toFixed(2)}`}
                       </td>
                     </tr>
                   ))}
