@@ -21,6 +21,8 @@ interface EditingState {
 const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
   const { formatNumber } = useSettings();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [account, setAccount] = useState<Account | null>(null);
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -95,6 +97,43 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
 
     fetchData();
   }, [accountId, refreshKey]);
+
+  // Filter transactions based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredTransactions(transactions);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = transactions.filter(transaction => {
+      // Search in all relevant fields
+      return (
+        // Description
+        transaction.description.toLowerCase().includes(query) ||
+        // Category
+        transaction.category.toLowerCase().includes(query) ||
+        // Date
+        new Date(transaction.transaction_date).toLocaleDateString().toLowerCase().includes(query) ||
+        // Amount (as string)
+        Math.abs(transaction.amount).toString().includes(query) ||
+        // Destination name
+        (transaction.destination_name && transaction.destination_name.toLowerCase().includes(query)) ||
+        // Budget name (need to look up from budgets array)
+        (transaction.budget_id &&
+          budgets.find(b => b.id === transaction.budget_id)?.name.toLowerCase().includes(query))
+      );
+    });
+
+    setFilteredTransactions(filtered);
+
+    // If we're filtering and have selected transactions, we need to ensure
+    // that we only keep the selected transactions that are still visible
+    if (selectedTransactions.length > 0) {
+      const visibleSelectedIds = filtered.map(t => t.id).filter(id => selectedTransactions.includes(id));
+      setSelectedTransactions(visibleSelectedIds);
+    }
+  }, [searchQuery, transactions, budgets, selectedTransactions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,12 +335,12 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
 
   // Handle selecting/deselecting all transactions
   const handleSelectAllTransactions = () => {
-    if (selectedTransactions.length === transactions.length) {
+    if (selectedTransactions.length === filteredTransactions.length) {
       // If all are selected, deselect all
       setSelectedTransactions([]);
     } else {
       // Otherwise, select all
-      setSelectedTransactions(transactions.map(t => t.id));
+      setSelectedTransactions(filteredTransactions.map(t => t.id));
     }
   };
 
@@ -655,15 +694,27 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
 
       {/* Transactions Table */}
       <div className="ledger-container">
-        {/* Bulk actions */}
-        <div className="bulk-actions">
-          <button
-            onClick={handleOpenBulkEditModal}
-            disabled={selectedTransactions.length === 0}
-            className="button"
-          >
-            Bulk Edit ({selectedTransactions.length} selected)
-          </button>
+        {/* Search and Bulk actions */}
+        <div className="ledger-actions">
+          <div className="search-container">
+            <input
+              type="text"
+              placeholder="Search transactions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+              aria-label="Search transactions"
+            />
+          </div>
+          <div className="bulk-actions">
+            <button
+              onClick={handleOpenBulkEditModal}
+              disabled={selectedTransactions.length === 0}
+              className="button"
+            >
+              Bulk Edit ({selectedTransactions.length} selected)
+            </button>
+          </div>
         </div>
         <div className="ledger-table-wrapper">
           <table className="ledger-table">
@@ -672,7 +723,7 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
                 <th>
                   <input
                     type="checkbox"
-                    checked={transactions.length > 0 && selectedTransactions.length === transactions.length}
+                    checked={filteredTransactions.length > 0 && selectedTransactions.length === filteredTransactions.length}
                     onChange={handleSelectAllTransactions}
                     aria-label="Select all transactions"
                   />
@@ -689,14 +740,16 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
             </thead>
             <tbody>
               {/* Existing transactions */}
-              {transactions.length === 0 ? (
+              {filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="no-transactions">
-                    No transactions found for this account.
+                    {transactions.length === 0 ?
+                      "No transactions found for this account." :
+                      "No transactions match your search criteria."}
                   </td>
                 </tr>
               ) : (
-                transactions.map(transaction => (
+                filteredTransactions.map(transaction => (
                   <tr key={transaction.id}>
                     {/* Checkbox for selecting transaction */}
                     <td>

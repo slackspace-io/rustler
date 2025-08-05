@@ -1549,6 +1549,42 @@ a.button.small {
   cursor: not-allowed;
 }
 
+/* Ledger actions and search styles */
+.ledger-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.search-container {
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: var(--transition-standard);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2);
+}
+
+.search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .ledger-layout {
