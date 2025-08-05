@@ -47,7 +47,7 @@
 .categories-table th {
   font-weight: 600;
   color: #555;
-  background-color: #f9f9f9;
+  background-color: var(--color-bg-secondary);
 }
 
 .categories-table tr:hover {

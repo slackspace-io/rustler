@@ -2,11 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { transactionsApi, accountsApi } from '../../services/api';
 import type { Account } from '../../services/api';
-import { useSettings } from '../../contexts/useSettings';
+import AccountInput from '../common/AccountInput';
 
 const QuickAddTransaction = () => {
   const navigate = useNavigate();
-  const { formatNumber } = useSettings();
   const formRef = useRef<HTMLFormElement>(null);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -137,56 +136,27 @@ const QuickAddTransaction = () => {
 
       <form ref={formRef} onSubmit={handleSubmit} className={`quick-add-form ${isAndroid ? 'android-form' : ''}`}>
         <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
-          <label htmlFor="source-account" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Source Account</label>
-          <select
-            id="source-account"
+          <AccountInput
+            accounts={accounts}
             value={sourceAccountId}
-            onChange={(e) => setSourceAccountId(e.target.value)}
-            required
-            className="mobile-select"
-            style={isAndroid ? {
-              height: '56px',
-              fontSize: '16px',
-              width: '100%',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cccccc'
-            } : {}}
-          >
-            <option value="">Select Source Account</option>
-            {accounts.map(account => (
-              <option key={account.id} value={account.id}>
-                {account.name} ({formatNumber(account.balance)})
-              </option>
-            ))}
-          </select>
+            onChange={setSourceAccountId}
+            placeholder="Select Source Account"
+            label="Source Account"
+            required={true}
+            isAndroid={isAndroid}
+          />
         </div>
 
         <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
-          <label htmlFor="destination-account" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Destination Account</label>
-          <select
-            id="destination-account"
+          <AccountInput
+            accounts={accounts}
             value={destinationAccountId}
-            onChange={(e) => setDestinationAccountId(e.target.value)}
-            className="mobile-select"
-            style={isAndroid ? {
-              height: '56px',
-              fontSize: '16px',
-              width: '100%',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cccccc'
-            } : {}}
-          >
-            <option value="">Select Destination Account (Optional)</option>
-            {accounts.map(account => (
-              <option key={account.id} value={account.id}>
-                {account.name} ({formatNumber(account.balance)})
-              </option>
-            ))}
-          </select>
+            onChange={setDestinationAccountId}
+            placeholder="Select Destination Account (Optional)"
+            label="Destination Account"
+            required={false}
+            isAndroid={isAndroid}
+          />
         </div>
 
         <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>

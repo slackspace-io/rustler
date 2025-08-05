@@ -8,11 +8,13 @@ import { ACCOUNT_TYPE } from '../../constants/accountTypes';
 
 interface BalanceDataPoint {
   date: string;
-  [accountId: string]: string | number;
+  [accountId: string]: string | number | undefined;
+  total?: number;
 }
 
 type DatePreset = 'last-month' | '3-months' | '6-months' | 'ytd' | '1-year' | 'all-time' | 'custom';
 type Granularity = 'day' | 'week' | 'month';
+type DisplayMode = 'individual' | 'summed';
 
 const BalanceOverTime = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -25,6 +27,7 @@ const BalanceOverTime = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [accountTypeFilter, setAccountTypeFilter] = useState<string>('on-budget'); // 'on-budget' or 'off-budget'
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('individual'); // 'individual' or 'summed'
 
   // Update selected accounts when account type filter changes
   const handleAccountTypeFilterChange = (filterType: string) => {
@@ -261,9 +264,15 @@ const BalanceOverTime = () => {
           const dataPoint: BalanceDataPoint = { date: dateString };
 
           // Add balance for each selected account AFTER updating balances
+          let totalBalance = 0;
           for (const accountId of selectedAccounts) {
-            dataPoint[accountId] = accountBalances[accountId] || 0;
+            const accountBalance = accountBalances[accountId] || 0;
+            dataPoint[accountId] = accountBalance;
+            totalBalance += accountBalance;
           }
+
+          // Add the total balance for all selected accounts
+          dataPoint.total = totalBalance;
 
           data.push(dataPoint);
 
@@ -426,6 +435,30 @@ const BalanceOverTime = () => {
             </label>
           </div>
 
+          <div className="display-mode">
+            <h4>Display Mode</h4>
+            <label>
+              <input
+                type="radio"
+                name="displayMode"
+                value="individual"
+                checked={displayMode === 'individual'}
+                onChange={() => setDisplayMode('individual')}
+              />
+              Individual Lines Per Account
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="displayMode"
+                value="summed"
+                checked={displayMode === 'summed'}
+                onChange={() => setDisplayMode('summed')}
+              />
+              Single Line (Sum of All Accounts)
+            </label>
+          </div>
+
           <div className="select-buttons">
             <button type="button" onClick={handleSelectAll} className="button small">Select All</button>
             <button type="button" onClick={handleSelectNone} className="button small">Select None</button>
@@ -457,19 +490,33 @@ const BalanceOverTime = () => {
               <YAxis />
               <Tooltip />
               <Legend />
-              {selectedAccounts.map((accountId, index) => {
-                const account = accounts.find(a => a.id === accountId);
-                return (
-                  <Line
-                    key={accountId}
-                    type="monotone"
-                    dataKey={accountId}
-                    name={account ? account.name : accountId}
-                    stroke={getRandomColor(index)}
-                    activeDot={{ r: 8 }}
-                  />
-                );
-              })}
+              {displayMode === 'individual' ? (
+                // Display individual lines for each account
+                selectedAccounts.map((accountId, index) => {
+                  const account = accounts.find(a => a.id === accountId);
+                  return (
+                    <Line
+                      key={accountId}
+                      type="monotone"
+                      dataKey={accountId}
+                      name={account ? account.name : accountId}
+                      stroke={getRandomColor(index)}
+                      activeDot={{ r: 8 }}
+                    />
+                  );
+                })
+              ) : (
+                // Display a single line for the sum of all accounts
+                <Line
+                  key="total"
+                  type="monotone"
+                  dataKey="total"
+                  name="Total (All Selected Accounts)"
+                  stroke="#8884d8"
+                  strokeWidth={2}
+                  activeDot={{ r: 8 }}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, type KeyboardEvent } from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
 import type { Transaction, Account, Budget } from '../../services/api';
 import CategoryInput from '../common/CategoryInput';
@@ -25,6 +25,9 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Ref for the description input field
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
 
   // State for tracking which field is being edited
   const [editing, setEditing] = useState<EditingState | null>(null);
@@ -143,6 +146,13 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       setCategory('Uncategorized');
       setBudgetId('');
       setTransactionDate(new Date().toISOString().split('T')[0]);
+
+      // Focus on the description field to make adding another transaction easier
+      setTimeout(() => {
+        if (descriptionInputRef.current) {
+          descriptionInputRef.current.focus();
+        }
+      }, 0);
 
     } catch (err) {
       setFormError('Failed to create transaction. Please try again.');
@@ -363,6 +373,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Description"
                     required
+                    ref={descriptionInputRef}
                   />
                 </td>
                 <td>
