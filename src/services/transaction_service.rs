@@ -118,17 +118,33 @@ impl TransactionService {
             }
         };
 
+        // Get the destination name if not provided
+        let destination_name = if let Some(name) = &req.destination_name {
+            name.clone()
+        } else {
+            // Look up the destination account name
+            let dest_account = sqlx::query!(
+                "SELECT name FROM accounts WHERE id = $1",
+                destination_account_id
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
+
+            dest_account.map(|a| a.name).unwrap_or_else(|| "".to_string())
+        };
+
         // Create the transaction
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
-            INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, description, amount, category, budget_id, transaction_date, created_at, updated_at)
-            VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, destination_name, description, amount, category, budget_id, transaction_date, created_at, updated_at)
+            VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
             "#,
         )
         .bind(Uuid::new_v4())
         .bind(req.source_account_id)
         .bind(destination_account_id)
+        .bind(&destination_name)
         .bind(&req.description)
         .bind(req.amount)
         .bind(&req.category)
@@ -224,6 +240,20 @@ impl TransactionService {
                 // If destination_account_id is provided, use it directly
                 params.push(format!("destination_account_id = '{}'", destination_account_id));
                 new_destination_id = Some(destination_account_id);
+
+                // Look up the destination account name and update it
+                if req.destination_name.is_none() {
+                    let dest_account = sqlx::query!(
+                        "SELECT name FROM accounts WHERE id = $1",
+                        destination_account_id
+                    )
+                    .fetch_optional(&mut *tx)
+                    .await?;
+
+                    if let Some(account) = dest_account {
+                        params.push(format!("destination_name = '{}'", account.name));
+                    }
+                }
             } else if let Some(dest_name) = &req.destination_name {
                 // If destination_name is provided but not destination_account_id,
                 // check if there's an existing account that matches the destination name

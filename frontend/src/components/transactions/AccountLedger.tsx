@@ -571,10 +571,13 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                         </div>
                       ) : (
                         // If this account is the destination, show the source account name
-                        // Otherwise, show the destination name
+                        // Otherwise, show the destination name or look it up from accounts list
                         transaction.destination_account_id === accountId
                           ? allAccounts.find(a => a.id === transaction.source_account_id)?.name || 'Unknown Source'
-                          : transaction.destination_name || '-'
+                          : transaction.destination_name ||
+                            (transaction.destination_account_id
+                              ? allAccounts.find(a => a.id === transaction.destination_account_id)?.name || 'Unknown Destination'
+                              : '-')
                       )}
                     </td>
 
