@@ -37,8 +37,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
 
   // Form state for new transaction
   const [description, setDescription] = useState('');
-  const [incomingAmount, setIncomingAmount] = useState('');
-  const [outgoingAmount, setOutgoingAmount] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [category, setCategory] = useState('Uncategorized');
   const [destinationName, setDestinationName] = useState('');
   const [budgetId, setBudgetId] = useState<string>('');
@@ -92,10 +92,10 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       return;
     }
 
-    const hasIncoming = incomingAmount && !isNaN(parseFloat(incomingAmount)) && parseFloat(incomingAmount) > 0;
-    const hasOutgoing = outgoingAmount && !isNaN(parseFloat(outgoingAmount)) && parseFloat(outgoingAmount) > 0;
+    const hasDeposit = depositAmount && !isNaN(parseFloat(depositAmount)) && parseFloat(depositAmount) > 0;
+    const hasWithdrawal = withdrawalAmount && !isNaN(parseFloat(withdrawalAmount)) && parseFloat(withdrawalAmount) > 0;
 
-    if (!hasIncoming && !hasOutgoing) {
+    if (!hasDeposit && !hasWithdrawal) {
       setFormError('Please enter a valid amount in at least one of the fields');
       return;
     }
@@ -104,26 +104,26 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
       setSaving(true);
       setFormError(null);
 
-      // Handle incoming amount (negative to increase balance)
-      if (hasOutgoing) {
+      // Handle withdrawal amount (positive to decrease balance)
+      if (hasWithdrawal) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
           destination_name: destinationName || undefined,
-          description: hasOutgoing ? `${description} (Outgoing)` : description,
-          amount: Math.abs(parseFloat(outgoingAmount)), // Negative value to increase balance
+          description: hasWithdrawal ? `${description} (Withdrawal)` : description,
+          amount: Math.abs(parseFloat(withdrawalAmount)), // Positive value to decrease balance
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
         });
       }
 
-      // Handle outgoing amount (negative)
-      if (hasIncoming) {
+      // Handle deposit amount (negative to increase balance)
+      if (hasDeposit) {
         await transactionsApi.createTransaction({
           source_account_id: accountId,
           destination_name: destinationName || undefined,
-          description: hasIncoming ? `${description} (Incoming)` : description,
-          amount: -Math.abs(parseFloat(incomingAmount)),
+          description: hasDeposit ? `${description} (Deposit)` : description,
+          amount: -Math.abs(parseFloat(depositAmount)), // Negative value to increase balance
           category,
           budget_id: budgetId || undefined,
           transaction_date: new Date(transactionDate).toISOString(),
@@ -140,8 +140,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
 
       // Reset form
       setDescription('');
-      setIncomingAmount('');
-      setOutgoingAmount('');
+      setDepositAmount('');
+      setWithdrawalAmount('');
       setDestinationName('');
       setCategory('Uncategorized');
       setBudgetId('');
@@ -179,6 +179,26 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
         console.error('Error deleting transaction:', err);
       }
     }
+  };
+
+  // Helper function to adjust transaction description based on account perspective
+  const getAdjustedDescription = (transaction: Transaction): string => {
+    // If this account is the destination, and the description contains "Withdrawal",
+    // replace it with "Deposit" to reflect the correct perspective
+    if (transaction.destination_account_id === accountId &&
+        transaction.description.includes('(Withdrawal)')) {
+      return transaction.description.replace('(Withdrawal)', '(Deposit)');
+    }
+
+    // If this account is the source, and the description contains "Deposit",
+    // replace it with "Withdrawal" to reflect the correct perspective
+    if (transaction.source_account_id === accountId &&
+        transaction.description.includes('(Deposit)')) {
+      return transaction.description.replace('(Deposit)', '(Withdrawal)');
+    }
+
+    // Otherwise, return the original description
+    return transaction.description;
   };
 
   // Start editing a field
@@ -350,8 +370,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                 <th>Category</th>
                 <th>Budget</th>
                 <th>Destination</th>
-                <th>Outgoing</th>
-                <th>Incoming</th>
+                <th>Withdrawal</th>
+                <th>Deposit</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -405,22 +425,22 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                   />
                 </td>
                 <td>
-                  <label>Outgoing</label>
+                  <label>Withdrawal</label>
                   <input
                     type="number"
-                    value={outgoingAmount}
-                    onChange={(e) => setOutgoingAmount(e.target.value)}
+                    value={withdrawalAmount}
+                    onChange={(e) => setWithdrawalAmount(e.target.value)}
                     placeholder="0.00"
                     step="0.01"
                     min="0"
                   />
                 </td>
                 <td>
-                  <label>Incoming</label>
+                  <label>Deposit</label>
                   <input
                     type="number"
-                    value={incomingAmount}
-                    onChange={(e) => setIncomingAmount(e.target.value)}
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
                     placeholder="0.00"
                     step="0.01"
                     min="0"
@@ -592,10 +612,14 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                       )}
                     </td>
 
-                    {/* Amount (Outgoing/Incoming) */}
+                    {/* Amount (Withdrawal/Deposit) */}
                     <td
-                      className={`amount outgoing ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
-                      onClick={() => transaction.amount > 0 && handleStartEdit(transaction, 'amount')}
+                      className={`amount withdrawal ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
+                      onClick={() => {
+                        // Allow editing if this is a withdrawal from the current account's perspective
+                        const isWithdrawal = transaction.source_account_id === accountId && transaction.amount > 0;
+                        if (isWithdrawal) handleStartEdit(transaction, 'amount');
+                      }}
                     >
                       {editing?.transactionId === transaction.id && editing.field === 'amount' && transaction.amount > 0 ? (
                         <div className="edit-field">
@@ -617,12 +641,21 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                           {editError && <div className="edit-error">{editError}</div>}
                         </div>
                       ) : (
-                        transaction.amount > 0 ? transaction.amount.toFixed(2) : ''
+                        // Show as withdrawal only if this account is the source and amount is positive
+                        transaction.source_account_id === accountId && transaction.amount > 0
+                          ? transaction.amount.toFixed(2)
+                          : ''
                       )}
                     </td>
                     <td
-                      className={`amount incoming ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
-                      onClick={() => transaction.amount <= 0 && handleStartEdit(transaction, 'amount')}
+                      className={`amount deposit ${editing?.transactionId === transaction.id && editing.field === 'amount' ? 'editing' : ''}`}
+                      onClick={() => {
+                        // Allow editing if this is a deposit from the current account's perspective
+                        const isDeposit =
+                          (transaction.source_account_id === accountId && transaction.amount <= 0) || // Negative amount in source account
+                          (transaction.destination_account_id === accountId); // Any amount in destination account
+                        if (isDeposit) handleStartEdit(transaction, 'amount');
+                      }}
                     >
                       {editing?.transactionId === transaction.id && editing.field === 'amount' && transaction.amount <= 0 ? (
                         <div className="edit-field">
@@ -644,7 +677,13 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                           {editError && <div className="edit-error">{editError}</div>}
                         </div>
                       ) : (
-                        transaction.amount < 0 ? Math.abs(transaction.amount).toFixed(2) : ''
+                        // Show as deposit if:
+                        // 1. This account is the source and amount is negative (a deposit into this account)
+                        // 2. This account is the destination (receiving money from another account)
+                        (transaction.source_account_id === accountId && transaction.amount < 0) ||
+                        (transaction.destination_account_id === accountId)
+                          ? Math.abs(transaction.amount).toFixed(2)
+                          : ''
                       )}
                     </td>
 

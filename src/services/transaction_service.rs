@@ -156,8 +156,11 @@ impl TransactionService {
         .await?;
 
         // Update the source account balance
-        // If amount is positive, subtract it (outgoing)
-        // If amount is negative, add the absolute value (incoming)
+        // If amount is positive (withdrawal), subtract it from the source account
+        // If amount is negative (deposit), add the absolute value to the source account
+        // This follows double-entry accounting principles:
+        // - A withdrawal decreases the selected account balance and increases the destination account
+        // - A deposit increases the selected account balance and decreases the destination account
         let amount_to_adjust = req.amount.abs();
         let adjustment = if req.amount >= 0.0 { -amount_to_adjust } else { amount_to_adjust };
 

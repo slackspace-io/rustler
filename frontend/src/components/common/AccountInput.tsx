@@ -91,6 +91,9 @@ const AccountInput: React.FC<AccountInputProps> = ({
   const handleInputFocus = () => {
     setShowSuggestions(true);
     setSelectedIndex(-1);
+    // Auto-clear the input value when focused
+    setInputValue('');
+    onChange('');
   };
 
   const handleSelectAccount = (accountId: string, accountName: string) => {

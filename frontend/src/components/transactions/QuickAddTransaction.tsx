@@ -189,8 +189,9 @@ const QuickAddTransaction = () => {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             step="0.01"
+            min="0"
             required
-            placeholder="Use negative values for income"
+            placeholder="Enter amount (positive numbers only)"
             className="mobile-input"
             inputMode="decimal"
             style={isAndroid ? {
@@ -204,7 +205,7 @@ const QuickAddTransaction = () => {
             } : {}}
           />
           <small style={isAndroid ? { fontSize: '14px', marginTop: '4px', display: 'block' } : {}}>
-            Use negative values for income, positive for expenses
+            Money will be withdrawn from source account and deposited into destination account
           </small>
         </div>
 

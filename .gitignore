@@ -4,3 +4,5 @@
 /src/routes/web.rs.bak
 /test_fix_null_destination.sh
 /test_transactions.sh
+/rustler_dump.sql
+/.sync_mine.sh
