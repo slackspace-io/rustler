@@ -126,10 +126,12 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
     } else if (e.key === 'ArrowUp' && showSuggestions) {
       e.preventDefault();
       setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
-    } else if (e.key === 'Tab' && showSuggestions && selectedIndex >= 0) {
-      e.preventDefault();
-      if (filteredCategories[selectedIndex]) {
+    } else if (e.key === 'Tab') {
+      // If a suggestion is selected, use it
+      if (showSuggestions && selectedIndex >= 0 && filteredCategories[selectedIndex]) {
+        e.preventDefault();
         handleSelectCategory(filteredCategories[selectedIndex].name);
+
         // Move focus to the next form field
         const form = inputRef.current?.form;
         if (form) {
@@ -140,6 +142,9 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
           }
         }
       }
+      // If Tab is pressed without a selection, just allow normal tab behavior
+      // The current input value will be used as the category
+      setShowSuggestions(false);
     }
   };
 

@@ -10,13 +10,16 @@
   --color-bg-primary: #f8f9fa;
   --color-bg-secondary: #fff;
   --color-bg-tertiary: #e9ecef;
+  --color-bg-tertiary-rgb: 233, 236, 239;
   --color-text-primary: #333;
   --color-text-secondary: #555;
   --color-text-muted: #6c757d;
   --color-border: #ddd;
   --color-shadow: rgba(0, 0, 0, 0.1);
   --color-primary: #646cff;
+  --color-primary-rgb: 100, 108, 255;
   --color-primary-hover: #535bf2;
+  --color-primary-dark: #4a51d6;
   --color-secondary: #6c757d;
   --color-secondary-hover: #5a6268;
   --color-danger: #dc3545;
@@ -42,13 +45,16 @@
   --color-bg-primary: #121212;
   --color-bg-secondary: #1e1e1e;
   --color-bg-tertiary: #2c2c2c;
+  --color-bg-tertiary-rgb: 44, 44, 44;
   --color-text-primary: #e0e0e0;
   --color-text-secondary: #b0b0b0;
   --color-text-muted: #909090;
   --color-border: #444;
   --color-shadow: rgba(0, 0, 0, 0.3);
   --color-primary: #747bff;
+  --color-primary-rgb: 116, 123, 255;
   --color-primary-hover: #8388ff;
+  --color-primary-dark: #5f66d9;
   --color-secondary: #909090;
   --color-secondary-hover: #a0a0a0;
   --color-danger: #e74c3c;
@@ -786,19 +792,118 @@ a.button.small {
 /* Ledger Layout Styles */
 .ledger-layout {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   min-height: calc(100vh - 200px);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  position: relative;
 }
 
 .ledger-sidebar {
   flex: 0 0 250px;
-  border-right: 1px solid var(--color-border);
-  padding-right: 1rem;
-  transition: border-color 0.3s ease;
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  position: sticky;
+  top: 100px;
+  transition: all 0.3s ease;
+  z-index: 10;
 }
 
 .ledger-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Toggle sidebar button */
+.toggle-sidebar-button {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.toggle-sidebar-button:hover {
+  background-color: var(--color-primary-dark);
+  transform: scale(1.05);
+}
+
+.toggle-sidebar-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Empty state styling */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem;
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.empty-state svg {
+  color: var(--color-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.empty-state h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.empty-state p {
+  color: var(--color-text-secondary);
+  max-width: 400px;
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .ledger-layout {
+    flex-direction: column;
+  }
+
+  .ledger-sidebar {
+    flex: none;
+    width: 100%;
+    max-height: none;
+    position: relative;
+    top: 0;
+    margin-bottom: 1rem;
+  }
+
+  .toggle-sidebar-button {
+    display: flex;
+  }
+
+  /* Collapsed sidebar state */
+  body.sidebar-collapsed .ledger-sidebar {
+    display: none;
+  }
 }
 
 /* Account Sidebar Styles */
@@ -892,72 +997,165 @@ a.button.small {
   display: flex;
   flex-direction: column;
   height: 100%;
+  gap: 1.5rem;
 }
 
 .account-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  padding: 1.25rem 1.5rem;
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.account-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.account-header .account-balance {
+  font-size: 1.25rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background-color: var(--color-bg-primary);
+}
+
+/* New Transaction Form */
+.new-transaction-form {
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2);
+  outline: none;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  grid-column: span 3;
+}
+
+.form-actions button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.form-actions button:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.form-actions button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Ledger Table */
 .ledger-container {
   flex: 1;
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ledger-table-wrapper {
+  overflow-x: auto;
+  max-height: calc(100vh - 450px);
+  scrollbar-width: thin;
 }
 
 .ledger-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .ledger-table th,
 .ledger-table td {
-  padding: 0.75rem;
+  padding: 1rem;
   text-align: left;
   border-bottom: 1px solid var(--color-border);
-  transition: border-color 0.3s ease, background-color 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .ledger-table th {
+  position: sticky;
+  top: 0;
   background-color: var(--color-bg-tertiary);
-  font-weight: bold;
+  font-weight: 600;
   color: var(--color-text-primary);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  z-index: 10;
+  padding: 1rem 1rem;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ledger-table tbody tr:nth-child(even) {
+  background-color: rgba(var(--color-bg-tertiary-rgb), 0.3);
+}
+
+.ledger-table tbody tr:hover {
+  background-color: var(--color-highlight);
 }
 
 .ledger-table .amount {
   text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .ledger-table .amount.incoming {
   color: var(--color-positive);
-  transition: color 0.3s ease;
 }
 
 .ledger-table .amount.outgoing {
   color: var(--color-negative);
-  transition: color 0.3s ease;
-}
-
-.new-transaction-row {
-  background-color: var(--color-bg-tertiary);
-  transition: background-color 0.3s ease;
-}
-
-.new-transaction-row input,
-.new-transaction-row select {
-  margin-bottom: 0;
-  padding: 0.4rem;
-  font-size: 0.9rem;
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-.new-transaction-row button {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.9rem;
 }
 
 .no-transactions {
@@ -990,6 +1188,7 @@ a.button.small {
 .ledger-table td {
   cursor: pointer;
   position: relative;
+  transition: all 0.2s ease;
 }
 
 .ledger-table td:hover {
@@ -999,6 +1198,8 @@ a.button.small {
 .ledger-table td.editing {
   background-color: var(--color-selected);
   padding: 0;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  z-index: 5;
 }
 
 .ledger-table td.non-editable {
@@ -1011,8 +1212,70 @@ a.button.small {
   background-color: inherit;
 }
 
+/* Edit field styling */
 .edit-field {
   padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.edit-field input,
+.edit-field select {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-primary);
+  font-size: 1rem;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.edit-field input:focus,
+.edit-field select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2);
+  outline: none;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.edit-actions button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.875rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-actions button:first-child {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+}
+
+.edit-actions button:first-child:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.edit-actions button:last-child {
+  background-color: inherit;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.edit-actions button:last-child:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.edit-error {
+  color: var(--color-negative);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
 }
 
 .edit-field input,

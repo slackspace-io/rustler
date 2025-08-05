@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
-import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
-import type { Transaction, Account, Budget } from '../../services/api';
+import { transactionsApi, accountsApi, budgetsApi, categoriesApi } from '../../services/api';
+import type { Transaction, Account, Budget, Category } from '../../services/api';
 import CategoryInput from '../common/CategoryInput';
 import { useSettings } from '../../contexts/useSettings';
 
@@ -24,6 +24,7 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
   const [account, setAccount] = useState<Account | null>(null);
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +75,10 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
         const budgetsData = await budgetsApi.getActiveBudgets();
         setBudgets(budgetsData);
 
+        // Fetch categories
+        const categoriesData = await categoriesApi.getCategories();
+        setCategories(categoriesData);
+
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch data. Please try again later.');
@@ -104,6 +109,27 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
     try {
       setSaving(true);
       setFormError(null);
+
+      // Check if the category exists, create it if it doesn't
+      if (category && category.trim() !== '') {
+        const categoryExists = categories.some(
+          cat => cat.name.toLowerCase() === category.toLowerCase()
+        );
+
+        if (!categoryExists) {
+          try {
+            // Create the new category
+            const newCategory = await categoriesApi.createCategory({ name: category });
+            console.log('Created new category:', newCategory);
+
+            // Update the categories list
+            setCategories(prevCategories => [...prevCategories, newCategory]);
+          } catch (err) {
+            console.error('Error creating category:', err);
+            // Continue with transaction creation even if category creation fails
+          }
+        }
+      }
 
       // Handle withdrawal amount (positive to decrease balance)
       if (hasWithdrawal) {
@@ -293,6 +319,27 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
       setEditSaving(true);
       setEditError(null);
 
+      // If editing a category, check if it exists and create it if needed
+      if (field === 'category' && editValue && editValue.trim() !== '') {
+        const categoryExists = categories.some(
+          cat => cat.name.toLowerCase() === editValue.toLowerCase()
+        );
+
+        if (!categoryExists) {
+          try {
+            // Create the new category
+            const newCategory = await categoriesApi.createCategory({ name: editValue });
+            console.log('Created new category during edit:', newCategory);
+
+            // Update the categories list
+            setCategories(prevCategories => [...prevCategories, newCategory]);
+          } catch (err) {
+            console.error('Error creating category during edit:', err);
+            // Continue with transaction update even if category creation fails
+          }
+        }
+      }
+
       // Prepare the update data
       const updateData: Partial<Transaction> = {};
 
@@ -360,10 +407,106 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
         </div>
       </div>
 
-      <div className="ledger-container">
-        <form className="new-transaction-form" onSubmit={handleSubmit}>
-          {formError && <div className="error">{formError}</div>}
+      {/* New Transaction Form */}
+      <form className="new-transaction-form" onSubmit={handleSubmit}>
+        {formError && <div className="error">{formError}</div>}
 
+        <div className="form-group">
+          <label htmlFor="transaction-date">Date</label>
+          <input
+            id="transaction-date"
+            type="date"
+            value={transactionDate}
+            onChange={(e) => setTransactionDate(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="transaction-description">Description</label>
+          <input
+            id="transaction-description"
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description"
+            required
+            ref={descriptionInputRef}
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="transaction-category">Category</label>
+          <CategoryInput
+            value={category}
+            onChange={setCategory}
+            placeholder="Select or create a category"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="transaction-budget">Budget</label>
+          <select
+            id="transaction-budget"
+            value={budgetId}
+            onChange={(e) => setBudgetId(e.target.value)}
+          >
+            <option value="">No Budget</option>
+            {budgets.map(budget => (
+              <option key={budget.id} value={budget.id}>
+                {budget.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="transaction-destination">Destination</label>
+          <input
+            id="transaction-destination"
+            type="text"
+            value={destinationName}
+            onChange={(e) => setDestinationName(e.target.value)}
+            placeholder="Destination (optional)"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="transaction-withdrawal">Withdrawal</label>
+          <input
+            id="transaction-withdrawal"
+            type="number"
+            value={withdrawalAmount}
+            onChange={(e) => setWithdrawalAmount(e.target.value)}
+            placeholder="0.00"
+            step="0.01"
+            min="0"
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="transaction-deposit">Deposit</label>
+          <input
+            id="transaction-deposit"
+            type="number"
+            value={depositAmount}
+            onChange={(e) => setDepositAmount(e.target.value)}
+            placeholder="0.00"
+            step="0.01"
+            min="0"
+          />
+        </div>
+
+        <div className="form-actions">
+          <button type="submit" disabled={saving}>
+            {saving ? 'Saving...' : 'Add Transaction'}
+          </button>
+        </div>
+      </form>
+
+      {/* Transactions Table */}
+      <div className="ledger-container">
+        <div className="ledger-table-wrapper">
           <table className="ledger-table">
             <thead>
               <tr>
@@ -378,83 +521,6 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
               </tr>
             </thead>
             <tbody>
-              {/* New transaction form row */}
-              <tr className="new-transaction-row">
-                <td>
-                  <input
-                    type="date"
-                    value={transactionDate}
-                    onChange={(e) => setTransactionDate(e.target.value)}
-                    required
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Description"
-                    required
-                    ref={descriptionInputRef}
-                  />
-                </td>
-                <td>
-                  <CategoryInput
-                    value={category}
-                    onChange={setCategory}
-                    placeholder="Select or create a category"
-                  />
-                </td>
-                <td>
-                  <select
-                    value={budgetId}
-                    onChange={(e) => setBudgetId(e.target.value)}
-                  >
-                    <option value="">No Budget</option>
-                    {budgets.map(budget => (
-                      <option key={budget.id} value={budget.id}>
-                        {budget.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    value={destinationName}
-                    onChange={(e) => setDestinationName(e.target.value)}
-                    placeholder="Destination (optional)"
-                  />
-                </td>
-                <td>
-                  <label>Withdrawal</label>
-                  <input
-                    type="number"
-                    value={withdrawalAmount}
-                    onChange={(e) => setWithdrawalAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                  />
-                </td>
-                <td>
-                  <label>Deposit</label>
-                  <input
-                    type="number"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                  />
-                </td>
-                <td>
-                  <button type="submit" disabled={saving}>
-                    {saving ? 'Saving...' : 'Add'}
-                  </button>
-                </td>
-              </tr>
-
               {/* Existing transactions */}
               {transactions.length === 0 ? (
                 <tr>
@@ -704,7 +770,7 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
               )}
             </tbody>
           </table>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -43,23 +43,35 @@ const LedgerLayout = () => {
 
   return (
     <div className="ledger-layout">
-      <div className="ledger-sidebar">
+      <aside className="ledger-sidebar">
         <AccountSidebar
           selectedAccountId={selectedAccountId}
           onSelectAccount={handleSelectAccount}
           refreshKey={refreshKey}
         />
-      </div>
-      <div className="ledger-content">
+      </aside>
+      <main className="ledger-content">
         {selectedAccountId ? (
           <AccountLedger accountId={selectedAccountId} refreshKey={refreshKey} />
         ) : (
           <div className="no-account-selected">
-            <p>Please select an account from the sidebar to view transactions.</p>
-            <p className="help-text">You can choose from both On Budget and Off Budget accounts listed in the sidebar.</p>
+            <div className="empty-state">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 5H5C3.89543 5 3 5.89543 3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V7C21 5.89543 20.1046 5 19 5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 7L12 13L21 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <h3>No Account Selected</h3>
+              <p>Please select an account from the sidebar to view transactions.</p>
+              <p className="help-text">You can choose from both On Budget and Off Budget accounts listed in the sidebar.</p>
+            </div>
           </div>
         )}
-      </div>
+      </main>
+      <button className="toggle-sidebar-button" onClick={() => document.body.classList.toggle('sidebar-collapsed')} aria-label="Toggle sidebar">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
     </div>
   );
 };
