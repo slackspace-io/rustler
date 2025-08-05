@@ -72,30 +72,94 @@ const SettingsPage = () => {
         .settings-section {
           margin-bottom: 30px;
           padding: 20px;
-          border: 1px solid #ddd;
+          border: 1px solid var(--color-border);
           border-radius: 5px;
           background-color: var(--color-bg-secondary);
+          box-shadow: 0 2px 4px var(--color-shadow);
+          transition: var(--transition-standard);
         }
         
         .setting-option {
-          margin: 10px 0;
+          margin: 15px 0;
+          display: flex;
+          align-items: center;
+        }
+        
+        .setting-option label {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          color: var(--color-text-primary);
+          transition: color 0.3s ease;
+        }
+        
+        .setting-option input[type="radio"] {
+          margin-right: 10px;
+          cursor: pointer;
         }
         
         .example-box {
-          margin-top: 15px;
-          padding: 10px;
-          background-color: #fff;
-          border: 1px solid #eee;
+          margin-top: 20px;
+          padding: 15px;
+          background-color: var(--color-bg-tertiary);
+          border: 1px solid var(--color-border);
           border-radius: 4px;
+          transition: var(--transition-standard);
         }
         
         .success-message {
-          padding: 10px;
+          padding: 15px;
           margin-bottom: 20px;
-          background-color: #d4edda;
-          color: #155724;
-          border: 1px solid #c3e6cb;
+          background-color: var(--color-success-bg);
+          color: var(--color-success-text);
+          border: 1px solid var(--color-success-border);
           border-radius: 4px;
+          transition: var(--transition-standard);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+          .settings-page {
+            padding: 15px;
+          }
+          
+          .settings-section {
+            padding: 15px;
+          }
+        }
+        
+        @media (max-width: 576px) {
+          .settings-page {
+            padding: 10px;
+          }
+          
+          .settings-section {
+            padding: 12px;
+            margin-bottom: 20px;
+          }
+          
+          .example-box {
+            padding: 12px;
+          }
+          
+          .success-message {
+            padding: 12px;
+          }
+        }
+        
+        @media (max-width: 375px) {
+          .settings-section {
+            padding: 10px;
+          }
+          
+          .setting-option {
+            margin: 10px 0;
+          }
+          
+          .example-box {
+            padding: 10px;
+            margin-top: 15px;
+          }
         }
       `}</style>
     </div>

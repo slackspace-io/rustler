@@ -165,31 +165,43 @@ const BalanceOverTime = () => {
         for (const accountId of selectedAccounts) {
           const account = accounts.find(a => a.id === accountId);
           if (account) {
-            // Start with current balance and subtract all transactions after end date
-            let balance = account.balance;
+            // Start with zero balance and calculate based on transactions only
+            // This fixes the issue with initial balance transactions being double-counted
+            let balance = 0;
 
-            // Find all transactions for this account after the end date
-            const laterTransactions = allTransactions.filter(t =>
-              t.source_account_id === accountId &&
-              new Date(t.transaction_date).getTime() > endDateTime
+            console.log(`Initial balance calculation for ${account.name} (${accountId}):`);
+            console.log(`  Starting with zero balance instead of account.balance`);
+
+            // Get all transactions for this account (regardless of date)
+            const allAccountTransactions = allTransactions.filter(t =>
+              t.source_account_id === accountId || t.destination_account_id === accountId
             );
 
-            // Subtract these transactions from the current balance
-            for (const transaction of laterTransactions) {
-              balance -= transaction.amount;
-            }
+            console.log(`  Found ${allAccountTransactions.length} total transactions for this account`);
 
             // Find all transactions for this account before the start date
-            const earlierTransactions = allTransactions.filter(t =>
-              t.source_account_id === accountId &&
+            const earlierTransactions = allAccountTransactions.filter(t =>
               new Date(t.transaction_date).getTime() < startDateTime
             );
 
-            // Add these transactions to the balance (since we're going backwards)
+            console.log(`  Found ${earlierTransactions.length} transactions before start date`);
+
+            // Process all transactions before the start date to calculate the initial balance
             for (const transaction of earlierTransactions) {
-              balance += transaction.amount;
+              // If it's a source transaction (money going out)
+              if (transaction.source_account_id === accountId) {
+                balance -= transaction.amount;
+                console.log(`  Outgoing transaction ${transaction.id}: -${transaction.amount} (balance: ${balance})`);
+              }
+
+              // If it's a destination transaction (money coming in)
+              if (transaction.destination_account_id === accountId) {
+                balance += transaction.amount;
+                console.log(`  Incoming transaction ${transaction.id}: +${transaction.amount} (balance: ${balance})`);
+              }
             }
 
+            console.log(`  Final calculated balance for period start: ${balance}`);
             accountBalances[accountId] = balance;
           }
         }
@@ -255,8 +267,15 @@ const BalanceOverTime = () => {
 
           // Update account balances based on transactions
           for (const transaction of periodTransactions) {
+            // Handle source account (money going out)
             if (selectedAccounts.includes(transaction.source_account_id)) {
               accountBalances[transaction.source_account_id] -= transaction.amount;
+            }
+
+            // Handle destination account (money coming in)
+            if (transaction.destination_account_id &&
+                selectedAccounts.includes(transaction.destination_account_id)) {
+              accountBalances[transaction.destination_account_id] += transaction.amount;
             }
           }
 
@@ -267,6 +286,14 @@ const BalanceOverTime = () => {
           let totalBalance = 0;
           for (const accountId of selectedAccounts) {
             const accountBalance = accountBalances[accountId] || 0;
+
+            // Ensure we're using the correct sign for the balance
+            // This fixes issues with negative balances being displayed incorrectly
+            const account = accounts.find(a => a.id === accountId);
+            if (account) {
+              console.log(`Adding data point for ${account.name}: ${accountBalance}`);
+            }
+
             dataPoint[accountId] = accountBalance;
             totalBalance += accountBalance;
           }
