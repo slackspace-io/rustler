@@ -164,11 +164,24 @@ The following issues were identified and fixed to ensure proper PWA functionalit
    
    The `spa_fallback_handler` function explicitly serves index.html for all non-API, non-asset routes, which fixes the issue of 404 errors when refreshing on non-root pages. This allows users to bookmark or share links to specific pages within the application and refresh those pages without getting 404 errors.
 
+6. **Icon Files MIME Type Fix**: Fixed an issue where icon files were being served with the wrong MIME type ('text/html' instead of 'image/png'). This was causing the browser to report an error: "Error while trying to use the following icon from the Manifest: http://localhost:3000/icons/icon-192x192.png (Download error or resource isn't a valid image)".
+
+   The issue was that requests to `/icons/*` were being handled by the `spa_fallback_handler`, which serves the index.html file for all non-API, non-asset routes. This resulted in the browser receiving HTML content instead of the actual PNG file.
+
+   We fixed this by adding a specific route for the `/icons` path:
+   ```
+   // Serve icon files with correct MIME types
+   .nest_service("/icons", ServeDir::new("frontend/dist/icons"))
+   ```
+
+   This change ensures that requests to `/icons/*` are served from the `frontend/dist/icons` directory with the correct MIME types. The `ServeDir` service automatically sets the appropriate content type based on the file extension, so PNG files are served with the `image/png` content type.
+
 These fixes ensure that:
 - The manifest.json file is served with the correct MIME type, preventing syntax errors
 - The service worker script (sw.js) is served with the correct MIME type, allowing it to be registered properly
 - The HTML includes all required meta tags for proper PWA functionality on both Android and iOS devices
 - Direct navigation to non-root paths works correctly, allowing users to bookmark or share links to specific pages within the application
+- Icon files are served with the correct MIME type, allowing the browser to use them as PWA icons
 
 ## Next Steps
 

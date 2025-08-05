@@ -155,6 +155,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api", get(api_root_handler))
         .nest("/api", api_router)
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
+        // Serve icon files with correct MIME types
+        .nest_service("/icons", ServeDir::new("frontend/dist/icons"))
         // Serve static files directly from the root of frontend/dist (manifest.json, sw.js, etc.)
         // Using ServeFile for specific files to ensure correct MIME types
         .route_service("/manifest.json", tower_http::services::ServeFile::new("frontend/dist/manifest.json"))
