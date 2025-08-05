@@ -76,7 +76,9 @@ export const accountsApi = {
 export const transactionsApi = {
   // Get all transactions
   getTransactions: async (): Promise<Transaction[]> => {
-    const response = await fetch(`${API_BASE_URL}/transactions`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/transactions?${cacheBuster}`);
     if (!response.ok) {
       throw new Error('Failed to fetch transactions');
     }
@@ -96,7 +98,9 @@ export const transactionsApi = {
 
   // Get a single transaction by ID
   getTransaction: async (id: string): Promise<Transaction> => {
-    const response = await fetch(`${API_BASE_URL}/transactions/${id}`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/transactions/${id}?${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch transaction with ID ${id}`);
     }
@@ -174,7 +178,9 @@ export const transactionsApi = {
 export const categoriesApi = {
   // Get all categories
   getCategories: async (): Promise<Category[]> => {
-    const response = await fetch(`${API_BASE_URL}/categories`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/categories?${cacheBuster}`);
     if (!response.ok) {
       throw new Error('Failed to fetch categories');
     }
@@ -190,8 +196,11 @@ export const categoriesApi = {
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
 
+    // Add a cache-busting parameter to prevent browser caching
+    params.append('_t', Date.now().toString());
+
     const queryString = params.toString();
-    if (queryString) url += `?${queryString}`;
+    url += `?${queryString}`;
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -202,7 +211,9 @@ export const categoriesApi = {
 
   // Get a single category by ID
   getCategory: async (id: string): Promise<Category> => {
-    const response = await fetch(`${API_BASE_URL}/categories/${id}`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/categories/${id}?${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch category with ID ${id}`);
     }
@@ -253,7 +264,9 @@ export const categoriesApi = {
 export const budgetsApi = {
   // Get all budgets
   getBudgets: async (): Promise<Budget[]> => {
-    const response = await fetch(`${API_BASE_URL}/budgets`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets?${cacheBuster}`);
     if (!response.ok) {
       throw new Error('Failed to fetch budgets');
     }
@@ -262,7 +275,9 @@ export const budgetsApi = {
 
   // Get active budgets
   getActiveBudgets: async (): Promise<Budget[]> => {
-    const response = await fetch(`${API_BASE_URL}/budgets/active`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets/active?${cacheBuster}`);
     if (!response.ok) {
       throw new Error('Failed to fetch active budgets');
     }
@@ -271,7 +286,9 @@ export const budgetsApi = {
 
   // Get monthly budget status
   getMonthlyBudgetStatus: async (year: number, month: number): Promise<MonthlyBudgetStatus> => {
-    const response = await fetch(`${API_BASE_URL}/budgets/monthly-status?year=${year}&month=${month}`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets/monthly-status?year=${year}&month=${month}&${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch monthly budget status for ${year}-${month}`);
     }
@@ -280,7 +297,9 @@ export const budgetsApi = {
 
   // Get a single budget by ID
   getBudget: async (id: string): Promise<Budget> => {
-    const response = await fetch(`${API_BASE_URL}/budgets/${id}`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}?${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch budget with ID ${id}`);
     }
@@ -329,7 +348,9 @@ export const budgetsApi = {
 
   // Get the total spent amount for a budget
   getBudgetSpent: async (id: string): Promise<number> => {
-    const response = await fetch(`${API_BASE_URL}/budgets/${id}/spent`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/spent?${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch spent amount for budget with ID ${id}`);
     }
@@ -338,7 +359,9 @@ export const budgetsApi = {
 
   // Get the remaining amount for a budget
   getBudgetRemaining: async (id: string): Promise<number> => {
-    const response = await fetch(`${API_BASE_URL}/budgets/${id}/remaining`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/remaining?${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch remaining amount for budget with ID ${id}`);
     }
@@ -347,7 +370,9 @@ export const budgetsApi = {
 
   // Get the total spent amount not associated with any budget
   getUnbudgetedSpent: async (): Promise<number> => {
-    const response = await fetch(`${API_BASE_URL}/budgets/unbudgeted-spent`);
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets/unbudgeted-spent?${cacheBuster}`);
     if (!response.ok) {
       throw new Error('Failed to fetch unbudgeted spent amount');
     }
