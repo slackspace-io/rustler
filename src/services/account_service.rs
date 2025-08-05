@@ -32,23 +32,83 @@ impl AccountService {
     /// Create a new account
     pub async fn create_account(&self, req: CreateAccountRequest) -> Result<Account, sqlx::Error> {
         let now = chrono::Utc::now();
+        let account_id = Uuid::new_v4();
 
-        sqlx::query_as::<_, Account>(
+        // Start a transaction to ensure atomicity
+        let mut tx = self.db.begin().await?;
+
+        // Create the account
+        let account = sqlx::query_as::<_, Account>(
             r#"
             INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#,
         )
-        .bind(Uuid::new_v4())
+        .bind(account_id)
         .bind(&req.name)
         .bind(&req.account_type)
         .bind(req.balance)
         .bind(&req.currency)
         .bind(now)
         .bind(now)
-        .fetch_one(&self.db)
-        .await
+        .fetch_one(&mut *tx)
+        .await?;
+
+        // If the initial balance is not zero, create an 'Initial Balance' transaction
+        if req.balance != 0.0 {
+            // Create an external account for the initial balance source/destination
+            let external_account_id = Uuid::new_v4();
+            sqlx::query(
+                r#"
+                INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
+                VALUES ($1, $2, 'External', $3, $4, $5, $6)
+                "#,
+            )
+            .bind(external_account_id)
+            .bind("Initial Balance")
+            .bind(0.0)
+            .bind(&req.currency)
+            .bind(now)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+
+            // Determine if this is an initial deposit (positive balance) or initial debt (negative balance)
+            let (source_id, destination_id, amount) = if req.balance > 0.0 {
+                // For positive balance, money comes from external account to the new account
+                (external_account_id, account_id, req.balance)
+            } else {
+                // For negative balance, money goes from the new account to external account
+                (account_id, external_account_id, req.balance.abs())
+            };
+
+            // Create the transaction
+            sqlx::query(
+                r#"
+                INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, destination_name, description, amount, category, transaction_date, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                "#,
+            )
+            .bind(Uuid::new_v4())
+            .bind(account_id)
+            .bind(source_id)
+            .bind(destination_id)
+            .bind("Initial Balance")
+            .bind("Initial Balance")
+            .bind(amount)
+            .bind("Initial Balance")
+            .bind(now)
+            .bind(now)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        // Commit the transaction
+        tx.commit().await?;
+
+        Ok(account)
     }
 
     /// Update an existing account

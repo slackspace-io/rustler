@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { transactionsApi, accountsApi } from '../../services/api';
 import type { Account } from '../../services/api';
@@ -7,19 +7,52 @@ import { useSettings } from '../../contexts/useSettings';
 const QuickAddTransaction = () => {
   const navigate = useNavigate();
   const { formatNumber } = useSettings();
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   // Form state - simplified for quick add
   const [sourceAccountId, setSourceAccountId] = useState('');
+  const [destinationAccountId, setDestinationAccountId] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('0');
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+
+  // Detect Android devices
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isAndroidDevice = /android/.test(userAgent);
+    setIsAndroid(isAndroidDevice);
+
+    // Apply Android-specific styles
+    if (isAndroidDevice && formRef.current) {
+      // Add Android-specific class to the form
+      formRef.current.classList.add('android-form');
+
+      // Apply Android-specific styles to form elements
+      const inputs = formRef.current.querySelectorAll('input, select');
+      inputs.forEach(input => {
+        input.classList.add('android-input');
+        // Increase touch target size
+        (input as HTMLElement).style.minHeight = '48px';
+        (input as HTMLElement).style.fontSize = '16px';
+      });
+
+      // Increase padding for better touch experience
+      const buttons = formRef.current.querySelectorAll('button');
+      buttons.forEach(button => {
+        button.classList.add('android-button');
+        (button as HTMLElement).style.minHeight = '48px';
+        (button as HTMLElement).style.padding = '12px 16px';
+      });
+    }
+  }, []);
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -61,9 +94,10 @@ const QuickAddTransaction = () => {
       setSaving(true);
       setError(null);
 
-      // Create the transaction
+      // Create the transaction with optional destination account
       await transactionsApi.createTransaction({
         source_account_id: sourceAccountId,
+        destination_account_id: destinationAccountId || undefined,
         description,
         amount: parseFloat(amount),
         category: 'Uncategorized', // Default category for quick add
@@ -101,17 +135,26 @@ const QuickAddTransaction = () => {
 
       {error && <div className="error">{error}</div>}
 
-      <form onSubmit={handleSubmit} className="quick-add-form">
-        <div className="form-group">
-          <label htmlFor="source-account">Account</label>
+      <form ref={formRef} onSubmit={handleSubmit} className={`quick-add-form ${isAndroid ? 'android-form' : ''}`}>
+        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+          <label htmlFor="source-account" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Source Account</label>
           <select
             id="source-account"
             value={sourceAccountId}
             onChange={(e) => setSourceAccountId(e.target.value)}
             required
             className="mobile-select"
+            style={isAndroid ? {
+              height: '56px',
+              fontSize: '16px',
+              width: '100%',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cccccc'
+            } : {}}
           >
-            <option value="">Select Account</option>
+            <option value="">Select Source Account</option>
             {accounts.map(account => (
               <option key={account.id} value={account.id}>
                 {account.name} ({formatNumber(account.balance)})
@@ -120,8 +163,34 @@ const QuickAddTransaction = () => {
           </select>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="description">Description</label>
+        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+          <label htmlFor="destination-account" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Destination Account</label>
+          <select
+            id="destination-account"
+            value={destinationAccountId}
+            onChange={(e) => setDestinationAccountId(e.target.value)}
+            className="mobile-select"
+            style={isAndroid ? {
+              height: '56px',
+              fontSize: '16px',
+              width: '100%',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cccccc'
+            } : {}}
+          >
+            <option value="">Select Destination Account (Optional)</option>
+            {accounts.map(account => (
+              <option key={account.id} value={account.id}>
+                {account.name} ({formatNumber(account.balance)})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+          <label htmlFor="description" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Description</label>
           <input
             type="text"
             id="description"
@@ -130,11 +199,20 @@ const QuickAddTransaction = () => {
             required
             placeholder="What was this transaction for?"
             className="mobile-input"
+            style={isAndroid ? {
+              height: '56px',
+              fontSize: '16px',
+              width: '100%',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cccccc'
+            } : {}}
           />
         </div>
 
-        <div className="form-group">
-          <label htmlFor="amount">Amount</label>
+        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+          <label htmlFor="amount" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Amount</label>
           <input
             type="number"
             id="amount"
@@ -145,14 +223,23 @@ const QuickAddTransaction = () => {
             placeholder="Use negative values for income"
             className="mobile-input"
             inputMode="decimal"
+            style={isAndroid ? {
+              height: '56px',
+              fontSize: '16px',
+              width: '100%',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cccccc'
+            } : {}}
           />
-          <small>
+          <small style={isAndroid ? { fontSize: '14px', marginTop: '4px', display: 'block' } : {}}>
             Use negative values for income, positive for expenses
           </small>
         </div>
 
-        <div className="form-group">
-          <label htmlFor="transaction-date">Date</label>
+        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+          <label htmlFor="transaction-date" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Date</label>
           <input
             type="date"
             id="transaction-date"
@@ -160,14 +247,31 @@ const QuickAddTransaction = () => {
             onChange={(e) => setTransactionDate(e.target.value)}
             required
             className="mobile-input"
+            style={isAndroid ? {
+              height: '56px',
+              fontSize: '16px',
+              width: '100%',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cccccc'
+            } : {}}
           />
         </div>
 
-        <div className="form-actions">
+        <div className="form-actions" style={isAndroid ? { marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
           <button
             type="submit"
             disabled={saving}
             className="mobile-button"
+            style={isAndroid ? {
+              minHeight: '56px',
+              fontSize: '18px',
+              borderRadius: '8px',
+              width: '100%',
+              fontWeight: 'bold',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            } : {}}
           >
             {saving ? 'Creating...' : 'Add Transaction'}
           </button>
@@ -176,6 +280,12 @@ const QuickAddTransaction = () => {
             className="secondary mobile-button"
             onClick={() => navigate('/transactions')}
             disabled={saving}
+            style={isAndroid ? {
+              minHeight: '56px',
+              fontSize: '16px',
+              borderRadius: '8px',
+              width: '100%'
+            } : {}}
           >
             Cancel
           </button>

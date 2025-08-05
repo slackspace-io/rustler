@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { accountsApi, transactionsApi } from '../services/api';
 import type { Account, Transaction } from '../services/api';
 import { ACCOUNT_TYPE } from '../constants/accountTypes';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,7 +188,23 @@ const Dashboard = () => {
           <div className="dashboard-transactions">
             <div className="section-header">
               <h2>Recent Transactions</h2>
-              <Link to="/transactions" className="view-all">View All</Link>
+              <div className="header-actions">
+                <button
+                  onClick={() => navigate('/transactions/quick-add')}
+                  className="button quick-add-button"
+                  style={{
+                    padding: '10px 16px',
+                    fontSize: '16px',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                  }}
+                >
+                  Quick Add
+                </button>
+                <Link to="/transactions" className="view-all">View All</Link>
+              </div>
             </div>
 
             {recentTransactions.length === 0 ? (

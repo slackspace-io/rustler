@@ -7,16 +7,33 @@ mod services;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::http::{header, Method};
-use axum::response::Html;
+use axum::http::{header, Method, StatusCode, Uri};
+use axum::response::{Html, IntoResponse, Response};
 use axum::Router;
 use axum::routing::get;
+use std::path::PathBuf;
+use tokio::fs;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
+
+// Handler for SPA fallback - serves index.html for all non-API, non-asset routes
+async fn spa_fallback_handler(uri: Uri) -> Response {
+    // Skip API routes and asset routes
+    let path = uri.path();
+    if path.starts_with("/api") || path.starts_with("/assets") {
+        return (StatusCode::NOT_FOUND, "Not Found").into_response();
+    }
+
+    // Serve index.html for all other routes
+    match fs::read_to_string("frontend/dist/index.html").await {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response(),
+    }
+}
 
 // Handler for the API root path
 async fn api_root_handler() -> Html<String> {
@@ -138,8 +155,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api", get(api_root_handler))
         .nest("/api", api_router)
         .nest_service("/assets", ServeDir::new("frontend/dist/assets"))
-        // Serve static files from the frontend/dist directory with SPA fallback
-        .fallback_service(ServeDir::new("frontend/dist"))
+        // Serve index.html for all other routes to support client-side routing
+        .fallback(spa_fallback_handler)
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 
