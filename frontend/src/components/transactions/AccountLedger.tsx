@@ -211,7 +211,8 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
     // Set the initial value based on the field
     switch (field) {
       case 'description':
-        initialValue = transaction.description;
+        // Use the adjusted description when editing to maintain consistency
+        initialValue = getAdjustedDescription(transaction);
         break;
       case 'category':
         initialValue = transaction.category;
@@ -513,7 +514,7 @@ const AccountLedger = ({ accountId }: AccountLedgerProps) => {
                           {editError && <div className="edit-error">{editError}</div>}
                         </div>
                       ) : (
-                        transaction.description
+                        getAdjustedDescription(transaction)
                       )}
                     </td>
 
