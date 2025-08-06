@@ -191,44 +191,19 @@ impl BudgetService {
         .unwrap();
         let end_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(end_date, Utc);
 
-        // There are two cases to consider for incoming funds:
-        // 1. Money coming into on-budget accounts from external/off-budget accounts (positive amount)
-        // 2. Money going out of external/off-budget accounts to on-budget accounts (negative amount)
+        // In this system:
+        // - Deposits are represented as negative amounts
+        // - We only want to count deposits to on-budget accounts for the current month
 
-        // First, get incoming transactions where destination is on-budget and source is not
-        let incoming_positive = sqlx::query_scalar::<_, f64>(
-            r#"
-            SELECT COALESCE(SUM(t.amount), 0.0)
-            FROM transactions t
-            JOIN accounts dest ON t.destination_account_id = dest.id
-            JOIN accounts src ON t.source_account_id = src.id
-            WHERE dest.account_type = 'On Budget'
-            AND src.account_type != 'On Budget'
-            AND t.amount > 0
-            AND t.transaction_date >= $1
-            AND t.transaction_date < $2
-            "#,
-        )
-        .bind(start_date.clone())
-        .bind(end_date.clone())
-        .fetch_one(&self.db)
-        .await?;
-
-        // Second, get outgoing transactions (negative amounts) where:
-        // 1. destination is on-budget and source is not on-budget, OR
-        // 2. source is on-budget and destination is not on-budget
-        let incoming_negative = sqlx::query_scalar::<_, f64>(
+        // Get deposits (negative amounts) to on-budget accounts
+        let deposits = sqlx::query_scalar::<_, f64>(
             r#"
             SELECT COALESCE(SUM(ABS(t.amount)), 0.0)
             FROM transactions t
-            JOIN accounts dest ON t.destination_account_id = dest.id
             JOIN accounts src ON t.source_account_id = src.id
-            WHERE (
-                (dest.account_type = 'On Budget' AND src.account_type != 'On Budget')
-                OR
-                (src.account_type = 'On Budget' AND dest.account_type != 'On Budget')
-            )
+            WHERE src.account_type = 'On Budget'
             AND t.amount < 0
+            AND t.category = 'Income'
             AND t.transaction_date >= $1
             AND t.transaction_date < $2
             "#,
@@ -238,10 +213,7 @@ impl BudgetService {
         .fetch_one(&self.db)
         .await?;
 
-        // Total incoming funds is the sum of both types
-        let incoming_funds = incoming_positive + incoming_negative;
-
-        Ok(incoming_funds)
+        Ok(deposits)
     }
 
     /// Get the total budgeted amount for a specific month

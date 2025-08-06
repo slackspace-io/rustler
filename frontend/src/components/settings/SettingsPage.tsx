@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSettings } from '../../contexts/useSettings';
+import FireflyImport from './FireflyImport';
 
 const SettingsPage = () => {
   const { settings, updateNumberFormat, formatNumber } = useSettings();
@@ -60,6 +61,13 @@ const SettingsPage = () => {
         <div className="example-box">
           <p>Example: <strong>{formattedExample}</strong></p>
         </div>
+      </div>
+
+      <div className="settings-section">
+        <h2>Data Import</h2>
+        <p>Import data from other personal finance applications.</p>
+
+        <FireflyImport />
       </div>
 
       <style>{`

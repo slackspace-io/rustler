@@ -122,3 +122,19 @@ export interface CategorySpending {
 export interface Settings {
   numberFormat: 'decimal' | 'comma';
 }
+
+// Firefly III import options
+export interface FireflyImportOptions {
+  import_method: 'api' | 'csv';
+  api_url?: string;
+  api_token?: string;
+  accounts_csv_path?: string;
+  transactions_csv_path?: string;
+}
+
+// Firefly III import result
+export interface ImportResult {
+  accounts_imported: number;
+  transactions_imported: number;
+  errors: string[];
+}

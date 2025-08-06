@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { accountsApi } from '../../services/api';
-import { ACCOUNT_TYPES } from '../../constants/accountTypes';
+import { ACCOUNT_TYPES, ACCOUNT_SUBTYPES } from '../../constants/accountTypes';
 
 const AccountEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +13,40 @@ const AccountEdit = () => {
   // Form state
   const [name, setName] = useState('');
   const [accountType, setAccountType] = useState('');
+  const [accountSubtype, setAccountSubtype] = useState('');
+
+  // Parse account type and subtype from combined string
+  const parseAccountType = (fullType: string) => {
+    if (!fullType) {
+      console.error("Account type is undefined or empty:", fullType);
+      return { mainType: "", subtype: "" };
+    }
+
+    // Trim the input string to handle any extra whitespace
+    const trimmedType = fullType.trim();
+
+    // Check if the account type contains a subtype (format: "Type - Subtype")
+    // Use a regex that handles variable whitespace around the separator
+    const parts = trimmedType.split(/\s*-\s*/);
+
+    // Filter out any empty parts that might result from extra separators
+    const filteredParts = parts.filter(part => part.trim() !== "");
+
+    if (filteredParts.length > 1) {
+      // If it has a subtype, return the main type and subtype separately
+      // Trim each part to handle any internal whitespace
+      return {
+        mainType: filteredParts[0].trim(),
+        subtype: filteredParts[1].trim()
+      };
+    } else {
+      // If it doesn't have a subtype, return just the main type
+      return {
+        mainType: trimmedType,
+        subtype: ''
+      };
+    }
+  };
 
   useEffect(() => {
     const fetchAccount = async () => {
@@ -22,9 +56,15 @@ const AccountEdit = () => {
         setLoading(true);
         const account = await accountsApi.getAccount(id);
 
+        // Get the account type from the API
+
+        // Parse the account type and subtype
+        const { mainType, subtype } = parseAccountType(account.account_type);
+
         // Initialize form with account data
         setName(account.name);
-        setAccountType(account.account_type);
+        setAccountType(mainType);
+        setAccountSubtype(subtype);
 
         setLoading(false);
       } catch (err) {
@@ -36,6 +76,19 @@ const AccountEdit = () => {
 
     fetchAccount();
   }, [id]);
+
+  // Update available subtypes when account type changes
+  useEffect(() => {
+    if (accountType && ACCOUNT_SUBTYPES[accountType]) {
+      const subtypes = ACCOUNT_SUBTYPES[accountType];
+      // If current subtype is not valid for the selected account type, reset it
+      if (subtypes.length > 0 && !subtypes.includes(accountSubtype)) {
+        setAccountSubtype(subtypes[0]);
+      } else if (subtypes.length === 0) {
+        setAccountSubtype('');
+      }
+    }
+  }, [accountType, accountSubtype]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +104,15 @@ const AccountEdit = () => {
       setSaving(true);
       setError(null);
 
+      // Combine account type and subtype for storage
+      // Format: "On Budget - Checking", "Off Budget - Loan", etc.
+      const fullAccountType = accountSubtype
+        ? `${accountType} - ${accountSubtype}`
+        : accountType;
+
       await accountsApi.updateAccount(id, {
         name,
-        account_type: accountType,
+        account_type: fullAccountType,
         currency: "DEFAULT" // Using a default currency value since the app is currency-agnostic
       });
 
@@ -106,6 +165,20 @@ const AccountEdit = () => {
           </select>
         </div>
 
+        {ACCOUNT_SUBTYPES[accountType] && ACCOUNT_SUBTYPES[accountType].length > 0 && (
+          <div className="form-group">
+            <label htmlFor="account-subtype">Account Subtype</label>
+            <select
+              id="account-subtype"
+              value={accountSubtype}
+              onChange={(e) => setAccountSubtype(e.target.value)}
+            >
+              {ACCOUNT_SUBTYPES[accountType].map(subtype => (
+                <option key={subtype} value={subtype}>{subtype}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="form-actions">
           <button type="submit" disabled={saving}>

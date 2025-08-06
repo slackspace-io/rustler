@@ -13,7 +13,9 @@ import type {
   RuleCondition,
   RuleAction,
   ConditionType,
-  ActionType
+  ActionType,
+  FireflyImportOptions,
+  ImportResult
 } from './types.ts';
 
 // Re-export types for convenience
@@ -28,7 +30,9 @@ export type {
   RuleCondition,
   RuleAction,
   ConditionType,
-  ActionType
+  ActionType,
+  FireflyImportOptions,
+  ImportResult
 };
 
 // API functions for accounts
@@ -500,6 +504,24 @@ export const rulesApi = {
     });
     if (!response.ok) {
       throw new Error(`Failed to run rule with ID ${id}`);
+    }
+    return response.json();
+  },
+};
+
+// API functions for Firefly III import
+export const fireflyImportApi = {
+  // Import data from Firefly III
+  importFromFirefly: async (options: FireflyImportOptions): Promise<ImportResult> => {
+    const response = await fetch(`${API_BASE_URL}/imports/firefly`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(options),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to import from Firefly III');
     }
     return response.json();
   },

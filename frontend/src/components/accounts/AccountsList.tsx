@@ -12,6 +12,39 @@ const AccountsList = () => {
   const [onBudgetBalance, setOnBudgetBalance] = useState(0);
   const [offBudgetBalance, setOffBudgetBalance] = useState(0);
 
+  // Parse account type and subtype from combined string
+  const parseAccountType = (fullType: string) => {
+    if (!fullType) {
+      console.error("Account type is undefined or empty:", fullType);
+      return { mainType: "", subtype: "" };
+    }
+
+    // Trim the input string to handle any extra whitespace
+    const trimmedType = fullType.trim();
+
+    // Check if the account type contains a subtype (format: "Type - Subtype")
+    // Use a regex that handles variable whitespace around the separator
+    const parts = trimmedType.split(/\s*-\s*/);
+
+    // Filter out any empty parts that might result from extra separators
+    const filteredParts = parts.filter(part => part.trim() !== "");
+
+    if (filteredParts.length > 1) {
+      // If it has a subtype, return the main type and subtype separately
+      // Trim each part to handle any internal whitespace
+      return {
+        mainType: filteredParts[0].trim(),
+        subtype: filteredParts[1].trim()
+      };
+    } else {
+      // If it doesn't have a subtype, return just the main type
+      return {
+        mainType: trimmedType,
+        subtype: ''
+      };
+    }
+  };
+
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
@@ -25,13 +58,13 @@ const AccountsList = () => {
 
         // Calculate on-budget balance
         const onBudgetTotal = data
-          .filter(account => account.account_type === ACCOUNT_TYPE.ON_BUDGET)
+          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.ON_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOnBudgetBalance(onBudgetTotal);
 
         // Calculate off-budget balance
         const offBudgetTotal = data
-          .filter(account => account.account_type === ACCOUNT_TYPE.OFF_BUDGET)
+          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.OFF_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOffBudgetBalance(offBudgetTotal);
 
@@ -59,13 +92,13 @@ const AccountsList = () => {
 
         // Recalculate on-budget balance
         const onBudgetTotal = updatedAccounts
-          .filter(account => account.account_type === ACCOUNT_TYPE.ON_BUDGET)
+          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.ON_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOnBudgetBalance(onBudgetTotal);
 
         // Recalculate off-budget balance
         const offBudgetTotal = updatedAccounts
-          .filter(account => account.account_type === ACCOUNT_TYPE.OFF_BUDGET)
+          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.OFF_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOffBudgetBalance(offBudgetTotal);
       } catch (err) {
@@ -87,6 +120,7 @@ const AccountsList = () => {
           <tr>
             <th>Name</th>
             <th>Type</th>
+            <th>Subtype</th>
             <th>Balance</th>
             <th>Actions</th>
           </tr>
@@ -97,7 +131,10 @@ const AccountsList = () => {
               <td>
                 <Link to={`/accounts/${account.id}`}>{account.name}</Link>
               </td>
-              <td>{account.account_type}</td>
+              <td>{parseAccountType(account.account_type).mainType}</td>
+              <td>
+                {parseAccountType(account.account_type).subtype || '-'}
+              </td>
               <td className={account.balance >= 0 ? 'positive' : 'negative'}>
                 {account.balance.toFixed(2)}
               </td>
@@ -128,13 +165,31 @@ const AccountsList = () => {
     return <div className="error">{error}</div>;
   }
 
+  // Helper function for case-insensitive comparison
+  const isSameAccountType = (type1: string, type2: string): boolean => {
+    if (!type1 || !type2) return false;
+    return type1.toLowerCase() === type2.toLowerCase();
+  };
+
   // Filter accounts by type
-  const onBudgetAccounts = accounts.filter(account => account.account_type === ACCOUNT_TYPE.ON_BUDGET);
-  const offBudgetAccounts = accounts.filter(account => account.account_type === ACCOUNT_TYPE.OFF_BUDGET);
-  const otherAccounts = accounts.filter(account =>
-    account.account_type !== ACCOUNT_TYPE.ON_BUDGET &&
-    account.account_type !== ACCOUNT_TYPE.OFF_BUDGET
-  );
+  const onBudgetAccounts = accounts.filter(account => {
+    const { mainType, subtype } = parseAccountType(account.account_type);
+    console.log(`Account: ${account.name}, Type: ${account.account_type}, Parsed: mainType=${mainType}, subtype=${subtype}, Is On Budget: ${isSameAccountType(mainType, ACCOUNT_TYPE.ON_BUDGET)}`);
+    return isSameAccountType(mainType, ACCOUNT_TYPE.ON_BUDGET);
+  });
+
+  const offBudgetAccounts = accounts.filter(account => {
+    const { mainType } = parseAccountType(account.account_type);
+    return isSameAccountType(mainType, ACCOUNT_TYPE.OFF_BUDGET);
+  });
+
+  const otherAccounts = accounts.filter(account => {
+    const mainType = parseAccountType(account.account_type).mainType;
+    const isOther = !isSameAccountType(mainType, ACCOUNT_TYPE.ON_BUDGET) &&
+                    !isSameAccountType(mainType, ACCOUNT_TYPE.OFF_BUDGET);
+    console.log(`Other check - Account: ${account.name}, Type: ${account.account_type}, Parsed: mainType=${mainType}, Is Other: ${isOther}`);
+    return isOther;
+  });
 
   return (
     <div className="accounts-list">

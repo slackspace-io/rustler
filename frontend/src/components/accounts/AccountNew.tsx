@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountsApi } from '../../services/api';
-import { ACCOUNT_TYPE, ACCOUNT_TYPES } from '../../constants/accountTypes';
+import { ACCOUNT_TYPE, ACCOUNT_TYPES, ACCOUNT_SUBTYPES } from '../../constants/accountTypes';
 
 const AccountNew = () => {
   const navigate = useNavigate();
@@ -11,7 +11,15 @@ const AccountNew = () => {
   // Form state
   const [name, setName] = useState('');
   const [accountType, setAccountType] = useState(ACCOUNT_TYPE.ON_BUDGET);
+  const [accountSubtype, setAccountSubtype] = useState('');
   const [balance, setBalance] = useState('0');
+
+  // Update subtype when account type changes
+  useEffect(() => {
+    // Set default subtype when account type changes
+    const subtypes = ACCOUNT_SUBTYPES[accountType] || [];
+    setAccountSubtype(subtypes.length > 0 ? subtypes[0] : '');
+  }, [accountType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,9 +33,15 @@ const AccountNew = () => {
       setLoading(true);
       setError(null);
 
+      // Combine account type and subtype for storage
+      // Format: "On Budget - Checking", "Off Budget - Loan", etc.
+      const fullAccountType = accountSubtype
+        ? `${accountType} - ${accountSubtype}`
+        : accountType;
+
       await accountsApi.createAccount({
         name,
-        account_type: accountType,
+        account_type: fullAccountType,
         balance: parseFloat(balance),
         currency: "DEFAULT" // Using a default currency value since the app is currency-agnostic
       });
@@ -73,6 +87,21 @@ const AccountNew = () => {
           </select>
         </div>
 
+        {ACCOUNT_SUBTYPES[accountType] && ACCOUNT_SUBTYPES[accountType].length > 0 && (
+          <div className="form-group">
+            <label htmlFor="account-subtype">Account Subtype</label>
+            <select
+              id="account-subtype"
+              value={accountSubtype}
+              onChange={(e) => setAccountSubtype(e.target.value)}
+            >
+              {ACCOUNT_SUBTYPES[accountType].map(subtype => (
+                <option key={subtype} value={subtype}>{subtype}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="form-group">
           <label htmlFor="balance">Initial Balance</label>
           <input
@@ -83,7 +112,6 @@ const AccountNew = () => {
             step="0.01"
           />
         </div>
-
 
         <div className="form-actions">
           <button type="submit" disabled={loading}>

@@ -16,6 +16,8 @@ pub struct Account {
     pub balance: f64,
     /// Currency of the account (e.g., "USD", "EUR")
     pub currency: String,
+    /// Whether this is the default account
+    pub is_default: bool,
     /// When the account was created
     pub created_at: DateTime<Utc>,
     /// When the account was last updated
@@ -29,6 +31,8 @@ pub struct CreateAccountRequest {
     pub account_type: String,
     pub balance: f64,
     pub currency: String,
+    #[serde(default)]
+    pub is_default: bool,
 }
 
 /// Data required to update an existing account
@@ -38,4 +42,5 @@ pub struct UpdateAccountRequest {
     pub account_type: Option<String>,
     pub balance: Option<f64>,
     pub currency: Option<String>,
+    pub is_default: Option<bool>,
 }

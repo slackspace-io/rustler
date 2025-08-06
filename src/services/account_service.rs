@@ -14,9 +14,9 @@ impl AccountService {
         Self { db }
     }
 
-    /// Get all accounts
+    /// Get all accounts, with default account first
     pub async fn get_accounts(&self) -> Result<Vec<Account>, sqlx::Error> {
-        sqlx::query_as::<_, Account>("SELECT * FROM accounts ORDER BY name")
+        sqlx::query_as::<_, Account>("SELECT * FROM accounts ORDER BY is_default DESC, name")
             .fetch_all(&self.db)
             .await
     }

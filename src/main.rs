@@ -20,11 +20,11 @@ use tower_http::trace::TraceLayer;
 use tracing::info;
 
 
-// Handler for SPA fallback - serves index.html for all non-API, non-asset routes
+// Handler for SPA fallback - serves index.html for all non-API routes
 async fn spa_fallback_handler(uri: Uri) -> Response {
-    // Skip API routes and asset routes
+    // Skip API routes
     let path = uri.path();
-    if path.starts_with("/api") || path.starts_with("/assets") {
+    if path.starts_with("/api") {
         return (StatusCode::NOT_FOUND, "Not Found").into_response();
     }
 
@@ -136,6 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let category_service = Arc::new(services::CategoryService::new(db_pool.clone()));
     let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()));
     let rule_service = Arc::new(services::RuleService::new(db_pool.clone()));
+    let import_service = Arc::new(services::FireflyImportService::new(db_pool.clone()));
 
     // Create transaction rule service that combines transaction service and rule service
     let transaction_rule_service = Arc::new(services::TransactionRuleService::new(
@@ -156,7 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         transaction_rule_service.clone(),
         category_service.clone(),
         budget_service.clone(),
-        rule_service.clone()
+        rule_service.clone(),
+        import_service.clone()
     );
 
     // Create main router with API routes and serve React frontend

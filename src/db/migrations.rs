@@ -414,6 +414,36 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
         .await?;
     }
 
+    // Add is_default column to accounts table if it doesn't exist
+    let is_default_column_exists = sqlx::query("SELECT column_name FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'is_default'")
+        .fetch_optional(pool)
+        .await?;
+
+    if is_default_column_exists.is_none() {
+        info!("Adding is_default column to accounts table...");
+
+        // Add is_default column with default value of false
+        sqlx::query(
+            r#"
+            ALTER TABLE accounts
+            ADD COLUMN is_default BOOLEAN NOT NULL DEFAULT false
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Add a constraint to ensure only one account can be default
+        sqlx::query(
+            r#"
+            CREATE UNIQUE INDEX idx_accounts_is_default
+            ON accounts (is_default)
+            WHERE is_default = true
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    }
+
     info!("Database migrations completed successfully");
     Ok(())
 }
