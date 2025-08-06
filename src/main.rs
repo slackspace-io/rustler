@@ -135,6 +135,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transaction_service = Arc::new(services::TransactionService::new(db_pool.clone()));
     let category_service = Arc::new(services::CategoryService::new(db_pool.clone()));
     let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()));
+    let rule_service = Arc::new(services::RuleService::new(db_pool.clone()));
+
+    // Create transaction rule service that combines transaction service and rule service
+    let transaction_rule_service = Arc::new(services::TransactionRuleService::new(
+        transaction_service.clone(),
+        rule_service.clone()
+    ));
 
     // Set up CORS
     let cors = CorsLayer::new()
@@ -147,7 +154,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         account_service.clone(),
         transaction_service.clone(),
         category_service.clone(),
-        budget_service.clone()
+        budget_service.clone(),
+        rule_service.clone()
     );
 
     // Create main router with API routes and serve React frontend

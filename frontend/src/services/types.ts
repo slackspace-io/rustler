@@ -7,6 +7,71 @@ export interface Category {
   updated_at: string;
 }
 
+// String literal types for rule condition types
+export type ConditionType =
+  | 'description_contains'
+  | 'description_equals'
+  | 'source_account_equals'
+  | 'destination_account_equals'
+  | 'destination_name_contains'
+  | 'destination_name_equals'
+  | 'amount_greater_than'
+  | 'amount_less_than'
+  | 'amount_equals';
+
+// Constant values for condition types (for reference)
+export const ConditionTypes = {
+  DescriptionContains: 'description_contains' as ConditionType,
+  DescriptionEquals: 'description_equals' as ConditionType,
+  SourceAccountEquals: 'source_account_equals' as ConditionType,
+  DestinationAccountEquals: 'destination_account_equals' as ConditionType,
+  DestinationNameContains: 'destination_name_contains' as ConditionType,
+  DestinationNameEquals: 'destination_name_equals' as ConditionType,
+  AmountGreaterThan: 'amount_greater_than' as ConditionType,
+  AmountLessThan: 'amount_less_than' as ConditionType,
+  AmountEquals: 'amount_equals' as ConditionType,
+};
+
+// String literal types for rule action types
+export type ActionType =
+  | 'set_category'
+  | 'set_budget'
+  | 'set_description'
+  | 'set_destination_name';
+
+// Constant values for action types (for reference)
+export const ActionTypes = {
+  SetCategory: 'set_category' as ActionType,
+  SetBudget: 'set_budget' as ActionType,
+  SetDescription: 'set_description' as ActionType,
+  SetDestinationName: 'set_destination_name' as ActionType,
+};
+
+// Represents a condition for a rule
+export interface RuleCondition {
+  condition_type: ConditionType;
+  value: string;
+}
+
+// Represents an action for a rule
+export interface RuleAction {
+  action_type: ActionType;
+  value: string;
+}
+
+// Represents a rule in the system
+export interface Rule {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  priority: number;
+  conditions: RuleCondition[];
+  actions: RuleAction[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Account {
   id: string;
   name: string;

@@ -2,10 +2,34 @@
 const API_BASE_URL = '/api';
 
 // Import types from types.ts
-import type { Account, Category, Transaction, Budget, MonthlyBudgetStatus, CategorySpending } from './types.ts';
+import type {
+  Account,
+  Category,
+  Transaction,
+  Budget,
+  MonthlyBudgetStatus,
+  CategorySpending,
+  Rule,
+  RuleCondition,
+  RuleAction,
+  ConditionType,
+  ActionType
+} from './types.ts';
 
 // Re-export types for convenience
-export type { Account, Category, Transaction, Budget, MonthlyBudgetStatus, CategorySpending };
+export type {
+  Account,
+  Category,
+  Transaction,
+  Budget,
+  MonthlyBudgetStatus,
+  CategorySpending,
+  Rule,
+  RuleCondition,
+  RuleAction,
+  ConditionType,
+  ActionType
+};
 
 // API functions for accounts
 export const accountsApi = {
@@ -377,5 +401,84 @@ export const budgetsApi = {
       throw new Error('Failed to fetch unbudgeted spent amount');
     }
     return response.json();
+  },
+};
+
+// API functions for rules
+export const rulesApi = {
+  // Get all rules
+  getRules: async (): Promise<Rule[]> => {
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/rules?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch rules');
+    }
+    return response.json();
+  },
+
+  // Get a single rule by ID
+  getRule: async (id: string): Promise<Rule> => {
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/rules/${id}?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch rule with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Create a new rule
+  createRule: async (rule: {
+    name: string;
+    description?: string;
+    is_active: boolean;
+    priority?: number;
+    conditions: RuleCondition[];
+    actions: RuleAction[];
+  }): Promise<Rule> => {
+    const response = await fetch(`${API_BASE_URL}/rules`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(rule),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create rule');
+    }
+    return response.json();
+  },
+
+  // Update an existing rule
+  updateRule: async (id: string, rule: {
+    name?: string;
+    description?: string;
+    is_active?: boolean;
+    priority?: number;
+    conditions?: RuleCondition[];
+    actions?: RuleAction[];
+  }): Promise<Rule> => {
+    const response = await fetch(`${API_BASE_URL}/rules/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(rule),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update rule with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Delete a rule
+  deleteRule: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/rules/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete rule with ID ${id}`);
+    }
   },
 };

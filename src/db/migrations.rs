@@ -359,6 +359,61 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
         .await?;
     }
 
+    // Check if rules table exists
+    let rules_table_exists = sqlx::query("SELECT to_regclass('public.rules')::text")
+        .fetch_optional(pool)
+        .await?;
+
+    // Check if the table exists by safely handling the result
+    let table_exists = match rules_table_exists {
+        Some(row) => match row.try_get::<Option<String>, _>(0) {
+            Ok(Some(table_name)) if !table_name.is_empty() => true,
+            _ => false,
+        },
+        None => false,
+    };
+
+    if !table_exists {
+        info!("Creating rules table...");
+
+        // Create rules table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS rules (
+                id UUID PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                priority INTEGER NOT NULL DEFAULT 100,
+                conditions_json TEXT NOT NULL,
+                actions_json TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on rule name for faster lookups
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_rules_name ON rules(name)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // Create index on is_active and priority for faster rule application
+        sqlx::query(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_rules_active_priority ON rules(is_active, priority)
+            "#,
+        )
+        .execute(pool)
+        .await?;
+    }
+
     info!("Database migrations completed successfully");
     Ok(())
 }

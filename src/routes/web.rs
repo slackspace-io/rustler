@@ -5,7 +5,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::services::{AccountService, TransactionService, CategoryService, BudgetService};
+use crate::services::{AccountService, TransactionService, CategoryService, BudgetService, RuleService};
 
 // Create a minimal web router that doesn't use templates
 // This is a placeholder since the application is using the React frontend
@@ -13,7 +13,8 @@ pub fn router(
     _account_service: Arc<AccountService>,
     _transaction_service: Arc<TransactionService>,
     _category_service: Arc<CategoryService>,
-    _budget_service: Arc<BudgetService>
+    _budget_service: Arc<BudgetService>,
+    _rule_service: Arc<RuleService>
 ) -> Router {
     Router::new()
         .route("/web-api-placeholder", get(placeholder_handler))

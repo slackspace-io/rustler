@@ -19,6 +19,10 @@ import BudgetNew from './components/budgets/BudgetNew'
 import BudgetView from './components/budgets/BudgetView'
 import BudgetEdit from './components/budgets/BudgetEdit'
 import CategoriesList from './components/categories/CategoriesList'
+import RulesList from './components/rules/RulesList'
+import RuleNew from './components/rules/RuleNew'
+import RuleView from './components/rules/RuleView'
+import RuleEdit from './components/rules/RuleEdit'
 import LedgerLayout from './components/LedgerLayout'
 import ReportsList from './components/reports/ReportsList'
 import SettingsPage from './components/settings/SettingsPage'
@@ -54,6 +58,7 @@ const AppContent = () => {
               <li><Link to="/transactions">Transactions</Link></li>
               <li><Link to="/categories">Categories</Link></li>
               <li><Link to="/budgets">Budgets</Link></li>
+              <li><Link to="/rules">Rules</Link></li>
               <li><Link to="/ledger">Ledger</Link></li>
               <li><Link to="/reports">Reports</Link></li>
               <li><Link to="/settings">Settings</Link></li>
@@ -88,6 +93,12 @@ const AppContent = () => {
 
           {/* Categories routes */}
           <Route path="/categories" element={<CategoriesList />} />
+
+          {/* Rules routes */}
+          <Route path="/rules" element={<RulesList />} />
+          <Route path="/rules/new" element={<RuleNew />} />
+          <Route path="/rules/:id" element={<RuleView />} />
+          <Route path="/rules/:id/edit" element={<RuleEdit />} />
 
           {/* Ledger view */}
           <Route path="/ledger" element={<LedgerLayout />} />
