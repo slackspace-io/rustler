@@ -30,16 +30,22 @@ export function registerServiceWorker() {
               installingWorker.onstatechange = () => {
                 if (installingWorker.state === 'installed') {
                   if (navigator.serviceWorker.controller) {
-                    // New content is available, show notification to user
-                    console.log('New content is available, please refresh.');
+                    // New content is available
+                    console.log('New content is available, reloading page.');
 
-                    // You could show a toast or notification here
+                    // Show notification to user
                     if ('Notification' in window && Notification.permission === 'granted') {
                       new Notification('Rustler Finance Update', {
-                        body: 'New version available. Refresh to update.',
+                        body: 'New version available. Page will refresh shortly.',
                         icon: '/icons/icon-192x192.png'
                       });
                     }
+
+                    // Force reload the page after a short delay
+                    // This ensures the user gets the latest version
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
                   } else {
                     // Content is cached for offline use
                     console.log('Content is cached for offline use.');

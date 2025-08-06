@@ -1,6 +1,8 @@
 // Service Worker for Rustler Finance PWA
 
-const CACHE_NAME = 'rustler-cache-v1';
+// Add timestamp to cache name for versioning
+const TIMESTAMP = new Date().toISOString();
+const CACHE_NAME = `rustler-cache-${TIMESTAMP}`;
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -26,19 +28,24 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and take control immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Take control of all clients immediately
+      self.clients.claim()
+    ])
   );
 });
 
@@ -77,7 +84,57 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets - Cache first, network fallback
+  // HTML requests (SPA routes) - Network first, then cache
+  if (url.pathname === '/' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Clone the response to store in cache
+          const responseToCache = response.clone();
+
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              if (response.status === 200) {
+                cache.put(event.request, responseToCache);
+              }
+            });
+
+          return response;
+        })
+        .catch(() => {
+          // If network fails, try to get from cache
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // JavaScript and CSS assets - Network first with cache fallback for better updates
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Clone the response to store in cache
+          const responseToCache = response.clone();
+
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              if (response.status === 200) {
+                cache.put(event.request, responseToCache);
+              }
+            });
+
+          return response;
+        })
+        .catch(() => {
+          // If network fails, try to get from cache
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Other static assets - Cache first, network fallback
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
