@@ -7,6 +7,8 @@ const RulesList = () => {
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [runningRules, setRunningRules] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,6 +58,40 @@ const RulesList = () => {
     }
   };
 
+  const handleRunAllRules = async () => {
+    try {
+      setRunningRules(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const result = await rulesApi.runAllRules();
+
+      setSuccessMessage(result.message);
+    } catch (err) {
+      console.error('Error running all rules:', err);
+      setError('Failed to run rules. Please try again later.');
+    } finally {
+      setRunningRules(false);
+    }
+  };
+
+  const handleRunRule = async (id: string, ruleName: string) => {
+    try {
+      setRunningRules(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const result = await rulesApi.runRule(id);
+
+      setSuccessMessage(`${result.message} for rule "${ruleName}"`);
+    } catch (err) {
+      console.error(`Error running rule ${id}:`, err);
+      setError(`Failed to run rule "${ruleName}". Please try again later.`);
+    } finally {
+      setRunningRules(false);
+    }
+  };
+
   if (loading) {
     return <div>Loading rules...</div>;
   }
@@ -64,10 +100,20 @@ const RulesList = () => {
     <div className="rules-list">
       <div className="header-with-button">
         <h1>Transaction Rules</h1>
-        <Link to="/rules/new" className="button">Create New Rule</Link>
+        <div className="button-group">
+          <button
+            onClick={handleRunAllRules}
+            className="button secondary"
+            disabled={runningRules || rules.length === 0}
+          >
+            {runningRules ? 'Running Rules...' : 'Run All Rules'}
+          </button>
+          <Link to="/rules/new" className="button">Create New Rule</Link>
+        </div>
       </div>
 
       {error && <div className="error">{error}</div>}
+      {successMessage && <div className="success">{successMessage}</div>}
 
       {rules.length === 0 ? (
         <div className="empty-state">
@@ -113,6 +159,16 @@ const RulesList = () => {
                     >
                       {rule.is_active ? 'Deactivate' : 'Activate'}
                     </button>
+                    {rule.is_active && (
+                      <button
+                        onClick={() => handleRunRule(rule.id, rule.name)}
+                        className="button small secondary"
+                        disabled={runningRules}
+                        title="Run this rule on all transactions"
+                      >
+                        {runningRules ? 'Running...' : 'Run Rule'}
+                      </button>
+                    )}
                     <Link to={`/rules/${rule.id}/edit`} className="button small">
                       Edit
                     </Link>
@@ -141,6 +197,7 @@ const RulesList = () => {
           <li><strong>Priority:</strong> Rules are applied in order of priority (lower numbers have higher priority).</li>
           <li><strong>Conditions:</strong> All conditions must match for a rule to be applied.</li>
           <li><strong>Actions:</strong> When a rule matches, all of its actions are applied to the transaction.</li>
+          <li><strong>When Rules Run:</strong> Rules are automatically applied when transactions are created or updated. You can also manually run rules using the "Run All Rules" button or the "Run Rule" button for a specific rule.</li>
         </ul>
       </div>
     </div>

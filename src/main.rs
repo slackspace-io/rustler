@@ -153,6 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_router = routes::create_router(
         account_service.clone(),
         transaction_service.clone(),
+        transaction_rule_service.clone(),
         category_service.clone(),
         budget_service.clone(),
         rule_service.clone()

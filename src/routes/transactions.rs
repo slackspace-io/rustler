@@ -11,9 +11,9 @@ use std::sync::Arc;
 use chrono::Utc;
 
 use crate::models::{Transaction, CreateTransactionRequest, UpdateTransactionRequest};
-use crate::services::TransactionService;
+use crate::services::TransactionRuleService;
 
-pub fn router(transaction_service: Arc<TransactionService>) -> Router {
+pub fn router(transaction_service: Arc<TransactionRuleService>) -> Router {
     Router::new()
         .route("/transactions", get(get_transactions))
         .route("/transactions", post(create_transaction))
@@ -36,7 +36,7 @@ pub struct TransactionQuery {
 // Handler to get all transactions, with optional filtering
 async fn get_transactions(
     Query(query): Query<TransactionQuery>,
-    State(state): State<Arc<TransactionService>>,
+    State(state): State<Arc<TransactionRuleService>>,
 ) -> Result<Json<Vec<Transaction>>, StatusCode> {
     // Parse dates if provided
     let start_date = query.start_date.as_ref().and_then(|date_str| {
@@ -76,7 +76,7 @@ async fn get_transactions(
 // Handler to get transactions for a specific account
 async fn get_account_transactions(
     Path(source_account_id): Path<Uuid>,
-    State(state): State<Arc<TransactionService>>,
+    State(state): State<Arc<TransactionRuleService>>,
 ) -> Result<Json<Vec<Transaction>>, StatusCode> {
     // Call the transaction service to get transactions for the account
     match state.get_account_transactions(source_account_id).await {
@@ -90,7 +90,7 @@ async fn get_account_transactions(
 
 // Handler to create a new transaction
 async fn create_transaction(
-    State(state): State<Arc<TransactionService>>,
+    State(state): State<Arc<TransactionRuleService>>,
     Json(payload): Json<CreateTransactionRequest>,
 ) -> Result<(StatusCode, Json<Transaction>), StatusCode> {
     // Call the transaction service to create a new transaction
@@ -106,7 +106,7 @@ async fn create_transaction(
 // Handler to get a specific transaction by ID
 async fn get_transaction(
     Path(id): Path<Uuid>,
-    State(state): State<Arc<TransactionService>>,
+    State(state): State<Arc<TransactionRuleService>>,
 ) -> Result<Json<Transaction>, StatusCode> {
     // Call the transaction service to get the transaction by ID
     match state.get_transaction(id).await {
@@ -122,7 +122,7 @@ async fn get_transaction(
 // Handler to update a transaction
 async fn update_transaction(
     Path(id): Path<Uuid>,
-    State(state): State<Arc<TransactionService>>,
+    State(state): State<Arc<TransactionRuleService>>,
     Json(payload): Json<UpdateTransactionRequest>,
 ) -> Result<Json<Transaction>, StatusCode> {
     // Call the transaction service to update the transaction
@@ -139,7 +139,7 @@ async fn update_transaction(
 // Handler to delete a transaction
 async fn delete_transaction(
     Path(id): Path<Uuid>,
-    State(state): State<Arc<TransactionService>>,
+    State(state): State<Arc<TransactionRuleService>>,
 ) -> StatusCode {
     // Call the transaction service to delete the transaction
     match state.delete_transaction(id).await {
@@ -178,7 +178,7 @@ struct ImportCsvResponse {
 // Handler to import transactions from CSV
 async fn import_csv_transactions(
     Path(source_account_id): Path<Uuid>,
-    State(state): State<Arc<TransactionService>>,
+    State(state): State<Arc<TransactionRuleService>>,
     Json(payload): Json<ImportCsvRequest>,
 ) -> Result<Json<ImportCsvResponse>, StatusCode> {
     // Validate required mappings

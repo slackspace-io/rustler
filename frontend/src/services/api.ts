@@ -481,4 +481,26 @@ export const rulesApi = {
       throw new Error(`Failed to delete rule with ID ${id}`);
     }
   },
+
+  // Run all active rules on all transactions
+  runAllRules: async (): Promise<{ affected_transactions: number; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/rules/run`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to run all rules');
+    }
+    return response.json();
+  },
+
+  // Run a specific rule on all transactions
+  runRule: async (id: string): Promise<{ affected_transactions: number; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/rules/${id}/run`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to run rule with ID ${id}`);
+    }
+    return response.json();
+  },
 };
