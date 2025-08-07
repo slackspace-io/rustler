@@ -819,7 +819,7 @@ impl FireflyImportService {
             let amount = match firefly_transaction.transaction_type {
                 FireflyTransactionType::Withdrawal => -firefly_transaction.amount,
                 FireflyTransactionType::Deposit => firefly_transaction.amount, // Keep deposits positive to match Rustler's withdrawal convention
-                FireflyTransactionType::Transfer => -firefly_transaction.amount,
+                FireflyTransactionType::Transfer => firefly_transaction.amount,
                 _ => -firefly_transaction.amount,
             };
 
