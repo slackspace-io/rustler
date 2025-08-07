@@ -7,6 +7,7 @@ mod web;
 mod category_spending;
 mod rules;
 mod imports;
+mod settings;
 
 use axum::{
     Router,
@@ -21,7 +22,8 @@ pub fn create_router(
     category_group_service: Arc<CategoryGroupService>,
     budget_service: Arc<BudgetService>,
     rule_service: Arc<RuleService>,
-    import_service: Arc<FireflyImportService>
+    import_service: Arc<FireflyImportService>,
+    settings_service: Arc<SettingsService>
 ) -> Router {
     Router::new()
         .merge(accounts::router(account_service))
@@ -32,12 +34,13 @@ pub fn create_router(
         .merge(category_spending::router(transaction_service.clone()))
         .merge(rules::router(rule_service))
         .merge(imports::router(import_service))
+        .merge(settings::router(settings_service))
 }
 
 pub use web::router as web_router_impl;
 
 use std::sync::Arc;
-use crate::services::{AccountService, TransactionService, TransactionRuleService, CategoryService, CategoryGroupService, BudgetService, RuleService, FireflyImportService};
+use crate::services::{AccountService, TransactionService, TransactionRuleService, CategoryService, CategoryGroupService, BudgetService, RuleService, FireflyImportService, SettingsService};
 
 pub fn web_router(
     account_service: Arc<AccountService>,

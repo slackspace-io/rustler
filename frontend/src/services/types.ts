@@ -86,6 +86,7 @@ export interface Account {
   name: string;
   balance: number;
   account_type: string;
+  account_sub_type?: string | null;
   currency: string;
   created_at: string;
   updated_at: string;

@@ -170,7 +170,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         category_group_service.clone(),
         budget_service.clone(),
         rule_service.clone(),
-        import_service.clone()
+        import_service.clone(),
+        settings_service.clone()
     );
 
     // Create main router with API routes and serve React frontend
