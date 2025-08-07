@@ -26,7 +26,7 @@ const BalanceOverTime = () => {
   const [chartData, setChartData] = useState<BalanceDataPoint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [accountTypeFilter, setAccountTypeFilter] = useState<string>('on-budget'); // 'on-budget' or 'off-budget'
+  const [accountTypeFilter, setAccountTypeFilter] = useState<string>('on-budget'); // 'on-budget', 'off-budget', or 'both'
   const [displayMode, setDisplayMode] = useState<DisplayMode>('individual'); // 'individual' or 'summed'
 
   // Update selected accounts when account type filter changes
@@ -38,6 +38,8 @@ const BalanceOverTime = () => {
     const newFilteredAccounts = accounts.filter(account => {
       if (filterType === 'on-budget') return account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET);
       if (filterType === 'off-budget') return account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET);
+      if (filterType === 'both') return account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET) ||
+                                       account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET);
       return false; // Don't include any other account types
     });
 
@@ -351,6 +353,8 @@ const BalanceOverTime = () => {
   const filteredAccounts = accounts.filter(account => {
     if (accountTypeFilter === 'on-budget') return account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET);
     if (accountTypeFilter === 'off-budget') return account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET);
+    if (accountTypeFilter === 'both') return account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET) ||
+                                           account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET);
     return false; // Don't include any other account types
   });
 
@@ -477,6 +481,16 @@ const BalanceOverTime = () => {
                 onChange={() => handleAccountTypeFilterChange('off-budget')}
               />
               Off Budget Accounts
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="accountTypeFilter"
+                value="both"
+                checked={accountTypeFilter === 'both'}
+                onChange={() => handleAccountTypeFilterChange('both')}
+              />
+              Both Account Types
             </label>
           </div>
 

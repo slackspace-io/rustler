@@ -733,6 +733,7 @@ impl FireflyImportService {
             let create_request = CreateAccountRequest {
                 name: firefly_account.name.clone(),
                 account_type: account_type.to_string(),
+                account_sub_type: None, // No specific subtype for imported accounts
                 balance: firefly_account.current_balance.unwrap_or(0.0),
                 currency: firefly_account.currency_code.clone(),
                 is_default: false, // Imported accounts are not default by default
@@ -783,6 +784,7 @@ impl FireflyImportService {
                     let create_request = CreateAccountRequest {
                         name: firefly_transaction.source_name.clone(),
                         account_type: "On Budget".to_string(), // Default to On Budget for new accounts
+                        account_sub_type: None, // No specific subtype for automatically created accounts
                         balance: 0.0, // Start with zero balance
                         currency: "USD".to_string(), // Default currency
                         is_default: false,

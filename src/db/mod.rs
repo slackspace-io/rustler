@@ -8,6 +8,7 @@ mod add_destination_name_migration;
 mod update_destination_account_type_migration;
 mod settings_migration;
 mod category_groups_migration;
+mod account_sub_type_migration;
 
 pub use migrations::run_migrations;
 pub use double_entry_migration::migrate_to_double_entry;
@@ -16,6 +17,7 @@ pub use add_destination_name_migration::add_destination_name_column;
 pub use update_destination_account_type_migration::update_destination_account_type;
 pub use settings_migration::add_settings_table;
 pub use category_groups_migration::add_category_groups;
+pub use account_sub_type_migration::add_account_sub_type;
 
 /// Initialize a connection pool to the database
 pub async fn init_db_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {

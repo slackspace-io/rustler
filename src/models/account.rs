@@ -10,8 +10,10 @@ pub struct Account {
     pub id: Uuid,
     /// Name of the account (e.g., "Checking Account", "Savings Account")
     pub name: String,
-    /// Type of account (e.g., "Checking", "Savings", "Credit Card")
+    /// Type of account (e.g., "On Budget", "Off Budget", "External")
     pub account_type: String,
+    /// Subtype of account (e.g., "Checking", "Savings", "Credit Card")
+    pub account_sub_type: Option<String>,
     /// Current balance of the account
     pub balance: f64,
     /// Currency of the account (e.g., "USD", "EUR")
@@ -29,6 +31,7 @@ pub struct Account {
 pub struct CreateAccountRequest {
     pub name: String,
     pub account_type: String,
+    pub account_sub_type: Option<String>,
     pub balance: f64,
     pub currency: String,
     #[serde(default)]
@@ -40,6 +43,7 @@ pub struct CreateAccountRequest {
 pub struct UpdateAccountRequest {
     pub name: Option<String>,
     pub account_type: Option<String>,
+    pub account_sub_type: Option<String>,
     pub balance: Option<f64>,
     pub currency: Option<String>,
     pub is_default: Option<bool>,

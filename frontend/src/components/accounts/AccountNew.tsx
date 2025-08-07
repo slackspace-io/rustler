@@ -33,15 +33,10 @@ const AccountNew = () => {
       setLoading(true);
       setError(null);
 
-      // Combine account type and subtype for storage
-      // Format: "On Budget - Checking", "Off Budget - Loan", etc.
-      const fullAccountType = accountSubtype
-        ? `${accountType} - ${accountSubtype}`
-        : accountType;
-
       await accountsApi.createAccount({
         name,
-        account_type: fullAccountType,
+        account_type: accountType,
+        account_sub_type: accountSubtype || null,
         balance: parseFloat(balance),
         currency: "DEFAULT" // Using a default currency value since the app is currency-agnostic
       });

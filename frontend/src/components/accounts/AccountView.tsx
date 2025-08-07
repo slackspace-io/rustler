@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { accountsApi, transactionsApi } from '../../services/api';
 import type { Account, Transaction } from '../../services/api';
+import { useSettings } from '../../contexts/useSettings';
 
 const AccountView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { formatNumber } = useSettings();
   const [account, setAccount] = useState<Account | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,12 +83,15 @@ const AccountView = () => {
         <div className="summary-box">
           <h2>Balance</h2>
           <p className={`total-balance ${account.balance >= 0 ? 'positive' : 'negative'}`}>
-            {account.balance.toFixed(2)}
+            {formatNumber(account.balance)}
           </p>
         </div>
 
         <div className="account-info">
           <p><strong>Account Type:</strong> {account.account_type}</p>
+          {account.account_sub_type && (
+            <p><strong>Account Subtype:</strong> {account.account_sub_type}</p>
+          )}
           <p><strong>Created:</strong> {new Date(account.created_at).toLocaleDateString()}</p>
           <p><strong>Last Updated:</strong> {new Date(account.updated_at).toLocaleDateString()}</p>
         </div>
@@ -132,7 +137,7 @@ const AccountView = () => {
                     <td>{transaction.description}</td>
                     <td>{transaction.category}</td>
                     <td className={transaction.amount >= 0 ? 'positive' : 'negative'}>
-                      {transaction.amount.toFixed(2)}
+                      {formatNumber(transaction.amount)}
                     </td>
                     <td>
                       <div className="actions">

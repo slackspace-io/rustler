@@ -2,7 +2,7 @@ use chrono::Utc;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 use std::sync::Arc;
-
+use tracing::{debug, info};
 use crate::models::{Budget, CreateBudgetRequest, UpdateBudgetRequest};
 use crate::services::SettingsService;
 
@@ -212,10 +212,9 @@ impl BudgetService {
             r#"
             SELECT COALESCE(SUM(ABS(t.amount)), 0.0)
             FROM transactions t
-            JOIN accounts src ON t.source_account_id = src.id
-            WHERE src.account_type = 'On Budget'
-            AND t.amount < 0
-            AND t.category = 'Income'
+            JOIN accounts dst ON t.destination_account_id = dst.id
+            WHERE dst.account_type = 'On Budget'
+            AND t.amount > 0
             AND t.transaction_date >= $1
             AND t.transaction_date < $2
             "#,
@@ -224,8 +223,9 @@ impl BudgetService {
         .bind(end_date)
         .fetch_one(&self.db)
         .await?;
-
+        info!("Monthly incoming funds for {}-{}: ${:.2}", start_date, end_date, deposits);
         Ok(deposits)
+
     }
 
     /// Get the total budgeted amount for a specific month

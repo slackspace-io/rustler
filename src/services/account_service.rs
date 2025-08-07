@@ -40,14 +40,15 @@ impl AccountService {
         // Create the account
         let account = sqlx::query_as::<_, Account>(
             r#"
-            INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO accounts (id, name, account_type, account_sub_type, balance, currency, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
             "#,
         )
         .bind(account_id)
         .bind(&req.name)
         .bind(&req.account_type)
+        .bind(&req.account_sub_type)
         .bind(req.balance)
         .bind(&req.currency)
         .bind(now)
@@ -61,8 +62,8 @@ impl AccountService {
             let external_account_id = Uuid::new_v4();
             sqlx::query(
                 r#"
-                INSERT INTO accounts (id, name, account_type, balance, currency, created_at, updated_at)
-                VALUES ($1, $2, 'External', $3, $4, $5, $6)
+                INSERT INTO accounts (id, name, account_type, account_sub_type, balance, currency, created_at, updated_at)
+                VALUES ($1, $2, 'External', NULL, $3, $4, $5, $6)
                 "#,
             )
             .bind(external_account_id)
@@ -128,6 +129,10 @@ impl AccountService {
 
             if let Some(account_type) = &req.account_type {
                 params.push(format!("account_type = '{}'", account_type));
+            }
+
+            if let Some(account_sub_type) = &req.account_sub_type {
+                params.push(format!("account_sub_type = '{}'", account_sub_type));
             }
 
             if let Some(balance) = req.balance {

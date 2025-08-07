@@ -3,8 +3,15 @@ import { Link } from 'react-router-dom';
 import { accountsApi } from '../../services/api';
 import type { Account } from '../../services/api';
 import { ACCOUNT_TYPE } from '../../constants/accountTypes';
+import { useSettings } from '../../contexts/useSettings';
+import './sorting.css';
+
+// Sorting options for accounts
+type SortField = 'name' | 'balance' | 'account_type';
+type SortOrder = 'asc' | 'desc';
 
 const AccountsList = () => {
+  const { formatNumber } = useSettings();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,38 +19,10 @@ const AccountsList = () => {
   const [onBudgetBalance, setOnBudgetBalance] = useState(0);
   const [offBudgetBalance, setOffBudgetBalance] = useState(0);
 
-  // Parse account type and subtype from combined string
-  const parseAccountType = (fullType: string) => {
-    if (!fullType) {
-      console.error("Account type is undefined or empty:", fullType);
-      return { mainType: "", subtype: "" };
-    }
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-    // Trim the input string to handle any extra whitespace
-    const trimmedType = fullType.trim();
-
-    // Check if the account type contains a subtype (format: "Type - Subtype")
-    // Use a regex that handles variable whitespace around the separator
-    const parts = trimmedType.split(/\s*-\s*/);
-
-    // Filter out any empty parts that might result from extra separators
-    const filteredParts = parts.filter(part => part.trim() !== "");
-
-    if (filteredParts.length > 1) {
-      // If it has a subtype, return the main type and subtype separately
-      // Trim each part to handle any internal whitespace
-      return {
-        mainType: filteredParts[0].trim(),
-        subtype: filteredParts[1].trim()
-      };
-    } else {
-      // If it doesn't have a subtype, return just the main type
-      return {
-        mainType: trimmedType,
-        subtype: ''
-      };
-    }
-  };
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -58,13 +37,13 @@ const AccountsList = () => {
 
         // Calculate on-budget balance
         const onBudgetTotal = data
-          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.ON_BUDGET)
+          .filter(account => account.account_type === ACCOUNT_TYPE.ON_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOnBudgetBalance(onBudgetTotal);
 
         // Calculate off-budget balance
         const offBudgetTotal = data
-          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.OFF_BUDGET)
+          .filter(account => account.account_type === ACCOUNT_TYPE.OFF_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOffBudgetBalance(offBudgetTotal);
 
@@ -92,13 +71,13 @@ const AccountsList = () => {
 
         // Recalculate on-budget balance
         const onBudgetTotal = updatedAccounts
-          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.ON_BUDGET)
+          .filter(account => account.account_type === ACCOUNT_TYPE.ON_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOnBudgetBalance(onBudgetTotal);
 
         // Recalculate off-budget balance
         const offBudgetTotal = updatedAccounts
-          .filter(account => parseAccountType(account.account_type).mainType === ACCOUNT_TYPE.OFF_BUDGET)
+          .filter(account => account.account_type === ACCOUNT_TYPE.OFF_BUDGET)
           .reduce((sum, account) => sum + account.balance, 0);
         setOffBudgetBalance(offBudgetTotal);
       } catch (err) {
@@ -131,12 +110,12 @@ const AccountsList = () => {
               <td>
                 <Link to={`/accounts/${account.id}`}>{account.name}</Link>
               </td>
-              <td>{parseAccountType(account.account_type).mainType}</td>
+              <td>{account.account_type}</td>
               <td>
-                {parseAccountType(account.account_type).subtype || '-'}
+                {account.account_sub_type || '-'}
               </td>
               <td className={account.balance >= 0 ? 'positive' : 'negative'}>
-                {account.balance.toFixed(2)}
+                {formatNumber(account.balance)}
               </td>
               <td>
                 <div className="actions">
@@ -171,23 +150,56 @@ const AccountsList = () => {
     return type1.toLowerCase() === type2.toLowerCase();
   };
 
+  // Sort accounts based on the selected field and order
+  const sortAccounts = (accounts: Account[], field: SortField, order: SortOrder): Account[] => {
+    return [...accounts].sort((a, b) => {
+      let comparison = 0;
+
+      switch (field) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'balance':
+          comparison = a.balance - b.balance;
+          break;
+        case 'account_type':
+          comparison = a.account_type.localeCompare(b.account_type);
+          break;
+        default:
+          comparison = 0;
+      }
+
+      return order === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  // Handle sort field change
+  const handleSortFieldChange = (field: SortField) => {
+    setSortField(field);
+  };
+
+  // Handle sort order change
+  const handleSortOrderToggle = () => {
+    setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc');
+  };
+
+  // Apply sorting to all accounts
+  const sortedAccounts = sortAccounts(accounts, sortField, sortOrder);
+
   // Filter accounts by type
-  const onBudgetAccounts = accounts.filter(account => {
-    const { mainType, subtype } = parseAccountType(account.account_type);
-    console.log(`Account: ${account.name}, Type: ${account.account_type}, Parsed: mainType=${mainType}, subtype=${subtype}, Is On Budget: ${isSameAccountType(mainType, ACCOUNT_TYPE.ON_BUDGET)}`);
-    return isSameAccountType(mainType, ACCOUNT_TYPE.ON_BUDGET);
+  const onBudgetAccounts = sortedAccounts.filter(account => {
+    console.log(`Account: ${account.name}, Type: ${account.account_type}, Subtype: ${account.account_sub_type}, Is On Budget: ${isSameAccountType(account.account_type, ACCOUNT_TYPE.ON_BUDGET)}`);
+    return isSameAccountType(account.account_type, ACCOUNT_TYPE.ON_BUDGET);
   });
 
-  const offBudgetAccounts = accounts.filter(account => {
-    const { mainType } = parseAccountType(account.account_type);
-    return isSameAccountType(mainType, ACCOUNT_TYPE.OFF_BUDGET);
+  const offBudgetAccounts = sortedAccounts.filter(account => {
+    return isSameAccountType(account.account_type, ACCOUNT_TYPE.OFF_BUDGET);
   });
 
-  const otherAccounts = accounts.filter(account => {
-    const mainType = parseAccountType(account.account_type).mainType;
-    const isOther = !isSameAccountType(mainType, ACCOUNT_TYPE.ON_BUDGET) &&
-                    !isSameAccountType(mainType, ACCOUNT_TYPE.OFF_BUDGET);
-    console.log(`Other check - Account: ${account.name}, Type: ${account.account_type}, Parsed: mainType=${mainType}, Is Other: ${isOther}`);
+  const otherAccounts = sortedAccounts.filter(account => {
+    const isOther = !isSameAccountType(account.account_type, ACCOUNT_TYPE.ON_BUDGET) &&
+                   !isSameAccountType(account.account_type, ACCOUNT_TYPE.OFF_BUDGET);
+    console.log(`Other check - Account: ${account.name}, Type: ${account.account_type}, Subtype: ${account.account_sub_type}, Is Other: ${isOther}`);
     return isOther;
   });
 
@@ -195,12 +207,35 @@ const AccountsList = () => {
     <div className="accounts-list">
       <div className="header-actions">
         <h1>Accounts</h1>
-        <Link to="/accounts/new" className="button">Add New Account</Link>
+        <div className="actions-container">
+          <div className="sorting-controls">
+            <div className="sort-field">
+              <label htmlFor="sort-field">Sort by:</label>
+              <select
+                id="sort-field"
+                value={sortField}
+                onChange={(e) => handleSortFieldChange(e.target.value as SortField)}
+              >
+                <option value="name">Name</option>
+                <option value="balance">Balance</option>
+                <option value="account_type">Account Type</option>
+              </select>
+            </div>
+            <button
+              className="sort-order-toggle"
+              onClick={handleSortOrderToggle}
+              title={sortOrder === 'asc' ? 'Ascending order' : 'Descending order'}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+          <Link to="/accounts/new" className="button">Add New Account</Link>
+        </div>
       </div>
 
       <div className="summary-box">
         <h2>Total Balance</h2>
-        <p className="total-balance">{totalBalance.toFixed(2)}</p>
+        <p className="total-balance">{formatNumber(totalBalance)}</p>
       </div>
 
       {accounts.length === 0 ? (
@@ -211,7 +246,7 @@ const AccountsList = () => {
           <div className="account-group">
             <div className="group-header">
               <h2>On Budget Accounts</h2>
-              <p className="group-balance">Balance: {onBudgetBalance.toFixed(2)}</p>
+              <p className="group-balance">Balance: {formatNumber(onBudgetBalance)}</p>
             </div>
             {renderAccountTable(onBudgetAccounts)}
           </div>
@@ -220,7 +255,7 @@ const AccountsList = () => {
           <div className="account-group">
             <div className="group-header">
               <h2>Off Budget Accounts</h2>
-              <p className="group-balance">Balance: {offBudgetBalance.toFixed(2)}</p>
+              <p className="group-balance">Balance: {formatNumber(offBudgetBalance)}</p>
             </div>
             {renderAccountTable(offBudgetAccounts)}
           </div>
