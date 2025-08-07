@@ -6,3 +6,6 @@
 /test_transactions.sh
 /rustler_dump.sql
 /.sync_mine.sh
+/reference_csvs/
+/reference_csvs/2025_08_06_accounts.csv
+/reference_csvs/2025_08_06_transactions.csv

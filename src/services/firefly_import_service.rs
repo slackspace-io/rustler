@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufReader, Read};
+use std::str::FromStr;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,7 @@ use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 use csv::ReaderBuilder;
 
-use crate::models::{Account, CreateAccountRequest, Transaction, CreateTransactionRequest, firefly_import::{FireflyImportOptions, ImportResult}};
+use crate::models::{Account, CreateAccountRequest, Transaction, CreateTransactionRequest, firefly_import::{FireflyImportOptions, ImportResult, AccountTypeMapping}};
 use crate::services::account_service::AccountService;
 use crate::services::transaction_service::TransactionService;
 
@@ -75,23 +76,112 @@ pub struct FireflyTransaction {
 // Firefly III API response structure for accounts
 #[derive(Debug, Deserialize)]
 struct FireflyAccountsResponse {
-    data: Vec<FireflyAccount>,
+    data: Vec<FireflyApiAccount>,
+    meta: Option<serde_json::Value>,
+    links: Option<serde_json::Value>,
+}
+
+// Firefly III API account structure
+#[derive(Debug, Deserialize)]
+struct FireflyApiAccount {
+    #[serde(rename = "type")]
+    type_: String,
+    id: String,
+    attributes: FireflyApiAccountAttributes,
+    links: Option<serde_json::Value>,
+}
+
+// Firefly III API account attributes
+#[derive(Debug, Deserialize)]
+struct FireflyApiAccountAttributes {
+    created_at: String,
+    updated_at: String,
+    name: String,
+    #[serde(rename = "type")]
+    type_: String,
+    account_role: Option<String>,
+    currency_id: String,
+    currency_code: String,
+    currency_symbol: String,
+    currency_decimal_places: i32,
+    current_balance: Option<String>,
+    notes: Option<String>,
+    // Add other fields as needed, or use a catch-all for unknown fields
+    #[serde(flatten)]
+    extra: HashMap<String, serde_json::Value>,
 }
 
 // Firefly III API response structure for transactions
 #[derive(Debug, Deserialize)]
 struct FireflyTransactionsResponse {
-    data: Vec<FireflyTransaction>,
+    data: Vec<FireflyApiTransaction>,
+    meta: Option<serde_json::Value>,
+    links: Option<serde_json::Value>,
+}
+
+// Firefly III API transaction structure
+#[derive(Debug, Deserialize)]
+struct FireflyApiTransaction {
+    #[serde(rename = "type")]
+    type_: String,
+    id: String,
+    attributes: FireflyApiTransactionAttributes,
+    links: Option<serde_json::Value>,
+}
+
+// Firefly III API transaction attributes
+#[derive(Debug, Deserialize)]
+struct FireflyApiTransactionAttributes {
+    created_at: String,
+    updated_at: String,
+    description: String,
+    date: String,
+    transactions: Vec<FireflyApiTransactionSplit>,
+    // Add other fields as needed, or use a catch-all for unknown fields
+    #[serde(flatten)]
+    extra: HashMap<String, serde_json::Value>,
+}
+
+// Firefly III API transaction split
+#[derive(Debug, Deserialize)]
+struct FireflyApiTransactionSplit {
+    amount: String,
+    description: String,
+    source_id: Option<String>,
+    source_name: Option<String>,
+    destination_id: Option<String>,
+    destination_name: Option<String>,
+    category_name: Option<String>,
+    #[serde(rename = "type")]
+    transaction_type: String,
+    date: String,
+    // Add other fields as needed, or use a catch-all for unknown fields
+    #[serde(flatten)]
+    extra: HashMap<String, serde_json::Value>,
 }
 
 // CSV row for Firefly III account export
 #[derive(Debug, Deserialize, Clone)]
 pub struct FireflyAccountCsv {
+    pub user_id: Option<String>,
+    #[serde(rename = "account_id")]
     pub id: String,
-    pub name: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
     #[serde(rename = "type")]
     pub type_: String,
+    pub name: String,
+    pub virtual_balance: Option<String>,
+    pub iban: Option<String>,
+    pub number: Option<String>,
+    pub active: Option<String>,
     pub currency_code: String,
+    pub role: Option<String>,
+    pub cc_type: Option<String>,
+    pub cc_payment_date: Option<String>,
+    pub in_net_worth: Option<String>,
+    pub interest: Option<String>,
+    pub interest_period: Option<String>,
     pub current_balance: Option<String>,
     pub notes: Option<String>,
 }
@@ -99,18 +189,62 @@ pub struct FireflyAccountCsv {
 // CSV row for Firefly III transaction export
 #[derive(Debug, Deserialize, Clone)]
 pub struct FireflyTransactionCsv {
+    pub user_id: Option<String>,
+    pub group_id: Option<String>,
+    #[serde(rename = "journal_id")]
     pub id: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub group_title: Option<String>,
     #[serde(rename = "type")]
     pub transaction_type: String,
+    pub currency_code: Option<String>,
+    pub amount: String,
+    pub foreign_currency_code: Option<String>,
+    pub foreign_amount: Option<String>,
+    pub native_currency_code: Option<String>,
+    pub native_amount: Option<String>,
+    pub native_foreign_amount: Option<String>,
     pub description: String,
     pub date: String,
-    pub amount: String,
-    pub source_id: String,
     pub source_name: String,
-    pub destination_id: String,
+    pub source_iban: Option<String>,
+    pub source_type: Option<String>,
     pub destination_name: String,
+    pub destination_iban: Option<String>,
+    pub destination_type: Option<String>,
+    pub reconciled: Option<String>,
+    #[serde(rename = "category")]
     pub category_name: Option<String>,
+    pub budget: Option<String>,
+    pub bill: Option<String>,
+    pub tags: Option<String>,
     pub notes: Option<String>,
+    pub sepa_cc: Option<String>,
+    pub sepa_ct_op: Option<String>,
+    pub sepa_ct_id: Option<String>,
+    pub sepa_db: Option<String>,
+    pub sepa_country: Option<String>,
+    pub sepa_ep: Option<String>,
+    pub sepa_ci: Option<String>,
+    pub sepa_batch_id: Option<String>,
+    pub external_url: Option<String>,
+    pub interest_date: Option<String>,
+    pub book_date: Option<String>,
+    pub process_date: Option<String>,
+    pub due_date: Option<String>,
+    pub payment_date: Option<String>,
+    pub invoice_date: Option<String>,
+    pub recurrence_id: Option<String>,
+    pub internal_reference: Option<String>,
+    pub bunq_payment_id: Option<String>,
+    pub import_hash: Option<String>,
+    pub import_hash_v2: Option<String>,
+    pub external_id: Option<String>,
+    pub original_source: Option<String>,
+    pub recurrence_total: Option<String>,
+    pub recurrence_count: Option<String>,
+    pub recurrence_date: Option<String>,
 }
 
 
@@ -165,14 +299,14 @@ impl FireflyImportService {
         match options.import_method.as_str() {
             "api" => {
                 if let (Some(api_url), Some(api_token)) = (&options.api_url, &options.api_token) {
-                    self.import_from_api(api_url, api_token, &mut result).await?;
+                    self.import_from_api(api_url, api_token, &options.account_type_mapping, &mut result).await?;
                 } else {
                     return Err("API URL and token are required for API import".to_string());
                 }
             }
             "csv" => {
                 if let (Some(accounts_csv), Some(transactions_csv)) = (&options.accounts_csv_path, &options.transactions_csv_path) {
-                    self.import_from_csv(accounts_csv, transactions_csv, &mut result).await?;
+                    self.import_from_csv(accounts_csv, transactions_csv, &options.account_type_mapping, &mut result).await?;
                 } else {
                     return Err("Accounts and transactions CSV paths are required for CSV import".to_string());
                 }
@@ -186,7 +320,7 @@ impl FireflyImportService {
     }
 
     // Import accounts and transactions from Firefly III API
-    async fn import_from_api(&self, api_url: &str, api_token: &str, result: &mut ImportResult) -> Result<(), String> {
+    async fn import_from_api(&self, api_url: &str, api_token: &str, account_type_mapping: &AccountTypeMapping, result: &mut ImportResult) -> Result<(), String> {
         // Create HTTP client
         let client = Client::new();
 
@@ -194,7 +328,7 @@ impl FireflyImportService {
         let accounts = self.fetch_accounts_from_api(&client, api_url, api_token).await?;
 
         // Map of Firefly III account IDs to Rustler account IDs
-        let account_id_map = self.import_accounts(accounts, result).await?;
+        let account_id_map = self.import_accounts(accounts, account_type_mapping, result).await?;
 
         // Fetch transactions from Firefly III API
         let transactions = self.fetch_transactions_from_api(&client, api_url, api_token).await?;
@@ -223,33 +357,81 @@ impl FireflyImportService {
             return Err(format!("Failed to fetch accounts: HTTP {}", response.status()));
         }
 
-        // First try to parse as a structured response with data field
-        match response.json::<FireflyAccountsResponse>().await {
-            Ok(accounts_response) => {
-                // Successfully parsed the structured response
-                Ok(accounts_response.data)
-            },
-            Err(e) => {
-                // If that fails, try to parse directly as an array of accounts
-                // This provides a fallback in case the API format changes
-                let response_text = format!("Failed to parse structured accounts response: {}. Trying alternative format...", e);
-                eprintln!("{}", response_text);
+        // Get the response body as text first
+        let response_text = response.text().await
+            .map_err(|e| format!("Failed to get response text: {}", e))?;
 
-                // Need to make a new request since we consumed the previous one
-                let response = client.get(&accounts_url)
-                    .header("Authorization", format!("Bearer {}", api_token))
-                    .header("Accept", "application/json")
-                    .send()
-                    .await
-                    .map_err(|e| format!("Failed to fetch accounts from API: {}", e))?;
+        // Try different parsing approaches
 
-                let accounts: Vec<FireflyAccount> = response.json()
-                    .await
-                    .map_err(|e| format!("Failed to parse accounts response in any format: {}", e))?;
+        // 1. Try to parse as a structured response with data field
+        let structured_result = serde_json::from_str::<FireflyAccountsResponse>(&response_text);
+        if let Ok(accounts_response) = structured_result {
+            // Convert FireflyApiAccount objects to FireflyAccount objects
+            let mut accounts = Vec::new();
+            for api_account in accounts_response.data {
+                // Map the account type
+                let account_type = match api_account.attributes.type_.as_str() {
+                    "asset" => FireflyAccountType::Asset,
+                    "expense" => FireflyAccountType::Expense,
+                    "revenue" => FireflyAccountType::Revenue,
+                    "loan" => FireflyAccountType::Loan,
+                    "debt" => FireflyAccountType::Debt,
+                    "liabilities" => FireflyAccountType::Liabilities,
+                    _ => FireflyAccountType::Other,
+                };
 
-                Ok(accounts)
+                // Parse current balance
+                let current_balance = api_account.attributes.current_balance
+                    .and_then(|b| b.parse::<f64>().ok());
+
+                // Create FireflyAccount from FireflyApiAccount
+                let account = FireflyAccount {
+                    id: api_account.id,
+                    name: api_account.attributes.name,
+                    type_: account_type,
+                    currency_code: api_account.attributes.currency_code,
+                    current_balance,
+                    notes: api_account.attributes.notes,
+                };
+
+                accounts.push(account);
+            }
+
+            return Ok(accounts);
+        }
+
+        // 2. Try to parse as a direct array of accounts
+        let array_result = serde_json::from_str::<Vec<FireflyAccount>>(&response_text);
+        if let Ok(accounts) = array_result {
+            return Ok(accounts);
+        }
+
+        // 3. Try to parse as a JSON object that might contain accounts in a different format
+        let json_result = serde_json::from_str::<serde_json::Value>(&response_text);
+        if let Ok(json) = json_result {
+            // If it's an object with a "data" field that's an array
+            if let Some(data) = json.get("data") {
+                if let Ok(accounts) = serde_json::from_value::<Vec<FireflyAccount>>(data.clone()) {
+                    return Ok(accounts);
+                }
+            }
+
+            // If it's an object with accounts as direct properties
+            if json.is_object() {
+                let mut accounts = Vec::new();
+                for (_, value) in json.as_object().unwrap() {
+                    if let Ok(account) = serde_json::from_value::<FireflyAccount>(value.clone()) {
+                        accounts.push(account);
+                    }
+                }
+                if !accounts.is_empty() {
+                    return Ok(accounts);
+                }
             }
         }
+
+        // If all parsing attempts fail, return an error with details
+        Err(format!("Failed to parse accounts response in any format: {}", response_text))
     }
 
     // Fetch transactions from Firefly III API
@@ -270,21 +452,101 @@ impl FireflyImportService {
             return Err(format!("Failed to fetch transactions: HTTP {}", response.status()));
         }
 
-        // Parse the response
-        let transactions: Vec<FireflyTransaction> = response.json()
-            .await
-            .map_err(|e| format!("Failed to parse transactions response: {}", e))?;
+        // Get the response body as text first
+        let response_text = response.text().await
+            .map_err(|e| format!("Failed to get response text: {}", e))?;
 
-        Ok(transactions)
+        // Try different parsing approaches
+
+        // 1. Try to parse as a structured response with data field
+        let structured_result = serde_json::from_str::<FireflyTransactionsResponse>(&response_text);
+        if let Ok(transactions_response) = structured_result {
+            // Convert FireflyApiTransaction objects to FireflyTransaction objects
+            let mut transactions = Vec::new();
+            for api_transaction in transactions_response.data {
+                // Process each transaction group
+                for split in api_transaction.attributes.transactions {
+                    // Map the transaction type
+                    let transaction_type = match split.transaction_type.to_lowercase().as_str() {
+                        "withdrawal" => FireflyTransactionType::Withdrawal,
+                        "deposit" => FireflyTransactionType::Deposit,
+                        "transfer" => FireflyTransactionType::Transfer,
+                        _ => FireflyTransactionType::Other,
+                    };
+
+                    // Parse amount
+                    let amount = split.amount.parse::<f64>()
+                        .map_err(|_| format!("Failed to parse transaction amount: {}", split.amount))?;
+
+                    // Parse date
+                    let date = DateTime::parse_from_rfc3339(&split.date)
+                        .or_else(|_| DateTime::parse_from_str(&split.date, "%Y-%m-%d %H:%M:%S"))
+                        .map_err(|e| format!("Failed to parse transaction date: {}", e))?
+                        .with_timezone(&Utc);
+
+                    // Create FireflyTransaction from FireflyApiTransaction
+                    let transaction = FireflyTransaction {
+                        id: api_transaction.id.clone(),
+                        transaction_type,
+                        description: split.description.clone(),
+                        date,
+                        amount,
+                        source_id: split.source_id.clone().unwrap_or_default(),
+                        source_name: split.source_name.clone().unwrap_or_default(),
+                        destination_id: split.destination_id.clone().unwrap_or_default(),
+                        destination_name: split.destination_name.clone().unwrap_or_default(),
+                        category_name: split.category_name.clone(),
+                        notes: None, // API doesn't provide notes in this format
+                    };
+
+                    transactions.push(transaction);
+                }
+            }
+
+            return Ok(transactions);
+        }
+
+        // 2. Try to parse as a direct array of transactions
+        let array_result = serde_json::from_str::<Vec<FireflyTransaction>>(&response_text);
+        if let Ok(transactions) = array_result {
+            return Ok(transactions);
+        }
+
+        // 3. Try to parse as a JSON object that might contain transactions in a different format
+        let json_result = serde_json::from_str::<serde_json::Value>(&response_text);
+        if let Ok(json) = json_result {
+            // If it's an object with a "data" field that's an array
+            if let Some(data) = json.get("data") {
+                if let Ok(transactions) = serde_json::from_value::<Vec<FireflyTransaction>>(data.clone()) {
+                    return Ok(transactions);
+                }
+            }
+
+            // If it's an object with transactions as direct properties
+            if json.is_object() {
+                let mut transactions = Vec::new();
+                for (_, value) in json.as_object().unwrap() {
+                    if let Ok(transaction) = serde_json::from_value::<FireflyTransaction>(value.clone()) {
+                        transactions.push(transaction);
+                    }
+                }
+                if !transactions.is_empty() {
+                    return Ok(transactions);
+                }
+            }
+        }
+
+        // If all parsing attempts fail, return an error with details
+        Err(format!("Failed to parse transactions response in any format: {}", response_text))
     }
 
     // Import accounts and transactions from CSV files
-    async fn import_from_csv(&self, accounts_csv_path: &str, transactions_csv_path: &str, result: &mut ImportResult) -> Result<(), String> {
+    async fn import_from_csv(&self, accounts_csv_path: &str, transactions_csv_path: &str, account_type_mapping: &AccountTypeMapping, result: &mut ImportResult) -> Result<(), String> {
         // Read accounts from CSV
         let accounts = self.read_accounts_from_csv(accounts_csv_path)?;
 
         // Map of Firefly III account IDs to Rustler account IDs
-        let account_id_map = self.import_accounts(accounts, result).await?;
+        let account_id_map = self.import_accounts(accounts, account_type_mapping, result).await?;
 
         // Read transactions from CSV
         let transactions = self.read_transactions_from_csv(transactions_csv_path)?;
@@ -354,10 +616,11 @@ impl FireflyImportService {
 
         let reader = BufReader::new(file);
 
-        // Create CSV reader
+        // Create CSV reader with flexible option to handle records with different numbers of fields
         let mut csv_reader = ReaderBuilder::new()
             .has_headers(true)
             .delimiter(b',')
+            .flexible(true)
             .from_reader(reader);
 
         // Read transactions from CSV
@@ -382,15 +645,21 @@ impl FireflyImportService {
                     let amount = csv_transaction.amount.parse::<f64>()
                         .map_err(|e| format!("Failed to parse transaction amount: {}", e))?;
 
+                    // Generate source_id and destination_id from source_name and destination_name
+                    // This is a simplification; in a real-world scenario, you might want to look up
+                    // the actual account IDs from a database or use a more sophisticated mapping
+                    let source_id = format!("source-{}", csv_transaction.id);
+                    let destination_id = format!("dest-{}", csv_transaction.id);
+
                     transactions.push(FireflyTransaction {
                         id: csv_transaction.id,
                         transaction_type,
                         description: csv_transaction.description,
                         date,
                         amount,
-                        source_id: csv_transaction.source_id,
+                        source_id,
                         source_name: csv_transaction.source_name,
-                        destination_id: csv_transaction.destination_id,
+                        destination_id,
                         destination_name: csv_transaction.destination_name,
                         category_name: csv_transaction.category_name,
                         notes: csv_transaction.notes,
@@ -406,7 +675,7 @@ impl FireflyImportService {
     }
 
     // Import accounts from Firefly III to Rustler
-    async fn import_accounts(&self, accounts: Vec<FireflyAccount>, result: &mut ImportResult) -> Result<HashMap<String, Uuid>, String> {
+    async fn import_accounts(&self, accounts: Vec<FireflyAccount>, account_type_mapping: &AccountTypeMapping, result: &mut ImportResult) -> Result<HashMap<String, Uuid>, String> {
         let mut account_id_map = HashMap::new();
 
         // Get existing accounts to avoid duplicates
@@ -428,11 +697,20 @@ impl FireflyImportService {
                 continue;
             }
 
-            // Map Firefly III account type to Rustler account type
-            let account_type = match firefly_account.type_ {
-                FireflyAccountType::Asset => "On Budget",
-                FireflyAccountType::Loan | FireflyAccountType::Debt | FireflyAccountType::Liabilities => "Off Budget",
-                _ => "External",
+            // Check if there's a specific mapping for this account by name
+            let account_type = if let Some(specific_type) = account_type_mapping.account_specific.get(&firefly_account.name) {
+                specific_type.clone()
+            } else {
+                // Use the general type mapping based on the account type
+                match firefly_account.type_ {
+                    FireflyAccountType::Asset => account_type_mapping.asset.clone(),
+                    FireflyAccountType::Expense => account_type_mapping.expense.clone(),
+                    FireflyAccountType::Revenue => account_type_mapping.revenue.clone(),
+                    FireflyAccountType::Loan => account_type_mapping.loan.clone(),
+                    FireflyAccountType::Debt => account_type_mapping.debt.clone(),
+                    FireflyAccountType::Liabilities => account_type_mapping.liabilities.clone(),
+                    FireflyAccountType::Other => account_type_mapping.other.clone(),
+                }
             };
 
             // Create account request
@@ -461,22 +739,64 @@ impl FireflyImportService {
 
     // Import transactions from Firefly III to Rustler
     async fn import_transactions(&self, transactions: Vec<FireflyTransaction>, account_id_map: &HashMap<String, Uuid>, result: &mut ImportResult) -> Result<(), String> {
+        // Get existing accounts to find accounts by name if they're not in the map
+        let existing_accounts = self.account_service.get_accounts()
+            .await
+            .map_err(|e| format!("Failed to fetch existing accounts: {}", e))?;
+
+        // Create a map of account names to IDs for quick lookup
+        let mut existing_account_names = HashMap::new();
+        for account in &existing_accounts {
+            existing_account_names.insert(account.name.clone(), account.id);
+        }
+
         // Import each transaction
         for firefly_transaction in transactions {
-            // Skip if source or destination account is not mapped
-            let source_account_id = match account_id_map.get(&firefly_transaction.source_id) {
-                Some(id) => *id,
-                None => {
-                    result.errors.push(format!(
-                        "Skipping transaction {}: Source account {} not found",
-                        firefly_transaction.id, firefly_transaction.source_name
-                    ));
-                    continue;
+            // Try to find the source account by ID in the map first
+            let source_account_id = if let Some(id) = account_id_map.get(&firefly_transaction.source_id) {
+                *id
+            } else {
+                // If not found by ID, try to find by name in existing accounts
+                if let Some(id) = existing_account_names.get(&firefly_transaction.source_name) {
+                    *id
+                } else {
+                    // If still not found, create a new account with this name
+                    let now = chrono::Utc::now();
+                    let create_request = CreateAccountRequest {
+                        name: firefly_transaction.source_name.clone(),
+                        account_type: "On Budget".to_string(), // Default to On Budget for new accounts
+                        balance: 0.0, // Start with zero balance
+                        currency: "USD".to_string(), // Default currency
+                        is_default: false,
+                    };
+
+                    match self.account_service.create_account(create_request).await {
+                        Ok(account) => {
+                            // Add the new account to our maps for future lookups
+                            existing_account_names.insert(firefly_transaction.source_name.clone(), account.id);
+                            account.id
+                        }
+                        Err(e) => {
+                            result.errors.push(format!(
+                                "Skipping transaction {}: Failed to create source account {}: {}",
+                                firefly_transaction.id, firefly_transaction.source_name, e
+                            ));
+                            continue;
+                        }
+                    }
                 }
             };
 
             // Get destination account ID if it exists in the map
-            let destination_account_id = account_id_map.get(&firefly_transaction.destination_id).copied();
+            let destination_account_id = if let Some(id) = account_id_map.get(&firefly_transaction.destination_id) {
+                Some(*id)
+            } else if let Some(id) = existing_account_names.get(&firefly_transaction.destination_name) {
+                // If not found by ID, try to find by name in existing accounts
+                Some(*id)
+            } else {
+                // For destination, we'll let the transaction service handle creating it if needed
+                None
+            };
 
             // Determine transaction amount based on transaction type
             let amount = match firefly_transaction.transaction_type {

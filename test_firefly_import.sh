@@ -26,7 +26,7 @@ echo "Creating sample CSV files for testing..."
 
 # Create accounts CSV
 cat > /tmp/firefly_accounts.csv << EOF
-id,name,type,currency_code,current_balance,notes
+account_id,name,type,currency_code,current_balance,notes
 1,Checking Account,asset,USD,1000.00,Main checking account
 2,Savings Account,asset,USD,5000.00,Savings account
 3,Credit Card,asset,USD,-500.00,Credit card
@@ -37,7 +37,7 @@ EOF
 
 # Create transactions CSV
 cat > /tmp/firefly_transactions.csv << EOF
-id,type,description,date,amount,source_id,source_name,destination_id,destination_name,category_name,notes
+journal_id,type,description,date,amount,source_id,source_name,destination_id,destination_name,category_name,notes
 1,withdrawal,Grocery shopping,2023-01-15T12:00:00Z,75.50,1,Checking Account,5,Groceries,Food,Weekly groceries
 2,deposit,Salary payment,2023-01-31T09:00:00Z,2500.00,6,Salary,1,Checking Account,Income,Monthly salary
 3,transfer,Savings transfer,2023-01-20T15:30:00Z,500.00,1,Checking Account,2,Savings Account,Transfer,Monthly savings
