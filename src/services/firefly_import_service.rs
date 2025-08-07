@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 use csv::ReaderBuilder;
-
+use tracing::{debug, info, log};
 use crate::models::{Account, CreateAccountRequest, Transaction, CreateTransactionRequest, firefly_import::{FireflyImportOptions, ImportResult, AccountTypeMapping}};
 use crate::services::account_service::AccountService;
 use crate::services::transaction_service::TransactionService;
@@ -17,7 +17,7 @@ use crate::services::transaction_service::TransactionService;
 // Firefly III account types
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FireflyAccountType {
-    #[serde(rename = "asset")]
+    #[serde(rename = "Asset account")]
     Asset,
     #[serde(rename = "expense")]
     Expense,
@@ -560,6 +560,7 @@ impl FireflyImportService {
     // Read accounts from CSV file
     fn read_accounts_from_csv(&self, csv_path: &str) -> Result<Vec<FireflyAccount>, String> {
         // Open the CSV file
+        info!("Reading accounts from {}", csv_path);
         let file = File::open(csv_path)
             .map_err(|e| format!("Failed to open accounts CSV file: {}", e))?;
 
@@ -578,15 +579,18 @@ impl FireflyImportService {
                 Ok(csv_account) => {
                     // Convert CSV account to FireflyAccount
                     let account_type = match csv_account.type_.to_lowercase().as_str() {
-                        "asset" => FireflyAccountType::Asset,
-                        "expense" => FireflyAccountType::Expense,
-                        "revenue" => FireflyAccountType::Revenue,
+                        "asset account" => FireflyAccountType::Asset,
+                        "expense account" => FireflyAccountType::Expense,
+                        "revenue account" => FireflyAccountType::Revenue,
                         "loan" => FireflyAccountType::Loan,
                         "debt" => FireflyAccountType::Debt,
+                        "mortgage" => FireflyAccountType::Liabilities,
                         "liabilities" => FireflyAccountType::Liabilities,
                         _ => FireflyAccountType::Other,
                     };
-
+                    info!("Account type: {:?} for {}", account_type, csv_account.name);
+                    //raw csv data
+                    info!("Account: {:?}", csv_account);
                     let current_balance = csv_account.current_balance
                         .and_then(|b| b.parse::<f64>().ok());
 
@@ -611,6 +615,7 @@ impl FireflyImportService {
     // Read transactions from CSV file
     fn read_transactions_from_csv(&self, csv_path: &str) -> Result<Vec<FireflyTransaction>, String> {
         // Open the CSV file
+        debug!("Reading transactions from {}", csv_path);
         let file = File::open(csv_path)
             .map_err(|e| format!("Failed to open transactions CSV file: {}", e))?;
 
@@ -676,6 +681,7 @@ impl FireflyImportService {
 
     // Import accounts from Firefly III to Rustler
     async fn import_accounts(&self, accounts: Vec<FireflyAccount>, account_type_mapping: &AccountTypeMapping, result: &mut ImportResult) -> Result<HashMap<String, Uuid>, String> {
+        debug!("Importing {} accounts", accounts.len());
         let mut account_id_map = HashMap::new();
 
         // Get existing accounts to avoid duplicates
@@ -691,18 +697,25 @@ impl FireflyImportService {
 
         // Import each account
         for firefly_account in accounts {
+            debug!("Processing account: {}", firefly_account.name);
+            //account type from firefly
+            debug!("Account type: {:?}", firefly_account.type_);
+            //Entire account from firefly
+            debug!("Account: {:?}", firefly_account);
             // Skip if account already exists
             if let Some(existing_id) = existing_account_names.get(&firefly_account.name) {
+                debug!("Account {} already exists with ID {}", firefly_account.name, existing_id);
                 account_id_map.insert(firefly_account.id, *existing_id);
                 continue;
             }
 
             // Check if there's a specific mapping for this account by name
             let account_type = if let Some(specific_type) = account_type_mapping.account_specific.get(&firefly_account.name) {
+                debug!("Using specific account type mapping for {}: {}", firefly_account.name, specific_type);
                 specific_type.clone()
             } else {
                 // Use the general type mapping based on the account type
-                match firefly_account.type_ {
+                let mapped_type = match firefly_account.type_ {
                     FireflyAccountType::Asset => account_type_mapping.asset.clone(),
                     FireflyAccountType::Expense => account_type_mapping.expense.clone(),
                     FireflyAccountType::Revenue => account_type_mapping.revenue.clone(),
@@ -710,7 +723,9 @@ impl FireflyImportService {
                     FireflyAccountType::Debt => account_type_mapping.debt.clone(),
                     FireflyAccountType::Liabilities => account_type_mapping.liabilities.clone(),
                     FireflyAccountType::Other => account_type_mapping.other.clone(),
-                }
+                };
+                debug!("Using general account type mapping for {}: {:?} -> {}", firefly_account.name, firefly_account.type_, mapped_type);
+                mapped_type
             };
 
             // Create account request
@@ -725,18 +740,20 @@ impl FireflyImportService {
             // Create the account
             match self.account_service.create_account(create_request).await {
                 Ok(account) => {
+                    debug!("Created account {} with ID {}", firefly_account.name, account.id);
                     account_id_map.insert(firefly_account.id, account.id);
                     result.accounts_imported += 1;
                 }
                 Err(e) => {
+                    log::error!("Failed to create account {}: {}", firefly_account.name, e);
                     result.errors.push(format!("Failed to create account {}: {}", firefly_account.name, e));
                 }
             }
         }
 
+        debug!("Imported {} accounts successfully", result.accounts_imported);
         Ok(account_id_map)
     }
-
     // Import transactions from Firefly III to Rustler
     async fn import_transactions(&self, transactions: Vec<FireflyTransaction>, account_id_map: &HashMap<String, Uuid>, result: &mut ImportResult) -> Result<(), String> {
         // Get existing accounts to find accounts by name if they're not in the map

@@ -112,6 +112,7 @@ export interface MonthlyBudgetStatus {
   incoming_funds: number;
   budgeted_amount: number;
   remaining_to_budget: number;
+  forecasted_monthly_income: number;
 }
 
 export interface CategorySpending {
@@ -146,4 +147,9 @@ export interface ImportResult {
   accounts_imported: number;
   transactions_imported: number;
   errors: string[];
+}
+
+// Forecasted monthly income response
+export interface ForecastedMonthlyIncomeResponse {
+  forecasted_monthly_income: number;
 }

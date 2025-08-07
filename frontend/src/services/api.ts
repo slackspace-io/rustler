@@ -15,7 +15,8 @@ import type {
   ConditionType,
   ActionType,
   FireflyImportOptions,
-  ImportResult
+  ImportResult,
+  ForecastedMonthlyIncomeResponse
 } from './types.ts';
 
 // Re-export types for convenience
@@ -32,7 +33,8 @@ export type {
   ConditionType,
   ActionType,
   FireflyImportOptions,
-  ImportResult
+  ImportResult,
+  ForecastedMonthlyIncomeResponse
 };
 
 // API functions for accounts
@@ -522,6 +524,35 @@ export const fireflyImportApi = {
     });
     if (!response.ok) {
       throw new Error('Failed to import from Firefly III');
+    }
+    return response.json();
+  },
+};
+
+// API functions for settings
+export const settingsApi = {
+  // Get forecasted monthly income
+  getForecastedMonthlyIncome: async (): Promise<ForecastedMonthlyIncomeResponse> => {
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/settings/forecasted-monthly-income?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch forecasted monthly income');
+    }
+    return response.json();
+  },
+
+  // Update forecasted monthly income
+  updateForecastedMonthlyIncome: async (amount: number): Promise<ForecastedMonthlyIncomeResponse> => {
+    const response = await fetch(`${API_BASE_URL}/settings/forecasted-monthly-income`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ value: amount.toString() }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update forecasted monthly income');
     }
     return response.json();
   },

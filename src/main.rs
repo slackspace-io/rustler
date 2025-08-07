@@ -127,6 +127,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Run migration to update account types from 'DESTINATION' to 'External'
     db::update_destination_account_type(&db_pool).await?;
 
+    // Run migration to add settings table with forecasted_monthly_income
+    db::add_settings_table(&db_pool).await?;
+
     // Check database connection
     db::check_db_connection(&db_pool).await?;
 
@@ -137,6 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()));
     let rule_service = Arc::new(services::RuleService::new(db_pool.clone()));
     let import_service = Arc::new(services::FireflyImportService::new(db_pool.clone()));
+    let settings_service = Arc::new(services::SettingsService::new(db_pool.clone()));
 
     // Create transaction rule service that combines transaction service and rule service
     let transaction_rule_service = Arc::new(services::TransactionRuleService::new(

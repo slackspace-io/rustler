@@ -1,0 +1,116 @@
+/* Styles for the budget status grid */
+.budget-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.summary-box {
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.summary-box h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+}
+
+.summary-box p {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.summary-box .subtitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.monthly-income, .forecasted-income {
+  color: #4caf50;
+}
+
+.budgeted-amount {
+  color: #2196f3;
+}
+
+.remaining-amount.positive {
+  color: #4caf50;
+}
+
+.remaining-amount.negative {
+  color: #f44336;
+}
+
+/* Edit forecast styles */
+.edit-forecast {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.forecast-input {
+  padding: 8px 12px;
+  font-size: 1.2rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-button {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  background-color: transparent;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+}
+
+.edit-button:hover {
+  background-color: var(--color-bg-hover);
+}
+
+/* Budget progress styles */
+.budget-progress {
+  margin-top: 20px;
+  margin-bottom: 30px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 12px;
+  background-color: #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  text-align: right;
+}

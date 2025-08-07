@@ -25,6 +25,7 @@ struct MonthlyBudgetStatus {
     incoming_funds: f64,
     budgeted_amount: f64,
     remaining_to_budget: f64,
+    forecasted_monthly_income: f64,
 }
 
 pub fn router(budget_service: Arc<BudgetService>) -> Router {
@@ -177,11 +178,12 @@ async fn get_monthly_budget_status(
 
     // Call the budget service to get the monthly budget status
     match state.get_monthly_budget_status(query.year, query.month).await {
-        Ok((incoming_funds, budgeted_amount, remaining_to_budget)) => {
+        Ok((incoming_funds, budgeted_amount, remaining_to_budget, forecasted_monthly_income)) => {
             Ok(Json(MonthlyBudgetStatus {
                 incoming_funds,
                 budgeted_amount,
                 remaining_to_budget,
+                forecasted_monthly_income,
             }))
         },
         Err(err) => {

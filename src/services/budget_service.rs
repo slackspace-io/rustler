@@ -1,16 +1,28 @@
 use chrono::Utc;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
+use std::sync::Arc;
 
 use crate::models::{Budget, CreateBudgetRequest, UpdateBudgetRequest};
+use crate::services::SettingsService;
 
 pub struct BudgetService {
     db: Pool<Postgres>,
+    settings_service: Option<Arc<SettingsService>>,
 }
 
 impl BudgetService {
     pub fn new(db: Pool<Postgres>) -> Self {
-        Self { db }
+        Self {
+            db,
+            settings_service: None
+        }
+    }
+
+    /// Set the settings service
+    pub fn with_settings_service(mut self, settings_service: Arc<SettingsService>) -> Self {
+        self.settings_service = Some(settings_service);
+        self
     }
 
     /// Get all budgets
@@ -253,15 +265,26 @@ impl BudgetService {
     }
 
     /// Get the budget status for a specific month
-    /// Returns a tuple with (incoming_funds, budgeted_amount, remaining_to_budget)
+    /// Returns a tuple with (incoming_funds, budgeted_amount, remaining_to_budget, forecasted_monthly_income)
     /// If remaining_to_budget is positive, there are funds left to budget
     /// If remaining_to_budget is negative, the budgeted amount exceeds the incoming funds
-    pub async fn get_monthly_budget_status(&self, year: i32, month: u32) -> Result<(f64, f64, f64), sqlx::Error> {
+    pub async fn get_monthly_budget_status(&self, year: i32, month: u32) -> Result<(f64, f64, f64, f64), sqlx::Error> {
         let incoming_funds = self.get_monthly_incoming_funds(year, month).await?;
         let budgeted_amount = self.get_monthly_budgeted_amount(year, month).await?;
         let remaining_to_budget = incoming_funds - budgeted_amount;
 
-        Ok((incoming_funds, budgeted_amount, remaining_to_budget))
+        // Get forecasted monthly income from settings if available
+        let forecasted_monthly_income = match &self.settings_service {
+            Some(settings_service) => {
+                match settings_service.get_forecasted_monthly_income().await {
+                    Ok(income) => income,
+                    Err(_) => 0.0 // Default to 0 if there's an error
+                }
+            },
+            None => 0.0 // Default to 0 if settings service is not available
+        };
+
+        Ok((incoming_funds, budgeted_amount, remaining_to_budget, forecasted_monthly_income))
     }
 
     /// Get the total spent amount not associated with any budget

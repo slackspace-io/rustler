@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { budgetsApi } from '../../services/api';
+import { budgetsApi, settingsApi } from '../../services/api';
 import type { Budget, MonthlyBudgetStatus } from '../../services/api';
 
 interface BudgetWithSpent extends Budget {
@@ -16,11 +16,53 @@ const BudgetsList = () => {
   const [unbudgetedSpentLoading, setUnbudgetedSpentLoading] = useState(true);
   const [monthlyStatus, setMonthlyStatus] = useState<MonthlyBudgetStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [isEditingForecast, setIsEditingForecast] = useState(false);
+  const [forecastedIncome, setForecastedIncome] = useState<string>('');
 
   // Get current year and month
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+
+  // Handle starting to edit forecasted income
+  const handleEditForecast = () => {
+    if (monthlyStatus) {
+      setForecastedIncome(monthlyStatus.forecasted_monthly_income.toString());
+      setIsEditingForecast(true);
+    }
+  };
+
+  // Handle saving forecasted income
+  const handleSaveForecast = async () => {
+    try {
+      const amount = parseFloat(forecastedIncome);
+      if (isNaN(amount)) {
+        alert('Please enter a valid number');
+        return;
+      }
+
+      await settingsApi.updateForecastedMonthlyIncome(amount);
+
+      // Refresh monthly status to show updated forecast
+      const status = await budgetsApi.getMonthlyBudgetStatus(currentYear, currentMonth);
+      setMonthlyStatus(status);
+
+      setIsEditingForecast(false);
+    } catch (err) {
+      console.error('Error updating forecasted monthly income:', err);
+      alert('Failed to update forecasted monthly income. Please try again.');
+    }
+  };
+
+  // Handle canceling edit
+  const handleCancelEdit = () => {
+    setIsEditingForecast(false);
+  };
+
+  // Handle input change
+  const handleForecastChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForecastedIncome(e.target.value);
+  };
 
   useEffect(() => {
     const fetchBudgets = async () => {
@@ -138,6 +180,34 @@ const BudgetsList = () => {
               <h3>Monthly Income</h3>
               <p className="monthly-income">{monthlyStatus.incoming_funds.toFixed(2)}</p>
               <p className="subtitle">Incoming funds to on-budget accounts</p>
+            </div>
+
+            <div className="summary-box">
+              <h3>Forecasted Monthly Income</h3>
+              {isEditingForecast ? (
+                <div className="edit-forecast">
+                  <input
+                    type="number"
+                    value={forecastedIncome}
+                    onChange={handleForecastChange}
+                    className="forecast-input"
+                    step="0.01"
+                    min="0"
+                  />
+                  <div className="edit-actions">
+                    <button onClick={handleSaveForecast} className="button small">Save</button>
+                    <button onClick={handleCancelEdit} className="button small">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="forecasted-income">{monthlyStatus.forecasted_monthly_income.toFixed(2)}</p>
+                  <div className="subtitle">
+                    <span>Expected monthly income</span>
+                    <button onClick={handleEditForecast} className="button small edit-button">Edit</button>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="summary-box">
