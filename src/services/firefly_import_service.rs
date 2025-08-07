@@ -817,10 +817,10 @@ impl FireflyImportService {
 
             // Determine transaction amount based on transaction type
             let amount = match firefly_transaction.transaction_type {
-                FireflyTransactionType::Withdrawal => firefly_transaction.amount,
-                FireflyTransactionType::Deposit => -firefly_transaction.amount, // Negative for deposits in Rustler
-                FireflyTransactionType::Transfer => firefly_transaction.amount,
-                _ => firefly_transaction.amount,
+                FireflyTransactionType::Withdrawal => -firefly_transaction.amount,
+                FireflyTransactionType::Deposit => firefly_transaction.amount, // Keep deposits positive to match Rustler's withdrawal convention
+                FireflyTransactionType::Transfer => -firefly_transaction.amount,
+                _ => -firefly_transaction.amount,
             };
 
             // Determine category
@@ -844,6 +844,8 @@ impl FireflyImportService {
                 budget_id: None, // Firefly III doesn't have direct budget mapping
                 transaction_date: Some(firefly_transaction.date),
             };
+            info!("Transaction type: {:?}", firefly_transaction.transaction_type);
+            info!("Creating transaction: {:?}", create_request);
 
             // Create the transaction
             match self.transaction_service.create_transaction(create_request).await {
