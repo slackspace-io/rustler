@@ -21,6 +21,28 @@ impl CategoryService {
             .await
     }
 
+    /// Find a category by name, or create it if it doesn't exist
+    pub async fn find_or_create_category(&self, name: &str) -> Result<Category, sqlx::Error> {
+        // First, try to find the category by name
+        let existing_category = sqlx::query_as::<_, Category>("SELECT * FROM categories WHERE name = $1")
+            .bind(name)
+            .fetch_optional(&self.db)
+            .await?;
+
+        if let Some(category) = existing_category {
+            // Category exists, return it
+            Ok(category)
+        } else {
+            // Category doesn't exist, create it
+            let create_request = CreateCategoryRequest {
+                name: name.to_string(),
+                description: None,
+            };
+
+            self.create_category(create_request).await
+        }
+    }
+
     /// Get a category by ID
     pub async fn get_category(&self, id: Uuid) -> Result<Option<Category>, sqlx::Error> {
         sqlx::query_as::<_, Category>("SELECT * FROM categories WHERE id = $1")

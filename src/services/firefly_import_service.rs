@@ -10,7 +10,7 @@ use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 use csv::ReaderBuilder;
 use tracing::{debug, info, log};
-use crate::models::{Account, CreateAccountRequest, Transaction, CreateTransactionRequest, firefly_import::{FireflyImportOptions, ImportResult, AccountTypeMapping}};
+use crate::models::{Account, CreateAccountRequest, Transaction, CreateTransactionRequest, firefly_import::{FireflyImportOptions, ImportResult, AccountTypeMapping, FailedTransactionDetails}};
 use crate::services::account_service::AccountService;
 use crate::services::transaction_service::TransactionService;
 
@@ -293,6 +293,7 @@ impl FireflyImportService {
             accounts_imported: 0,
             transactions_imported: 0,
             errors: Vec::new(),
+            failed_transactions: Vec::new(),
         };
 
         // Import accounts and transactions based on the selected method
@@ -848,15 +849,30 @@ impl FireflyImportService {
             info!("Creating transaction: {:?}", create_request);
 
             // Create the transaction
-            match self.transaction_service.create_transaction(create_request).await {
+            match self.transaction_service.create_transaction(create_request.clone()).await {
                 Ok(_) => {
                     result.transactions_imported += 1;
                 }
                 Err(e) => {
-                    result.errors.push(format!(
+                    let error_message = format!(
                         "Failed to create transaction {}: {}",
                         firefly_transaction.description, e
-                    ));
+                    );
+                    result.errors.push(error_message.clone());
+
+                    // Store the failed transaction details for retry
+                    let failed_transaction = FailedTransactionDetails {
+                        source_account_id: create_request.source_account_id,
+                        destination_account_id: create_request.destination_account_id,
+                        destination_name: create_request.destination_name,
+                        description: create_request.description,
+                        amount: create_request.amount,
+                        category: create_request.category,
+                        budget_id: create_request.budget_id,
+                        transaction_date: create_request.transaction_date,
+                        error_message,
+                    };
+                    result.failed_transactions.push(failed_transaction);
                 }
             }
         }

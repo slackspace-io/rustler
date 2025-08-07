@@ -31,7 +31,7 @@ pub struct Transaction {
 }
 
 /// Data required to create a new transaction
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct CreateTransactionRequest {
     /// ID of the source account for this transaction
     pub source_account_id: Uuid,

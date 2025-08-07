@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 // Account type mapping
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -44,10 +46,25 @@ pub struct FireflyImportOptions {
     pub account_type_mapping: AccountTypeMapping,
 }
 
+// Failed transaction details for retry
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FailedTransactionDetails {
+    pub source_account_id: Uuid,
+    pub destination_account_id: Option<Uuid>,
+    pub destination_name: Option<String>,
+    pub description: String,
+    pub amount: f64,
+    pub category: String,
+    pub budget_id: Option<Uuid>,
+    pub transaction_date: Option<DateTime<Utc>>,
+    pub error_message: String,
+}
+
 // Import result
 #[derive(Debug, Serialize)]
 pub struct ImportResult {
     pub accounts_imported: usize,
     pub transactions_imported: usize,
     pub errors: Vec<String>,
+    pub failed_transactions: Vec<FailedTransactionDetails>,
 }

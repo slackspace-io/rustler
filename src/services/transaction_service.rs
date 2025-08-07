@@ -3,16 +3,21 @@ use sqlx::{Pool, Postgres, Row};
 use uuid::Uuid;
 
 use crate::models::{Transaction, CreateTransactionRequest, UpdateTransactionRequest};
+use crate::services::category_service::CategoryService;
 
 /// Service for handling transaction-related operations
 pub struct TransactionService {
     db: Pool<Postgres>,
+    category_service: CategoryService,
 }
 
 impl TransactionService {
     /// Create a new TransactionService with the given database pool
     pub fn new(db: Pool<Postgres>) -> Self {
-        Self { db }
+        Self {
+            db: db.clone(),
+            category_service: CategoryService::new(db),
+        }
     }
 
     /// Get spending by category, with optional filtering by date range
@@ -140,6 +145,9 @@ impl TransactionService {
 
         // Start a transaction to update both the transaction table and the account balance(s)
         let mut tx = self.db.begin().await?;
+
+        // Find or create the category
+        let category = self.category_service.find_or_create_category(&req.category).await?;
 
         // Determine if this is a transfer (destination matches an on or off budget account)
         // or an external account (which should be created if it doesn't exist)
