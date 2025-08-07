@@ -34,9 +34,10 @@ const BalanceOverTime = () => {
     setAccountTypeFilter(filterType);
 
     // Filter accounts based on the new filter (excluding external accounts)
+    // Use startsWith to include accounts with subtypes
     const newFilteredAccounts = accounts.filter(account => {
-      if (filterType === 'on-budget') return account.account_type === ACCOUNT_TYPE.ON_BUDGET;
-      if (filterType === 'off-budget') return account.account_type === ACCOUNT_TYPE.OFF_BUDGET;
+      if (filterType === 'on-budget') return account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET);
+      if (filterType === 'off-budget') return account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET);
       return false; // Don't include any other account types
     });
 
@@ -100,16 +101,18 @@ const BalanceOverTime = () => {
         const accountsData = await accountsApi.getAccounts();
 
         // Filter out external accounts
+        // Use startsWith to include accounts with subtypes
         const filteredAccountsData = accountsData.filter(
-          account => account.account_type === ACCOUNT_TYPE.ON_BUDGET ||
-                    account.account_type === ACCOUNT_TYPE.OFF_BUDGET
+          account => account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET) ||
+                    account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET)
         );
 
         setAccounts(filteredAccountsData);
 
         // Default to selecting on-budget accounts
+        // Use startsWith to include accounts with subtypes
         const onBudgetAccounts = filteredAccountsData.filter(
-          account => account.account_type === ACCOUNT_TYPE.ON_BUDGET
+          account => account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET)
         );
         setSelectedAccounts(onBudgetAccounts.map(account => account.id));
 
@@ -344,9 +347,10 @@ const BalanceOverTime = () => {
   };
 
   // Filter accounts based on account type (only on-budget and off-budget)
+  // Use startsWith to include accounts with subtypes
   const filteredAccounts = accounts.filter(account => {
-    if (accountTypeFilter === 'on-budget') return account.account_type === ACCOUNT_TYPE.ON_BUDGET;
-    if (accountTypeFilter === 'off-budget') return account.account_type === ACCOUNT_TYPE.OFF_BUDGET;
+    if (accountTypeFilter === 'on-budget') return account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET);
+    if (accountTypeFilter === 'off-budget') return account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET);
     return false; // Don't include any other account types
   });
 

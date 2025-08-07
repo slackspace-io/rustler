@@ -99,11 +99,11 @@ const Dashboard = () => {
 
   // Group accounts by type
 
-  // Use case-insensitive comparison for more flexibility
+  // Use startsWith to include accounts with subtypes
   const onBudgetAccounts = accounts.filter(account =>
-    account.account_type.toLowerCase() === ACCOUNT_TYPE.ON_BUDGET.toLowerCase());
+    account.account_type.toLowerCase().startsWith(ACCOUNT_TYPE.ON_BUDGET.toLowerCase()));
   const offBudgetAccounts = accounts.filter(account =>
-    account.account_type.toLowerCase() === ACCOUNT_TYPE.OFF_BUDGET.toLowerCase());
+    account.account_type.toLowerCase().startsWith(ACCOUNT_TYPE.OFF_BUDGET.toLowerCase()));
 
   // Calculate totals for each group
   const onBudgetTotal = onBudgetAccounts.reduce((sum, account) => sum + account.balance, 0);

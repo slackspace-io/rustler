@@ -25,9 +25,10 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount, refreshKey = 0 }: 
         console.log('AccountSidebar: Accounts data received:', data);
 
         // Filter out external accounts, only show on-budget and off-budget accounts
+        // Use startsWith to include accounts with subtypes
         const filteredAccounts = data.filter(account =>
-          account.account_type === ACCOUNT_TYPE.ON_BUDGET ||
-          account.account_type === ACCOUNT_TYPE.OFF_BUDGET
+          account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET) ||
+          account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET)
         );
 
         console.log('AccountSidebar: Setting filtered accounts:', filteredAccounts);
@@ -62,8 +63,9 @@ const AccountSidebar = ({ selectedAccountId, onSelectAccount, refreshKey = 0 }: 
   }
 
   // Group accounts by budget status
-  const onBudgetAccounts = accounts.filter(account => account.account_type === ACCOUNT_TYPE.ON_BUDGET);
-  const offBudgetAccounts = accounts.filter(account => account.account_type === ACCOUNT_TYPE.OFF_BUDGET);
+  // Use startsWith to include accounts with subtypes
+  const onBudgetAccounts = accounts.filter(account => account.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET));
+  const offBudgetAccounts = accounts.filter(account => account.account_type.startsWith(ACCOUNT_TYPE.OFF_BUDGET));
 
   // Render account list item
   const renderAccountItem = (account: Account) => (
