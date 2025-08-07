@@ -20,6 +20,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     setSettings(updatedSettings);
   };
 
+  // Update settings when the quick add fields change
+  const updateQuickAddFields = (fields: Settings['quickAddFields']) => {
+    const updatedSettings = updateSettings({ quickAddFields: fields });
+    setSettings(updatedSettings);
+  };
+
   // Format a number according to the current settings
   const formatNumberWithSettings = (value: number, decimals: number = 2): string => {
     return formatNumber(value, decimals);
@@ -34,6 +40,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const contextValue: SettingsContextType = {
     settings,
     updateNumberFormat,
+    updateQuickAddFields,
     formatNumber: formatNumberWithSettings,
     parseNumber: parseNumberWithSettings,
   };

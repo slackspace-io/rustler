@@ -121,6 +121,15 @@ export interface CategorySpending {
 
 export interface Settings {
   numberFormat: 'decimal' | 'comma';
+  quickAddFields?: {
+    sourceAccount: boolean;
+    destinationAccount: boolean;
+    description: boolean;
+    amount: boolean;
+    category: boolean;
+    budget: boolean;
+    date: boolean;
+  };
 }
 
 // Firefly III import options

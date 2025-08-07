@@ -3,6 +3,15 @@ import type { Settings } from './types';
 // Default settings
 const DEFAULT_SETTINGS: Settings = {
   numberFormat: 'decimal',
+  quickAddFields: {
+    sourceAccount: true,
+    destinationAccount: true,
+    description: true,
+    amount: true,
+    category: true,
+    budget: true,
+    date: true,
+  },
 };
 
 // Local storage key
