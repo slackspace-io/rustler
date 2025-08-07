@@ -80,13 +80,20 @@ impl TransactionRuleService {
         category: Option<&str>,
         start_date: Option<chrono::DateTime<chrono::Utc>>,
         end_date: Option<chrono::DateTime<chrono::Utc>>,
+        limit: Option<i64>,
+        offset: Option<i64>,
     ) -> Result<Vec<Transaction>, sqlx::Error> {
-        self.transaction_service.get_transactions(source_account_id, category, start_date, end_date).await
+        self.transaction_service.get_transactions(source_account_id, category, start_date, end_date, limit, offset).await
     }
 
     /// Get transactions for a specific account (pass-through to TransactionService)
-    pub async fn get_account_transactions(&self, account_id: Uuid) -> Result<Vec<Transaction>, sqlx::Error> {
-        self.transaction_service.get_account_transactions(account_id).await
+    pub async fn get_account_transactions(
+        &self,
+        account_id: Uuid,
+        limit: Option<i64>,
+        offset: Option<i64>
+    ) -> Result<Vec<Transaction>, sqlx::Error> {
+        self.transaction_service.get_account_transactions(account_id, limit, offset).await
     }
 
     /// Get spending by category (pass-through to TransactionService)

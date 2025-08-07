@@ -51,13 +51,15 @@ impl TransactionService {
         Ok(result)
     }
 
-    /// Get all transactions, with optional filtering
+    /// Get all transactions, with optional filtering and pagination
     pub async fn get_transactions(
         &self,
         source_account_id: Option<Uuid>,
         category: Option<&str>,
         start_date: Option<DateTime<Utc>>,
         end_date: Option<DateTime<Utc>>,
+        limit: Option<i64>,
+        offset: Option<i64>,
     ) -> Result<Vec<Transaction>, sqlx::Error> {
         let mut query = String::from("SELECT * FROM transactions WHERE 1=1");
 
@@ -79,20 +81,45 @@ impl TransactionService {
 
         query.push_str(" ORDER BY transaction_date DESC");
 
+        // Add pagination
+        if let Some(limit_val) = limit {
+            query.push_str(&format!(" LIMIT {}", limit_val));
+        }
+
+        if let Some(offset_val) = offset {
+            query.push_str(&format!(" OFFSET {}", offset_val));
+        }
+
         sqlx::query_as::<_, Transaction>(&query)
             .fetch_all(&self.db)
             .await
     }
 
-    /// Get transactions for a specific account (both as source and destination)
-    pub async fn get_account_transactions(&self, account_id: Uuid) -> Result<Vec<Transaction>, sqlx::Error> {
-        sqlx::query_as::<_, Transaction>(
+    /// Get transactions for a specific account (both as source and destination) with pagination
+    pub async fn get_account_transactions(
+        &self,
+        account_id: Uuid,
+        limit: Option<i64>,
+        offset: Option<i64>
+    ) -> Result<Vec<Transaction>, sqlx::Error> {
+        let mut query = String::from(
             r#"
             SELECT * FROM transactions
             WHERE source_account_id = $1 OR destination_account_id = $1
             ORDER BY transaction_date DESC
             "#
-        )
+        );
+
+        // Add pagination
+        if let Some(limit_val) = limit {
+            query.push_str(&format!(" LIMIT {}", limit_val));
+        }
+
+        if let Some(offset_val) = offset {
+            query.push_str(&format!(" OFFSET {}", offset_val));
+        }
+
+        sqlx::query_as::<_, Transaction>(&query)
             .bind(account_id)
             .fetch_all(&self.db)
             .await

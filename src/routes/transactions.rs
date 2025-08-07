@@ -31,9 +31,11 @@ pub struct TransactionQuery {
     pub category: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
 }
 
-// Handler to get all transactions, with optional filtering
+// Handler to get all transactions, with optional filtering and pagination
 async fn get_transactions(
     Query(query): Query<TransactionQuery>,
     State(state): State<Arc<TransactionRuleService>>,
@@ -63,8 +65,18 @@ async fn get_transactions(
         })
     });
 
-    // Call the transaction service to get transactions with filters
-    match state.get_transactions(query.source_account_id, query.category.as_deref(), start_date, end_date).await {
+    // Set default limit to 100 if not provided
+    let limit = query.limit.or(Some(100));
+
+    // Call the transaction service to get transactions with filters and pagination
+    match state.get_transactions(
+        query.source_account_id,
+        query.category.as_deref(),
+        start_date,
+        end_date,
+        limit,
+        query.offset
+    ).await {
         Ok(transactions) => Ok(Json(transactions)),
         Err(err) => {
             eprintln!("Error getting transactions: {:?}", err);
@@ -76,10 +88,14 @@ async fn get_transactions(
 // Handler to get transactions for a specific account
 async fn get_account_transactions(
     Path(source_account_id): Path<Uuid>,
+    Query(query): Query<TransactionQuery>,
     State(state): State<Arc<TransactionRuleService>>,
 ) -> Result<Json<Vec<Transaction>>, StatusCode> {
+    // Set default limit to 100 if not provided
+    let limit = query.limit.or(Some(100));
+
     // Call the transaction service to get transactions for the account
-    match state.get_account_transactions(source_account_id).await {
+    match state.get_account_transactions(source_account_id, limit, query.offset).await {
         Ok(transactions) => Ok(Json(transactions)),
         Err(err) => {
             eprintln!("Error getting account transactions: {:?}", err);
