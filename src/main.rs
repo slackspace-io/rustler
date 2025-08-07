@@ -130,6 +130,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Run migration to add settings table with forecasted_monthly_income
     db::add_settings_table(&db_pool).await?;
 
+    // Run migration to add category groups functionality
+    db::add_category_groups(&db_pool).await?;
+
     // Check database connection
     db::check_db_connection(&db_pool).await?;
 
@@ -137,6 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let account_service = Arc::new(services::AccountService::new(db_pool.clone()));
     let transaction_service = Arc::new(services::TransactionService::new(db_pool.clone()));
     let category_service = Arc::new(services::CategoryService::new(db_pool.clone()));
+    let category_group_service = Arc::new(services::CategoryGroupService::new(db_pool.clone()));
     let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()));
     let rule_service = Arc::new(services::RuleService::new(db_pool.clone()));
     let import_service = Arc::new(services::FireflyImportService::new(db_pool.clone()));
@@ -160,6 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         transaction_service.clone(),
         transaction_rule_service.clone(),
         category_service.clone(),
+        category_group_service.clone(),
         budget_service.clone(),
         rule_service.clone(),
         import_service.clone()

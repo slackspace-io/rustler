@@ -37,6 +37,7 @@ impl CategoryService {
             let create_request = CreateCategoryRequest {
                 name: name.to_string(),
                 description: None,
+                group_id: None,
             };
 
             self.create_category(create_request).await
@@ -57,14 +58,15 @@ impl CategoryService {
 
         sqlx::query_as::<_, Category>(
             r#"
-            INSERT INTO categories (id, name, description, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO categories (id, name, description, group_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
             "#,
         )
         .bind(Uuid::new_v4())
         .bind(&req.name)
         .bind(&req.description)
+        .bind(&req.group_id)
         .bind(now)
         .bind(now)
         .fetch_one(&self.db)
@@ -88,6 +90,10 @@ impl CategoryService {
 
             if let Some(description) = &req.description {
                 params.push(format!("description = '{}'", description.replace("'", "''")));
+            }
+
+            if let Some(group_id) = &req.group_id {
+                params.push(format!("group_id = '{}'", group_id));
             }
 
             if !params.is_empty() {

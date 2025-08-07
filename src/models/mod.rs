@@ -1,6 +1,7 @@
 mod account;
 mod transaction;
 mod category;
+mod category_group;
 mod budget;
 mod rule;
 mod settings;
@@ -9,6 +10,7 @@ pub mod firefly_import;
 pub use account::*;
 pub use transaction::*;
 pub use category::*;
+pub use category_group::*;
 pub use budget::*;
 pub use rule::*;
 pub use settings::*;

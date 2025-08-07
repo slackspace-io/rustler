@@ -12,6 +12,8 @@ pub struct Category {
     pub name: String,
     /// Description of the category (optional)
     pub description: Option<String>,
+    /// ID of the category group this category belongs to (optional)
+    pub group_id: Option<Uuid>,
     /// When the category was created
     pub created_at: DateTime<Utc>,
     /// When the category was last updated
@@ -23,6 +25,7 @@ pub struct Category {
 pub struct CreateCategoryRequest {
     pub name: String,
     pub description: Option<String>,
+    pub group_id: Option<Uuid>,
 }
 
 /// Data required to update an existing category
@@ -30,4 +33,5 @@ pub struct CreateCategoryRequest {
 pub struct UpdateCategoryRequest {
     pub name: Option<String>,
     pub description: Option<String>,
+    pub group_id: Option<Uuid>,
 }

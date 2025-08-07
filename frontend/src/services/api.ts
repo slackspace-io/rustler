@@ -5,6 +5,7 @@ const API_BASE_URL = '/api';
 import type {
   Account,
   Category,
+  CategoryGroup,
   Transaction,
   Budget,
   MonthlyBudgetStatus,
@@ -23,6 +24,7 @@ import type {
 export type {
   Account,
   Category,
+  CategoryGroup,
   Transaction,
   Budget,
   MonthlyBudgetStatus,
@@ -251,7 +253,7 @@ export const categoriesApi = {
   },
 
   // Create a new category
-  createCategory: async (category: { name: string; description?: string }): Promise<Category> => {
+  createCategory: async (category: { name: string; description?: string; group_id?: string }): Promise<Category> => {
     const response = await fetch(`${API_BASE_URL}/categories`, {
       method: 'POST',
       headers: {
@@ -266,7 +268,7 @@ export const categoriesApi = {
   },
 
   // Update an existing category
-  updateCategory: async (id: string, category: { name?: string; description?: string }): Promise<Category> => {
+  updateCategory: async (id: string, category: { name?: string; description?: string; group_id?: string }): Promise<Category> => {
     const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
       method: 'PUT',
       headers: {
@@ -288,6 +290,82 @@ export const categoriesApi = {
     if (!response.ok) {
       throw new Error(`Failed to delete category with ID ${id}`);
     }
+  },
+};
+
+// API functions for category groups
+export const categoryGroupsApi = {
+  // Get all category groups
+  getCategoryGroups: async (): Promise<CategoryGroup[]> => {
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/category-groups?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch category groups');
+    }
+    return response.json();
+  },
+
+  // Get a single category group by ID
+  getCategoryGroup: async (id: string): Promise<CategoryGroup> => {
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/category-groups/${id}?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch category group with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Create a new category group
+  createCategoryGroup: async (categoryGroup: { name: string; description?: string }): Promise<CategoryGroup> => {
+    const response = await fetch(`${API_BASE_URL}/category-groups`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(categoryGroup),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create category group');
+    }
+    return response.json();
+  },
+
+  // Update an existing category group
+  updateCategoryGroup: async (id: string, categoryGroup: { name?: string; description?: string }): Promise<CategoryGroup> => {
+    const response = await fetch(`${API_BASE_URL}/category-groups/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(categoryGroup),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update category group with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Delete a category group
+  deleteCategoryGroup: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/category-groups/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to delete category group with ID ${id}`);
+    }
+  },
+
+  // Get all categories in a specific group
+  getCategoriesByGroup: async (groupId: string): Promise<Category[]> => {
+    // Add a cache-busting parameter to prevent browser caching
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/category-groups/${groupId}/categories?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch categories for group with ID ${groupId}`);
+    }
+    return response.json();
   },
 };
 
@@ -525,6 +603,25 @@ export const fireflyImportApi = {
     if (!response.ok) {
       throw new Error('Failed to import from Firefly III');
     }
+    return response.json();
+  },
+
+  // Upload CSV files for Firefly import
+  uploadFireflyCsv: async (accountsFile: File, transactionsFile: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('accounts', accountsFile);
+    formData.append('transactions', transactionsFile);
+
+    const response = await fetch(`${API_BASE_URL}/imports/firefly/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to upload CSV files: ${errorText}`);
+    }
+
     return response.json();
   },
 };

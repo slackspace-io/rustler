@@ -1,8 +1,17 @@
 // Types for our data models
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Category {
   id: string;
   name: string;
   description?: string;
+  group_id?: string;
   created_at: string;
   updated_at: string;
 }
