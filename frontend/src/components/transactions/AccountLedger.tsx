@@ -30,6 +30,11 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [transactionsPerPage] = useState(20);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
+
   // State for storing running balances for each transaction
   const [runningBalances, setRunningBalances] = useState<Record<string, number>>({});
 
@@ -105,9 +110,12 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
         const allAccountsData = await accountsApi.getAccounts();
         setAllAccounts(allAccountsData);
 
-        // Fetch transactions for this account
-        const transactionsData = await transactionsApi.getAccountTransactions(accountId);
+        // Fetch transactions for this account with pagination
+        const transactionsData = await transactionsApi.getAccountTransactions(accountId, currentPage, transactionsPerPage);
         setTransactions(transactionsData);
+
+        // Check if there are more transactions available
+        setHasMoreTransactions(transactionsData.length === transactionsPerPage);
 
         // Calculate running balances
         if (accountData) {
@@ -132,10 +140,16 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
     };
 
     fetchData();
-  }, [accountId, refreshKey]);
+  }, [accountId, refreshKey, currentPage, transactionsPerPage]);
 
   // Filter transactions based on search query
   useEffect(() => {
+    // Reset to page 1 when search query changes
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+      return; // The page change will trigger a re-fetch, so we don't need to filter here
+    }
+
     if (searchQuery.trim() === '') {
       setFilteredTransactions(transactions);
       return;
@@ -169,7 +183,7 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
       const visibleSelectedIds = filtered.map(t => t.id).filter(id => selectedTransactions.includes(id));
       setSelectedTransactions(visibleSelectedIds);
     }
-  }, [searchQuery, transactions, budgets, selectedTransactions]);
+  }, [searchQuery, transactions, budgets, selectedTransactions, currentPage, setCurrentPage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,9 +252,17 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
         });
       }
 
-      // Refresh transactions
-      const updatedTransactions = await transactionsApi.getAccountTransactions(accountId);
+      // Refresh transactions with pagination
+      const updatedTransactions = await transactionsApi.getAccountTransactions(accountId, 1, transactionsPerPage);
       setTransactions(updatedTransactions);
+
+      // Reset to page 1 after creating a transaction
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      }
+
+      // Check if there are more transactions available
+      setHasMoreTransactions(updatedTransactions.length === transactionsPerPage);
 
       // Refresh account to get updated balance
       const updatedAccount = await accountsApi.getAccount(accountId);
@@ -279,9 +301,21 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
       try {
         await transactionsApi.deleteTransaction(id);
 
-        // Refresh transactions
-        const updatedTransactions = await transactionsApi.getAccountTransactions(accountId);
+        // Refresh transactions with pagination
+        // If we're on a page > 1 and this was the last item on the page, go back one page
+        const shouldGoBackPage = currentPage > 1 && transactions.length === 1;
+        const pageToFetch = shouldGoBackPage ? currentPage - 1 : currentPage;
+
+        const updatedTransactions = await transactionsApi.getAccountTransactions(accountId, pageToFetch, transactionsPerPage);
         setTransactions(updatedTransactions);
+
+        // Update current page if needed
+        if (shouldGoBackPage) {
+          setCurrentPage(pageToFetch);
+        }
+
+        // Check if there are more transactions available
+        setHasMoreTransactions(updatedTransactions.length === transactionsPerPage);
 
         // Refresh account to get updated balance
         const updatedAccount = await accountsApi.getAccount(accountId);
@@ -493,9 +527,12 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
       // Update the transaction
       await transactionsApi.updateTransaction(transactionId, updateData);
 
-      // Refresh transactions
-      const updatedTransactions = await transactionsApi.getAccountTransactions(accountId);
+      // Refresh transactions with pagination
+      const updatedTransactions = await transactionsApi.getAccountTransactions(accountId, currentPage, transactionsPerPage);
       setTransactions(updatedTransactions);
+
+      // Check if there are more transactions available
+      setHasMoreTransactions(updatedTransactions.length === transactionsPerPage);
 
       // Refresh account to get updated balance
       const updatedAccount = await accountsApi.getAccount(accountId);
@@ -571,9 +608,12 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
 
       await Promise.all(updatePromises);
 
-      // Refresh transactions
-      const updatedTransactions = await transactionsApi.getAccountTransactions(accountId);
+      // Refresh transactions with pagination
+      const updatedTransactions = await transactionsApi.getAccountTransactions(accountId, currentPage, transactionsPerPage);
       setTransactions(updatedTransactions);
+
+      // Check if there are more transactions available
+      setHasMoreTransactions(updatedTransactions.length === transactionsPerPage);
 
       // Refresh account to get updated balance
       const updatedAccount = await accountsApi.getAccount(accountId);
@@ -1061,6 +1101,30 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
               )}
             </tbody>
           </table>
+
+          {/* Pagination Controls */}
+          <div className="pagination-controls">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1 || loading}
+              className="pagination-button"
+            >
+              Previous
+            </button>
+
+            <span className="pagination-info">
+              Page {currentPage}
+              {hasMoreTransactions ? ' (more available)' : ''}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              disabled={!hasMoreTransactions || loading}
+              className="pagination-button"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </div>

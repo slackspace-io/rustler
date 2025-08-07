@@ -233,8 +233,12 @@ The application provides the following API endpoints (all prefixed with `/api`):
   - `DELETE /api/accounts/{id}`: Delete an account
 
 - **Transactions**:
-  - `GET /api/transactions`: List all transactions (with optional filtering)
+  - `GET /api/transactions`: List all transactions (with optional filtering and pagination)
+    - Supports pagination with `limit` and `offset` parameters
+    - Example: `GET /api/transactions?limit=10&offset=20`
   - `GET /api/accounts/{id}/transactions`: List transactions for a specific account
+    - Supports pagination with `limit` and `offset` parameters
+    - Example: `GET /api/accounts/{id}/transactions?limit=10&offset=0`
   - `GET /api/transactions/{id}`: Get a specific transaction
   - `POST /api/transactions`: Create a new transaction
   - `PUT /api/transactions/{id}`: Update a transaction

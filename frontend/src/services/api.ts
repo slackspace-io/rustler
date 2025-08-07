@@ -106,22 +106,24 @@ export const accountsApi = {
 
 // API functions for transactions
 export const transactionsApi = {
-  // Get all transactions
-  getTransactions: async (): Promise<Transaction[]> => {
+  // Get all transactions with pagination
+  getTransactions: async (page: number = 1, limit: number = 100): Promise<Transaction[]> => {
     // Add a cache-busting parameter to prevent browser caching
     const cacheBuster = `_t=${Date.now()}`;
-    const response = await fetch(`${API_BASE_URL}/transactions?${cacheBuster}`);
+    const offset = (page - 1) * limit;
+    const response = await fetch(`${API_BASE_URL}/transactions?limit=${limit}&offset=${offset}&${cacheBuster}`);
     if (!response.ok) {
       throw new Error('Failed to fetch transactions');
     }
     return response.json();
   },
 
-  // Get transactions for a specific account
-  getAccountTransactions: async (accountId: string): Promise<Transaction[]> => {
+  // Get transactions for a specific account with pagination
+  getAccountTransactions: async (accountId: string, page: number = 1, limit: number = 100): Promise<Transaction[]> => {
     // Add a cache-busting parameter to prevent browser caching
     const cacheBuster = `_t=${Date.now()}`;
-    const response = await fetch(`${API_BASE_URL}/accounts/${accountId}/transactions?${cacheBuster}`);
+    const offset = (page - 1) * limit;
+    const response = await fetch(`${API_BASE_URL}/accounts/${accountId}/transactions?limit=${limit}&offset=${offset}&${cacheBuster}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch transactions for account with ID ${accountId}`);
     }

@@ -11,6 +11,10 @@ const AccountView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [transactionsPerPage] = useState(10);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
@@ -22,8 +26,8 @@ const AccountView = () => {
         const accountData = await accountsApi.getAccount(id);
         setAccount(accountData);
 
-        // Fetch transactions for this account
-        const transactionsData = await transactionsApi.getAccountTransactions(id);
+        // Fetch transactions for this account with pagination
+        const transactionsData = await transactionsApi.getAccountTransactions(id, currentPage, transactionsPerPage);
         setTransactions(transactionsData);
 
         setLoading(false);
@@ -35,7 +39,7 @@ const AccountView = () => {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, currentPage, transactionsPerPage]);
 
   const handleDeleteAccount = async () => {
     if (!account || !id) return;
@@ -110,39 +114,65 @@ const AccountView = () => {
         {transactions.length === 0 ? (
           <p>No transactions found for this account.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map(transaction => (
-                <tr key={transaction.id}>
-                  <td>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
-                  <td>{transaction.description}</td>
-                  <td>{transaction.category}</td>
-                  <td className={transaction.amount >= 0 ? 'positive' : 'negative'}>
-                    {transaction.amount.toFixed(2)}
-                  </td>
-                  <td>
-                    <div className="actions">
-                      <Link
-                        to={`/transactions/${transaction.id}/edit`}
-                        className="button small"
-                      >
-                        Edit
-                      </Link>
-                    </div>
-                  </td>
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {transactions.map(transaction => (
+                  <tr key={transaction.id}>
+                    <td>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
+                    <td>{transaction.description}</td>
+                    <td>{transaction.category}</td>
+                    <td className={transaction.amount >= 0 ? 'positive' : 'negative'}>
+                      {transaction.amount.toFixed(2)}
+                    </td>
+                    <td>
+                      <div className="actions">
+                        <Link
+                          to={`/transactions/${transaction.id}/edit`}
+                          className="button small"
+                        >
+                          Edit
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Pagination Controls */}
+            <div className="pagination-controls">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1 || loading}
+                className="pagination-button"
+              >
+                Previous
+              </button>
+
+              <span className="pagination-info">
+                Page {currentPage}
+                {transactions.length === transactionsPerPage ? ' (more available)' : ''}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={transactions.length < transactionsPerPage || loading}
+                className="pagination-button"
+              >
+                Next
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
