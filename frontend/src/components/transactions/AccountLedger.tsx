@@ -30,6 +30,9 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // State for storing running balances for each transaction
+  const [runningBalances, setRunningBalances] = useState<Record<string, number>>({});
+
   // State for multi-selection
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
@@ -60,6 +63,33 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
 
   // Categories are now managed through the CategoryInput component
 
+  // Calculate running balances for transactions
+  const calculateRunningBalances = (transactions: Transaction[], accountId: string, currentBalance: number) => {
+    // Sort transactions by date (newest first)
+    const sortedTransactions = [...transactions].sort((a, b) =>
+      new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+    );
+
+    const balances: Record<string, number> = {};
+    let runningBalance = currentBalance;
+
+    // Calculate running balance for each transaction
+    for (const transaction of sortedTransactions) {
+      balances[transaction.id] = runningBalance;
+
+      // Adjust running balance based on transaction type
+      if (transaction.source_account_id === accountId) {
+        // This account is the source
+        runningBalance += transaction.amount; // Add back the amount (positive for withdrawal, negative for deposit)
+      } else if (transaction.destination_account_id === accountId) {
+        // This account is the destination
+        runningBalance += transaction.amount; // Add back the negative amount
+      }
+    }
+
+    return balances;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!accountId) return;
@@ -78,6 +108,12 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
         // Fetch transactions for this account
         const transactionsData = await transactionsApi.getAccountTransactions(accountId);
         setTransactions(transactionsData);
+
+        // Calculate running balances
+        if (accountData) {
+          const balances = calculateRunningBalances(transactionsData, accountId, accountData.balance);
+          setRunningBalances(balances);
+        }
 
         // Fetch budgets
         const budgetsData = await budgetsApi.getActiveBudgets();
@@ -210,6 +246,10 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
       const updatedAccount = await accountsApi.getAccount(accountId);
       setAccount(updatedAccount);
 
+      // Recalculate running balances
+      const balances = calculateRunningBalances(updatedTransactions, accountId, updatedAccount.balance);
+      setRunningBalances(balances);
+
       // Reset form
       setDescription('');
       setDepositAmount('');
@@ -246,6 +286,10 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
         // Refresh account to get updated balance
         const updatedAccount = await accountsApi.getAccount(accountId);
         setAccount(updatedAccount);
+
+        // Recalculate running balances
+        const balances = calculateRunningBalances(updatedTransactions, accountId, updatedAccount.balance);
+        setRunningBalances(balances);
       } catch (err) {
         setError('Failed to delete transaction. Please try again later.');
         console.error('Error deleting transaction:', err);
@@ -457,6 +501,10 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
       const updatedAccount = await accountsApi.getAccount(accountId);
       setAccount(updatedAccount);
 
+      // Recalculate running balances
+      const balances = calculateRunningBalances(updatedTransactions, accountId, updatedAccount.balance);
+      setRunningBalances(balances);
+
       // Clear editing state
       setEditing(null);
       setEditValue('');
@@ -526,6 +574,14 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
       // Refresh transactions
       const updatedTransactions = await transactionsApi.getAccountTransactions(accountId);
       setTransactions(updatedTransactions);
+
+      // Refresh account to get updated balance
+      const updatedAccount = await accountsApi.getAccount(accountId);
+      setAccount(updatedAccount);
+
+      // Recalculate running balances
+      const balances = calculateRunningBalances(updatedTransactions, accountId, updatedAccount.balance);
+      setRunningBalances(balances);
 
       // Clear selection and close modal
       setSelectedTransactions([]);
@@ -735,6 +791,7 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
                 <th>Destination</th>
                 <th>Withdrawal</th>
                 <th>Deposit</th>
+                <th>Running Balance</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -742,7 +799,7 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
               {/* Existing transactions */}
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="no-transactions">
+                  <td colSpan={9} className="no-transactions">
                     {transactions.length === 0 ?
                       "No transactions found for this account." :
                       "No transactions match your search criteria."}
@@ -982,6 +1039,11 @@ const AccountLedger = ({ accountId, refreshKey = 0 }: AccountLedgerProps) => {
                           ? Math.abs(transaction.amount).toFixed(2)
                           : ''
                       )}
+                    </td>
+
+                    {/* Running Balance */}
+                    <td className="amount">
+                      {runningBalances[transaction.id] !== undefined ? formatNumber(runningBalances[transaction.id]) : ''}
                     </td>
 
                     {/* Actions */}
