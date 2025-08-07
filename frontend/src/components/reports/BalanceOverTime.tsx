@@ -141,8 +141,22 @@ const BalanceOverTime = () => {
         const allTransactions: Transaction[] = [];
 
         for (const accountId of selectedAccounts) {
-          const transactions = await transactionsApi.getAccountTransactions(accountId);
-          allTransactions.push(...transactions);
+          // Implement pagination to fetch all transactions
+          let page = 1;
+          const limit = 100;
+          let hasMoreTransactions = true;
+
+          while (hasMoreTransactions) {
+            const transactions = await transactionsApi.getAccountTransactions(accountId, page, limit);
+            allTransactions.push(...transactions);
+
+            // Check if we've received fewer transactions than the limit, which means we've reached the end
+            if (transactions.length < limit) {
+              hasMoreTransactions = false;
+            } else {
+              page++;
+            }
+          }
         }
 
         // Filter transactions by date range
