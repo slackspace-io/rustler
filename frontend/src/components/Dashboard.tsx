@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { accountsApi, transactionsApi } from '../services/api';
+import { accountsApi, transactionsApi, budgetsApi } from '../services/api';
 import type { Account, Transaction } from '../services/api';
 import { ACCOUNT_TYPE } from '../constants/accountTypes';
 import './MobileDashboard.css';
@@ -59,9 +59,11 @@ const Dashboard = () => {
           t => new Date(t.transaction_date) >= startOfMonth
         );
 
-        const income = monthlyTransactions
-          .filter(t => t.amount < 0)
-          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        // Get server-calculated monthly income to match budget page
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1; // 1-based month for API
+        const monthlyStatus = await budgetsApi.getMonthlyBudgetStatus(year, month);
+        const income = monthlyStatus.incoming_funds;
         setMonthlyIncome(income);
 
         const expenses = monthlyTransactions
@@ -153,18 +155,18 @@ const Dashboard = () => {
 
         <div className="summary-card">
           <h2>Monthly Income</h2>
-          <p className="amount positive">{monthlyIncome.toFixed(2)}</p>
+          <p className="amount positive">{formatNumber(monthlyIncome)}</p>
         </div>
 
         <div className="summary-card">
           <h2>Monthly Expenses</h2>
-          <p className="amount negative">{monthlyExpenses.toFixed(2)}</p>
+          <p className="amount negative">{formatNumber(monthlyExpenses)}</p>
         </div>
 
         <div className="summary-card">
           <h2>Monthly Net</h2>
           <p className={`amount ${monthlyNet >= 0 ? 'positive' : 'negative'}`}>
-            {monthlyNet.toFixed(2)}
+            {formatNumber(monthlyNet)}
           </p>
         </div>
       </div>
