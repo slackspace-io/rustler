@@ -4,8 +4,10 @@ import { accountsApi, transactionsApi } from '../services/api';
 import type { Account, Transaction } from '../services/api';
 import { ACCOUNT_TYPE } from '../constants/accountTypes';
 import './MobileDashboard.css';
+import { useSettings } from '../contexts/useSettings';
 
 const Dashboard = () => {
+  const { formatNumber } = useSettings();
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
@@ -13,7 +15,6 @@ const Dashboard = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Summary data
-  const [totalBalance, setTotalBalance] = useState(0);
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [monthlyExpenses, setMonthlyExpenses] = useState(0);
   const [monthlyNet, setMonthlyNet] = useState(0);
@@ -40,9 +41,6 @@ const Dashboard = () => {
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
 
-        // Calculate total balance
-        const total = accountsData.reduce((sum, account) => sum + account.balance, 0);
-        setTotalBalance(total);
 
         // Fetch all transactions
         const allTransactions = await transactionsApi.getTransactions();
@@ -149,7 +147,7 @@ const Dashboard = () => {
       <div className="dashboard-summary">
         <div className="summary-card">
           <h2>Total Balance</h2>
-          <p className="amount">{totalBalance.toFixed(2)}</p>
+          <p className="amount">{formatNumber(combinedTotal)}</p>
           <Link to="/accounts" className="card-link">View Accounts</Link>
         </div>
 
