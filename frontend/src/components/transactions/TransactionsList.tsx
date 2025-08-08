@@ -32,6 +32,12 @@ const TransactionsList = () => {
       return val === '1' || val === 'true';
     })()
   );
+  const [incomeOnly, setIncomeOnly] = useState<boolean>(
+    (() => {
+      const val = searchParams.get('income');
+      return val === '1' || val === 'true';
+    })()
+  );
 
   // Derived state for categories
   const [categories, setCategories] = useState<string[]>([]);
@@ -89,6 +95,14 @@ const TransactionsList = () => {
           filteredTransactions = filteredTransactions.filter(t => t.budget_id === selectedBudgetId);
         }
 
+        // If incomeOnly is set, include only inflows (positive amounts) to on-budget destination accounts
+        if (incomeOnly) {
+          const onBudgetIds = new Set(accountsData.filter(a => a.account_type === 'On Budget').map(a => a.id));
+          filteredTransactions = filteredTransactions.filter(
+            t => t.amount > 0 && t.destination_account_id && onBudgetIds.has(t.destination_account_id)
+          );
+        }
+
         setTransactions(filteredTransactions);
 
         // Extract unique categories
@@ -110,7 +124,7 @@ const TransactionsList = () => {
     };
 
     fetchData();
-  }, [selectedAccountId, selectedCategory, startDate, endDate, unbudgetedOnly, selectedBudgetId]);
+  }, [selectedAccountId, selectedCategory, startDate, endDate, unbudgetedOnly, selectedBudgetId, incomeOnly]);
 
   const handleDeleteTransaction = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
@@ -138,6 +152,7 @@ const TransactionsList = () => {
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
     if (unbudgetedOnly) params.unbudgeted = '1';
+    if (incomeOnly) params.income = '1';
     if (selectedBudgetId) params.budget_id = selectedBudgetId;
 
     setSearchParams(params);
@@ -149,6 +164,7 @@ const TransactionsList = () => {
     setStartDate(null);
     setEndDate(null);
     setUnbudgetedOnly(false);
+    setIncomeOnly(false);
     setSelectedBudgetId(null);
     setSearchParams({});
   };
@@ -242,6 +258,16 @@ const TransactionsList = () => {
                 onChange={e => setUnbudgetedOnly(e.target.checked)}
               />
               <label htmlFor="unbudgeted-only">Unbudgeted only</label>
+            </div>
+
+            <div className="filter-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="checkbox"
+                id="income-only"
+                checked={incomeOnly}
+                onChange={e => setIncomeOnly(e.target.checked)}
+              />
+              <label htmlFor="income-only">Income only</label>
             </div>
           </div>
 

@@ -191,7 +191,17 @@ const BudgetsList = () => {
           <div className="budget-status-grid">
             <div className="summary-box">
               <h3>Monthly Income</h3>
-              <p className="monthly-income">{monthlyStatus.incoming_funds.toFixed(2)}</p>
+              {(() => {
+                const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+                const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+                const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                const link = `/transactions?start_date=${startDate}&end_date=${endDate}&income=1`;
+                return (
+                  <Link to={link} className="monthly-income" title={`View income transactions for ${getMonthName(selectedMonth)} ${selectedYear}`}>
+                    {monthlyStatus.incoming_funds.toFixed(2)}
+                  </Link>
+                );
+              })()}
               <p className="subtitle">Incoming funds to on-budget accounts</p>
             </div>
 
