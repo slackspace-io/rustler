@@ -273,6 +273,14 @@ impl TransactionService {
             dest_account.map(|a| a.name).unwrap_or_else(|| "".to_string())
         };
 
+        // Validate double-entry invariants
+        if !req.amount.is_finite() || req.amount == 0.0 {
+            return Err(sqlx::Error::Protocol("Invalid amount: must be a finite, non-zero number".into()));
+        }
+        if req.source_account_id == destination_account_id {
+            return Err(sqlx::Error::Protocol("Invalid transaction: source and destination accounts must differ".into()));
+        }
+
         // Create the transaction record
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
@@ -312,7 +320,7 @@ impl TransactionService {
         if req.amount >= 0.0 {
             // Positive amount: money flows FROM source TO destination
             // Source account loses money (decrease balance)
-            sqlx::query(
+            let ra1 = sqlx::query(
                 r#"
                 UPDATE accounts
                 SET balance = balance - $1, updated_at = $2
@@ -324,9 +332,10 @@ impl TransactionService {
             .bind(req.source_account_id)
             .execute(&mut *tx)
             .await?;
+            if ra1.rows_affected() != 1 { return Err(sqlx::Error::Protocol("Invariant violation: source account update failed".into())); }
 
             // Destination account gains money (increase balance)
-            sqlx::query(
+            let ra2 = sqlx::query(
                 r#"
                 UPDATE accounts
                 SET balance = balance + $1, updated_at = $2
@@ -338,10 +347,11 @@ impl TransactionService {
             .bind(destination_account_id)
             .execute(&mut *tx)
             .await?;
+            if ra2.rows_affected() != 1 { return Err(sqlx::Error::Protocol("Invariant violation: destination account update failed".into())); }
         } else {
             // Negative amount: money flows FROM destination TO source
             // Source account gains money (increase balance)
-            sqlx::query(
+            let ra1 = sqlx::query(
                 r#"
                 UPDATE accounts
                 SET balance = balance + $1, updated_at = $2
@@ -353,9 +363,10 @@ impl TransactionService {
             .bind(req.source_account_id)
             .execute(&mut *tx)
             .await?;
+            if ra1.rows_affected() != 1 { return Err(sqlx::Error::Protocol("Invariant violation: source account update failed".into())); }
 
             // Destination account loses money (decrease balance)
-            sqlx::query(
+            let ra2 = sqlx::query(
                 r#"
                 UPDATE accounts
                 SET balance = balance - $1, updated_at = $2
@@ -367,6 +378,7 @@ impl TransactionService {
             .bind(destination_account_id)
             .execute(&mut *tx)
             .await?;
+            if ra2.rows_affected() != 1 { return Err(sqlx::Error::Protocol("Invariant violation: destination account update failed".into())); }
         }
 
         // Commit the transaction
