@@ -5,6 +5,7 @@ import {
 import { accountsApi, transactionsApi } from '../../services/api';
 import type { Account, Transaction } from '../../services/api';
 import { ACCOUNT_TYPE } from '../../constants/accountTypes';
+import { useRechartsRedraw } from '../../hooks/useRechartsRedraw';
 
 interface BalanceDataPoint {
   date: string;
@@ -17,6 +18,7 @@ type Granularity = 'day' | 'week' | 'month';
 type DisplayMode = 'individual' | 'summed';
 
 const BalanceOverTime = () => {
+  useRechartsRedraw();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>('');

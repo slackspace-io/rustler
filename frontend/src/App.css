@@ -1615,3 +1615,17 @@ a.button.small {
     min-width: 150px;
   }
 }
+
+
+/* Viewport and PWA-friendly sizing improvements */
+@supports (height: 100dvh) {
+  .ledger-layout { min-height: calc(100dvh - 200px); }
+  .ledger-sidebar { max-height: calc(100dvh - 220px); }
+  .ledger-table-wrapper { max-height: calc(100dvh - 450px); }
+}
+
+/* Prevent flex children from overflowing and allow charts to size correctly */
+main.container, .ledger-content { min-width: 0; }
+
+/* Ensure charts take available width */
+.chart-container { width: 100%; min-width: 0; }

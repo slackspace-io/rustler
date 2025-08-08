@@ -3,6 +3,7 @@ import { accountsApi, reportsApi } from '../../services/api';
 import type { Account, SpendingReportRow } from '../../services/api';
 import { ACCOUNT_TYPE } from '../../constants/accountTypes';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { useRechartsRedraw } from '../../hooks/useRechartsRedraw';
 
 // Minimal spending over time report UI
 // - Select on-budget accounts to include
@@ -22,6 +23,7 @@ const defaultStartEnd = () => {
 };
 
 const SpendingOverTime = () => {
+  useRechartsRedraw();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [group, setGroup] = useState<boolean>(true);
