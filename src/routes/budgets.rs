@@ -139,14 +139,36 @@ async fn delete_budget(
 // Handler to get the total spent amount for a budget
 async fn get_budget_spent(
     Path(id): Path<Uuid>,
+    Query(query): Query<std::collections::HashMap<String, String>>,
     State(state): State<Arc<BudgetService>>,
 ) -> Result<Json<f64>, StatusCode> {
-    // Call the budget service to get the spent amount
-    match state.get_budget_spent(id).await {
-        Ok(spent) => Ok(Json(spent)),
-        Err(err) => {
-            eprintln!("Error getting budget spent: {:?}", err);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+    // If year and month are provided, compute for that month; otherwise, return all-time
+    if let (Some(year_str), Some(month_str)) = (query.get("year"), query.get("month")) {
+        // Parse query params
+        let year = match year_str.parse::<i32>() {
+            Ok(y) => y,
+            Err(_) => return Err(StatusCode::BAD_REQUEST),
+        };
+        let month = match month_str.parse::<u32>() {
+            Ok(m) if m >= 1 && m <= 12 => m,
+            _ => return Err(StatusCode::BAD_REQUEST),
+        };
+
+        match state.get_budget_spent_for_month(id, year, month).await {
+            Ok(spent) => Ok(Json(spent)),
+            Err(err) => {
+                eprintln!("Error getting monthly budget spent: {:?}", err);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        // Call the budget service to get the spent amount (all-time)
+        match state.get_budget_spent(id).await {
+            Ok(spent) => Ok(Json(spent)),
+            Err(err) => {
+                eprintln!("Error getting budget spent: {:?}", err);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
         }
     }
 }
@@ -195,14 +217,36 @@ async fn get_monthly_budget_status(
 
 // Handler to get the total spent amount not associated with any budget
 async fn get_unbudgeted_spent(
+    Query(query): Query<std::collections::HashMap<String, String>>,
     State(state): State<Arc<BudgetService>>,
 ) -> Result<Json<f64>, StatusCode> {
-    // Call the budget service to get the unbudgeted spent amount
-    match state.get_unbudgeted_spent().await {
-        Ok(spent) => Ok(Json(spent)),
-        Err(err) => {
-            eprintln!("Error getting unbudgeted spent: {:?}", err);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+    // If year and month are provided, compute for that month; otherwise, return all-time
+    if let (Some(year_str), Some(month_str)) = (query.get("year"), query.get("month")) {
+        // Parse query params
+        let year = match year_str.parse::<i32>() {
+            Ok(y) => y,
+            Err(_) => return Err(StatusCode::BAD_REQUEST),
+        };
+        let month = match month_str.parse::<u32>() {
+            Ok(m) if m >= 1 && m <= 12 => m,
+            _ => return Err(StatusCode::BAD_REQUEST),
+        };
+
+        match state.get_unbudgeted_spent_for_month(year, month).await {
+            Ok(spent) => Ok(Json(spent)),
+            Err(err) => {
+                eprintln!("Error getting monthly unbudgeted spent: {:?}", err);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        // Call the budget service to get the unbudgeted spent amount (all-time)
+        match state.get_unbudgeted_spent().await {
+            Ok(spent) => Ok(Json(spent)),
+            Err(err) => {
+                eprintln!("Error getting unbudgeted spent: {:?}", err);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
         }
     }
 }

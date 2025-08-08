@@ -19,10 +19,16 @@ const BudgetsList = () => {
   const [isEditingForecast, setIsEditingForecast] = useState(false);
   const [forecastedIncome, setForecastedIncome] = useState<string>('');
 
-  // Get current year and month
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+  // Month navigation state
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1); // 1-12
+
+  const changeMonth = (delta: number) => {
+    const date = new Date(selectedYear, selectedMonth - 1 + delta, 1);
+    setSelectedYear(date.getFullYear());
+    setSelectedMonth(date.getMonth() + 1);
+  };
 
   // Handle starting to edit forecasted income
   const handleEditForecast = () => {
@@ -44,7 +50,7 @@ const BudgetsList = () => {
       await settingsApi.updateForecastedMonthlyIncome(amount);
 
       // Refresh monthly status to show updated forecast
-      const status = await budgetsApi.getMonthlyBudgetStatus(currentYear, currentMonth);
+      const status = await budgetsApi.getMonthlyBudgetStatus(selectedYear, selectedMonth);
       setMonthlyStatus(status);
 
       setIsEditingForecast(false);
@@ -73,7 +79,7 @@ const BudgetsList = () => {
         // Fetch spent amount for each budget
         const budgetsWithSpent = await Promise.all(
           data.map(async (budget) => {
-            const spent = await budgetsApi.getBudgetSpent(budget.id);
+            const spent = await budgetsApi.getBudgetSpent(budget.id, selectedYear, selectedMonth);
             return { ...budget, spent };
           })
         );
@@ -95,7 +101,7 @@ const BudgetsList = () => {
     const fetchMonthlyStatus = async () => {
       try {
         setStatusLoading(true);
-        const status = await budgetsApi.getMonthlyBudgetStatus(currentYear, currentMonth);
+        const status = await budgetsApi.getMonthlyBudgetStatus(selectedYear, selectedMonth);
         setMonthlyStatus(status);
         setStatusLoading(false);
       } catch (err) {
@@ -107,7 +113,7 @@ const BudgetsList = () => {
     const fetchUnbudgetedSpent = async () => {
       try {
         setUnbudgetedSpentLoading(true);
-        const spent = await budgetsApi.getUnbudgetedSpent();
+        const spent = await budgetsApi.getUnbudgetedSpent(selectedYear, selectedMonth);
         setUnbudgetedSpent(spent);
         setUnbudgetedSpentLoading(false);
       } catch (err) {
@@ -119,7 +125,7 @@ const BudgetsList = () => {
     fetchBudgets();
     fetchMonthlyStatus();
     fetchUnbudgetedSpent();
-  }, [currentYear, currentMonth]);
+  }, [selectedYear, selectedMonth]);
 
   const handleDeleteBudget = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this budget?')) {
@@ -161,6 +167,9 @@ const BudgetsList = () => {
     return date.toLocaleString('default', { month: 'long' });
   };
 
+  const goPrevMonth = () => changeMonth(-1);
+  const goNextMonth = () => changeMonth(1);
+
   return (
     <div className="budgets-list">
       <div className="header-actions">
@@ -170,7 +179,11 @@ const BudgetsList = () => {
 
       {/* Monthly Budget Status */}
       <div className="monthly-budget-status">
-        <h2>Monthly Budget Status - {getMonthName(currentMonth)} {currentYear}</h2>
+        <div className="month-nav" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="button small" onClick={goPrevMonth} aria-label="Previous month">◀</button>
+          <h2 style={{ margin: '0' }}>Monthly Budget Status - {getMonthName(selectedMonth)} {selectedYear}</h2>
+          <button className="button small" onClick={goNextMonth} aria-label="Next month">▶</button>
+        </div>
 
         {statusLoading ? (
           <p>Loading monthly budget status...</p>
@@ -239,13 +252,13 @@ const BudgetsList = () => {
               <div
                 className="progress-bar"
                 style={{
-                  width: `${Math.min(100, (monthlyStatus.budgeted_amount / monthlyStatus.incoming_funds) * 100)}%`,
-                  backgroundColor: monthlyStatus.remaining_to_budget >= 0 ? '#4caf50' : '#f44336'
-                }}
+                width: `${monthlyStatus.incoming_funds > 0 ? Math.min(100, (monthlyStatus.budgeted_amount / monthlyStatus.incoming_funds) * 100) : 0}%`,
+                backgroundColor: monthlyStatus.remaining_to_budget >= 0 ? '#4caf50' : '#f44336'
+              }}
               ></div>
             </div>
             <p className="progress-text">
-              {Math.round((monthlyStatus.budgeted_amount / monthlyStatus.incoming_funds) * 100)}% of income budgeted
+            {monthlyStatus.incoming_funds > 0 ? Math.round((monthlyStatus.budgeted_amount / monthlyStatus.incoming_funds) * 100) : 0}% of income budgeted
             </p>
           </div>
         )}
@@ -262,7 +275,17 @@ const BudgetsList = () => {
           {unbudgetedSpentLoading ? (
             <p>Loading...</p>
           ) : (
-            <p className="unbudgeted-spent">{unbudgetedSpent.toFixed(2)}</p>
+            (() => {
+              const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+              const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+              const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+              const link = `/transactions?start_date=${startDate}&end_date=${endDate}&unbudgeted=1`;
+              return (
+                <Link to={link} className="unbudgeted-spent" title="View unbudgeted transactions for this month">
+                  {unbudgetedSpent.toFixed(2)}
+                </Link>
+              );
+            })()
           )}
           <p className="subtitle">Amount spent not part of any budget</p>
         </div>
@@ -290,7 +313,19 @@ const BudgetsList = () => {
                   <Link to={`/budgets/${budget.id}`}>{budget.name}</Link>
                 </td>
                 <td>{budget.amount.toFixed(2)}</td>
-                <td>{budget.spent.toFixed(2)}</td>
+                <td>
+                  {(() => {
+                    const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+                    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+                    const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                    const link = `/transactions?start_date=${startDate}&end_date=${endDate}&budget_id=${budget.id}`;
+                    return (
+                      <Link to={link} title={`View transactions for ${budget.name} in ${getMonthName(selectedMonth)} ${selectedYear}`}>
+                        {budget.spent.toFixed(2)}
+                      </Link>
+                    );
+                  })()}
+                </td>
                 <td>{(budget.amount - budget.spent).toFixed(2)}</td>
                 <td>{formatDate(budget.start_date)}</td>
                 <td>{formatDate(budget.end_date)}</td>

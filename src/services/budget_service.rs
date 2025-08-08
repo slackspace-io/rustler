@@ -156,16 +156,56 @@ impl BudgetService {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Get the total spent amount for a budget
+    /// Get the total spent amount for a budget (all time)
     pub async fn get_budget_spent(&self, budget_id: Uuid) -> Result<f64, sqlx::Error> {
         let spent = sqlx::query_scalar::<_, f64>(
             r#"
             SELECT COALESCE(SUM(amount), 0.0)
             FROM transactions
             WHERE budget_id = $1
+              AND amount > 0
             "#,
         )
         .bind(budget_id)
+        .fetch_one(&self.db)
+        .await?;
+
+        Ok(spent)
+    }
+
+    /// Get the total spent amount for a budget for a specific month
+    pub async fn get_budget_spent_for_month(&self, budget_id: Uuid, year: i32, month: u32) -> Result<f64, sqlx::Error> {
+        // Calculate the start and end dates for the specified month
+        let start_date = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let start_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(start_date, Utc);
+
+        // Calculate the end date (first day of next month)
+        let end_date = if month == 12 {
+            chrono::NaiveDate::from_ymd_opt(year + 1, 1, 1)
+        } else {
+            chrono::NaiveDate::from_ymd_opt(year, month + 1, 1)
+        }
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+        let end_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(end_date, Utc);
+
+        let spent = sqlx::query_scalar::<_, f64>(
+            r#"
+            SELECT COALESCE(SUM(amount), 0.0)
+            FROM transactions
+            WHERE budget_id = $1
+              AND amount > 0
+              AND transaction_date >= $2
+              AND transaction_date < $3
+            "#,
+        )
+        .bind(budget_id)
+        .bind(start_date)
+        .bind(end_date)
         .fetch_one(&self.db)
         .await?;
 
@@ -287,7 +327,7 @@ impl BudgetService {
         Ok((incoming_funds, budgeted_amount, remaining_to_budget, forecasted_monthly_income))
     }
 
-    /// Get the total spent amount not associated with any budget
+    /// Get the total spent amount not associated with any budget (all time)
     pub async fn get_unbudgeted_spent(&self) -> Result<f64, sqlx::Error> {
         let spent = sqlx::query_scalar::<_, f64>(
             r#"
@@ -296,6 +336,43 @@ impl BudgetService {
             WHERE budget_id IS NULL
             "#,
         )
+        .fetch_one(&self.db)
+        .await?;
+
+        Ok(spent)
+    }
+
+    /// Get the total spent amount not associated with any budget for a specific month
+    pub async fn get_unbudgeted_spent_for_month(&self, year: i32, month: u32) -> Result<f64, sqlx::Error> {
+        // Calculate the start and end dates for the specified month
+        let start_date = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let start_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(start_date, Utc);
+
+        // Calculate the end date (first day of next month)
+        let end_date = if month == 12 {
+            chrono::NaiveDate::from_ymd_opt(year + 1, 1, 1)
+        } else {
+            chrono::NaiveDate::from_ymd_opt(year, month + 1, 1)
+        }
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+        let end_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(end_date, Utc);
+
+        let spent = sqlx::query_scalar::<_, f64>(
+            r#"
+            SELECT COALESCE(SUM(amount), 0.0)
+            FROM transactions
+            WHERE budget_id IS NULL
+            AND transaction_date >= $1
+            AND transaction_date < $2
+            "#,
+        )
+        .bind(start_date)
+        .bind(end_date)
         .fetch_one(&self.db)
         .await?;
 

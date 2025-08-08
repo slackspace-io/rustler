@@ -17,7 +17,8 @@ import type {
   ActionType,
   FireflyImportOptions,
   ImportResult,
-  ForecastedMonthlyIncomeResponse
+  ForecastedMonthlyIncomeResponse,
+  SpendingReportRow
 } from './types.ts';
 
 // Re-export types for convenience
@@ -36,7 +37,37 @@ export type {
   ActionType,
   FireflyImportOptions,
   ImportResult,
-  ForecastedMonthlyIncomeResponse
+  ForecastedMonthlyIncomeResponse,
+  SpendingReportRow
+};
+
+// Reports API
+export const reportsApi = {
+  // Get spending over time (grouped by category group or category)
+  getSpending: async (params: {
+    start_date?: string;
+    end_date?: string;
+    account_ids?: string[]; // array of UUID strings
+    group?: boolean; // default true on backend
+    period?: 'day' | 'week' | 'month';
+  }): Promise<SpendingReportRow[]> => {
+    const query = new URLSearchParams();
+    if (params.start_date) query.set('start_date', params.start_date);
+    if (params.end_date) query.set('end_date', params.end_date);
+    if (params.account_ids && params.account_ids.length > 0) {
+      query.set('account_ids', params.account_ids.join(','));
+    }
+    if (typeof params.group === 'boolean') query.set('group', String(params.group));
+    if (params.period) query.set('period', params.period);
+    // cache-buster to avoid caching in dev
+    query.set('_t', String(Date.now()));
+
+    const res = await fetch(`${API_BASE_URL}/reports/spending?${query.toString()}`);
+    if (!res.ok) {
+      throw new Error('Failed to fetch spending report');
+    }
+    return res.json();
+  },
 };
 
 // API functions for accounts
@@ -457,10 +488,13 @@ export const budgetsApi = {
   },
 
   // Get the total spent amount for a budget
-  getBudgetSpent: async (id: string): Promise<number> => {
+  getBudgetSpent: async (id: string, year?: number, month?: number): Promise<number> => {
     // Add a cache-busting parameter to prevent browser caching
-    const cacheBuster = `_t=${Date.now()}`;
-    const response = await fetch(`${API_BASE_URL}/budgets/${id}/spent?${cacheBuster}`);
+    const params = new URLSearchParams();
+    if (typeof year === 'number') params.set('year', String(year));
+    if (typeof month === 'number') params.set('month', String(month));
+    params.set('_t', String(Date.now()));
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/spent?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch spent amount for budget with ID ${id}`);
     }
@@ -479,10 +513,13 @@ export const budgetsApi = {
   },
 
   // Get the total spent amount not associated with any budget
-  getUnbudgetedSpent: async (): Promise<number> => {
+  getUnbudgetedSpent: async (year?: number, month?: number): Promise<number> => {
     // Add a cache-busting parameter to prevent browser caching
-    const cacheBuster = `_t=${Date.now()}`;
-    const response = await fetch(`${API_BASE_URL}/budgets/unbudgeted-spent?${cacheBuster}`);
+    const params = new URLSearchParams();
+    if (typeof year === 'number') params.set('year', String(year));
+    if (typeof month === 'number') params.set('month', String(month));
+    params.set('_t', String(Date.now()));
+    const response = await fetch(`${API_BASE_URL}/budgets/unbudgeted-spent?${params.toString()}`);
     if (!response.ok) {
       throw new Error('Failed to fetch unbudgeted spent amount');
     }

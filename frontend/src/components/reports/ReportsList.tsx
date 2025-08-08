@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import BalanceOverTime from './BalanceOverTime';
+import SpendingOverTime from './SpendingOverTime';
 
 const ReportsList = () => {
   const [activeReport, setActiveReport] = useState<string>('balance-over-time');
@@ -15,12 +16,17 @@ const ReportsList = () => {
         >
           Balance Over Time
         </button>
-        {/* Add more report types here in the future */}
+        <button
+          className={activeReport === 'spending-over-time' ? 'active' : ''}
+          onClick={() => setActiveReport('spending-over-time')}
+        >
+          Spending Over Time
+        </button>
       </div>
 
       <div className="report-content">
         {activeReport === 'balance-over-time' && <BalanceOverTime />}
-        {/* Add more report components here in the future */}
+        {activeReport === 'spending-over-time' && <SpendingOverTime />}
       </div>
     </div>
   );

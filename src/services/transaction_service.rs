@@ -20,6 +20,75 @@ impl TransactionService {
         }
     }
 
+    /// Get spending by category group (or category), aggregated over time periods, from selected on-budget accounts
+    pub async fn get_spending_over_time(
+        &self,
+        account_ids: Option<Vec<Uuid>>,
+        start_date: Option<DateTime<Utc>>,
+        end_date: Option<DateTime<Utc>>,
+        group_by_group: bool,
+        period: &str,
+    ) -> Result<Vec<(String, String, f64)>, sqlx::Error> {
+        // Determine period truncation
+        let period_fn = match period {
+            "week" => "week",
+            "day" => "day",
+            _ => "month",
+        };
+
+        // Base query joins source accounts and optional category/group by matching category name
+        let mut query = format!(
+            "SELECT to_char(date_trunc('{period}', t.transaction_date), 'YYYY-MM-DD') AS period,
+                    {{name_expr}} AS name,
+                    SUM(t.amount) AS total_amount
+             FROM transactions t
+             JOIN accounts src ON t.source_account_id = src.id
+             LEFT JOIN categories c ON c.name = t.category
+             LEFT JOIN category_groups cg ON cg.id = c.group_id
+             WHERE src.account_type = 'On Budget' AND t.amount > 0",
+            period = period_fn
+        );
+
+        // Exclude transfers if present by category label
+        query.push_str(" AND (t.category IS NULL OR t.category NOT IN ('Transfer', 'Transfers'))");
+
+        if let Some(start) = start_date {
+            query.push_str(&format!(" AND t.transaction_date >= '{}'", start));
+        }
+        if let Some(end) = end_date {
+            query.push_str(&format!(" AND t.transaction_date <= '{}'", end));
+        }
+
+        if let Some(ids) = &account_ids {
+            if !ids.is_empty() {
+                // Build IN list safely by formatting UUIDs; sqlx query! macro not used due dynamic SQL elsewhere
+                let id_list = ids.iter().map(|u| format!("'{}'", u)).collect::<Vec<_>>().join(",");
+                query.push_str(&format!(" AND src.id IN ({})", id_list));
+            }
+        }
+
+        // Name expression and group by
+        if group_by_group {
+            query = query.replace("{name_expr}", "COALESCE(cg.name, 'Ungrouped')");
+        } else {
+            query = query.replace("{name_expr}", "COALESCE(c.name, t.category, 'Uncategorized')");
+        }
+
+        query.push_str(" GROUP BY 1, 2 ORDER BY 1, 2");
+
+        let rows = sqlx::query(&query).fetch_all(&self.db).await?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            let period_str: String = row.get("period");
+            let name: String = row.get("name");
+            let amount: f64 = row.get("total_amount");
+            result.push((period_str, name, amount));
+        }
+
+        Ok(result)
+    }
+
     /// Get spending by category, with optional filtering by date range
     pub async fn get_spending_by_category(
         &self,

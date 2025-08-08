@@ -5,6 +5,7 @@ mod category_groups;
 mod budgets;
 mod web;
 mod category_spending;
+mod reports;
 mod rules;
 mod imports;
 mod settings;
@@ -32,6 +33,7 @@ pub fn create_router(
         .merge(category_groups::router(category_group_service))
         .merge(budgets::router(budget_service))
         .merge(category_spending::router(transaction_service.clone()))
+        .merge(reports::router(transaction_service.clone()))
         .merge(rules::router(rule_service))
         .merge(imports::router(import_service))
         .merge(settings::router(settings_service))

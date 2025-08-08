@@ -163,3 +163,10 @@ export interface ImportResult {
 export interface ForecastedMonthlyIncomeResponse {
   forecasted_monthly_income: number;
 }
+
+// Spending report row from /api/reports/spending
+export interface SpendingReportRow {
+  period: string; // e.g., '2025-01-01' (start of month/week/day label)
+  name: string;   // category group name (or category name when group=false)
+  amount: number; // total spending (positive outflows)
+}
