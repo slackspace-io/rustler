@@ -144,10 +144,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transaction_service = Arc::new(services::TransactionService::new(db_pool.clone()));
     let category_service = Arc::new(services::CategoryService::new(db_pool.clone()));
     let category_group_service = Arc::new(services::CategoryGroupService::new(db_pool.clone()));
-    let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()));
+    let settings_service = Arc::new(services::SettingsService::new(db_pool.clone()));
+    // Wire settings service into budget service so forecasted monthly income works on budget page
+    let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()).with_settings_service(settings_service.clone()));
     let rule_service = Arc::new(services::RuleService::new(db_pool.clone()));
     let import_service = Arc::new(services::FireflyImportService::new(db_pool.clone()));
-    let settings_service = Arc::new(services::SettingsService::new(db_pool.clone()));
 
     // Create transaction rule service that combines transaction service and rule service
     let transaction_rule_service = Arc::new(services::TransactionRuleService::new(
