@@ -229,7 +229,6 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
           <select
             value={newConditionValue}
             onChange={(e) => setNewConditionValue(e.target.value)}
-            required
           >
             <option value="">Select Account</option>
             {accounts.map(account => (
@@ -250,7 +249,6 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
             value={newConditionValue}
             onChange={(e) => setNewConditionValue(e.target.value)}
             placeholder="Enter amount"
-            required
           />
         );
 
@@ -261,7 +259,6 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
             value={newConditionValue}
             onChange={(e) => setNewConditionValue(e.target.value)}
             placeholder="Enter value"
-            required
           />
         );
     }
@@ -275,7 +272,6 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
           <select
             value={newActionValue}
             onChange={(e) => setNewActionValue(e.target.value)}
-            required
           >
             <option value="">Select Category</option>
             {categories.map(category => (
@@ -291,7 +287,6 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
           <select
             value={newActionValue}
             onChange={(e) => setNewActionValue(e.target.value)}
-            required
           >
             <option value="">Select Budget</option>
             {budgets.map(budget => (
@@ -309,7 +304,6 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
             value={newActionValue}
             onChange={(e) => setNewActionValue(e.target.value)}
             placeholder="Enter value"
-            required
           />
         );
     }
@@ -321,7 +315,7 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
 
       {error && <div className="error">{error}</div>}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <div className="form-group">
           <label htmlFor="name">Rule Name</label>
           <input
