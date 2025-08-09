@@ -10,6 +10,8 @@ pub struct Config {
     pub port: u16,
     /// Host to bind the server to
     pub host: String,
+    /// Enable Firefly import features (default: false)
+    pub firefly_import: bool,
 }
 
 impl Config {
@@ -30,10 +32,17 @@ impl Config {
         // Get host from environment, or use default
         let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 
+        // Feature flag for Firefly import (FIREFLY_IMPORT=true to enable)
+        let firefly_import = env::var("FIREFLY_IMPORT")
+            .ok()
+            .map(|v| v.eq_ignore_ascii_case("true") || v == "1" || v.eq_ignore_ascii_case("yes"))
+            .unwrap_or(false);
+
         Ok(Self {
             database_url,
             port,
             host,
+            firefly_import,
         })
     }
 }

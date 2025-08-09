@@ -18,7 +18,8 @@ import type {
   FireflyImportOptions,
   ImportResult,
   ForecastedMonthlyIncomeResponse,
-  SpendingReportRow
+  SpendingReportRow,
+  Features
 } from './types.ts';
 
 // Re-export types for convenience
@@ -661,6 +662,18 @@ export const fireflyImportApi = {
       throw new Error(`Failed to upload CSV files: ${errorText}`);
     }
 
+    return response.json();
+  },
+};
+
+// API functions for server features
+export const featuresApi = {
+  getFeatures: async (): Promise<Features> => {
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/features?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch features');
+    }
     return response.json();
   },
 };

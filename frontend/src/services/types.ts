@@ -159,6 +159,11 @@ export interface ImportResult {
   errors: string[];
 }
 
+// Server-exposed feature flags
+export interface Features {
+  firefly_import: boolean;
+}
+
 // Forecasted monthly income response
 export interface ForecastedMonthlyIncomeResponse {
   forecasted_monthly_income: number;

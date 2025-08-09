@@ -91,8 +91,17 @@ const Dashboard = () => {
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
 
-        // Fetch all transactions (we'll filter client-side per selected month)
-        const txns = await transactionsApi.getTransactions();
+        // Fetch all transactions (paginate to avoid missing items)
+        const limit = 1000;
+        let page = 1;
+        let txns: Transaction[] = [];
+        while (true) {
+          const batch = await transactionsApi.getTransactions(page, limit);
+          txns = txns.concat(batch);
+          if (batch.length < limit) break;
+          page += 1;
+          if (page > 100) break; // safety cap to prevent infinite loops
+        }
         setAllTransactions(txns);
 
         setLoading(false);
@@ -163,14 +172,15 @@ const Dashboard = () => {
   }, [allTransactions, selectedYear, selectedMonth]);
 
   // Helper to check if an account is On Budget (including subtypes)
-  const isOnBudgetAccount = (accountId: string) => {
+  const isOnBudgetAccount = (accountId?: string) => {
+    if (!accountId) return false;
     const acc = accounts.find(a => a.id === accountId);
     return acc ? acc.account_type.toLowerCase().startsWith(ACCOUNT_TYPE.ON_BUDGET.toLowerCase()) : false;
   };
 
-  // Income transactions (negative amounts to On Budget accounts)
+  // Income transactions: deposits (negative amounts) into On Budget accounts
   const incomeTransactions = useMemo(() =>
-    monthlyTransactionsMemo.filter(t => t.amount < 0 && isOnBudgetAccount(t.source_account_id))
+    monthlyTransactionsMemo.filter(t => t.amount < 0 && isOnBudgetAccount(t.destination_account_id))
   , [monthlyTransactionsMemo, accounts]);
 
   // Expense transactions (positive amounts, excluding Initial Balance)

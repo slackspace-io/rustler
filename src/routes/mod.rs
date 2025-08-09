@@ -15,6 +15,8 @@ use axum::{
     routing::{get, post, put, delete},
 };
 
+mod features;
+
 pub fn create_router(
     account_service: Arc<AccountService>,
     transaction_service: Arc<TransactionService>,
@@ -24,9 +26,10 @@ pub fn create_router(
     budget_service: Arc<BudgetService>,
     rule_service: Arc<RuleService>,
     import_service: Arc<FireflyImportService>,
-    settings_service: Arc<SettingsService>
+    settings_service: Arc<SettingsService>,
+    firefly_import_enabled: bool,
 ) -> Router {
-    Router::new()
+    let mut router = Router::new()
         .merge(accounts::router(account_service))
         .merge(transactions::router(transaction_rule_service.clone()))
         .merge(categories::router(category_service))
@@ -35,8 +38,14 @@ pub fn create_router(
         .merge(category_spending::router(transaction_service.clone()))
         .merge(reports::router(transaction_service.clone()))
         .merge(rules::router(rule_service))
-        .merge(imports::router(import_service))
         .merge(settings::router(settings_service))
+        .merge(features::router(firefly_import_enabled));
+
+    if firefly_import_enabled {
+        router = router.merge(imports::router(import_service));
+    }
+
+    router
 }
 
 pub use web::router as web_router_impl;

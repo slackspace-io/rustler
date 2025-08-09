@@ -17,6 +17,20 @@ type DatePreset = 'last-month' | '3-months' | '6-months' | 'ytd' | '1-year' | 'a
 type Granularity = 'day' | 'week' | 'month';
 type DisplayMode = 'individual' | 'summed';
 
+interface SavedBalancePreset {
+  id: string;
+  name: string;
+  selectedAccounts: string[];
+  startDate: string;
+  endDate: string;
+  activePreset: DatePreset;
+  granularity: Granularity;
+  accountTypeFilter: string; // 'on-budget' | 'off-budget' | 'both'
+  displayMode: DisplayMode;
+}
+
+const BALANCE_PRESETS_STORAGE_KEY = 'rustler:savedPresets:balanceOverTime';
+
 const BalanceOverTime = () => {
   useRechartsRedraw();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -30,6 +44,11 @@ const BalanceOverTime = () => {
   const [error, setError] = useState<string | null>(null);
   const [accountTypeFilter, setAccountTypeFilter] = useState<string>('on-budget'); // 'on-budget', 'off-budget', or 'both'
   const [displayMode, setDisplayMode] = useState<DisplayMode>('individual'); // 'individual' or 'summed'
+
+  // Saved presets state
+  const [savedPresets, setSavedPresets] = useState<SavedBalancePreset[]>([]);
+  const [presetName, setPresetName] = useState<string>('');
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
 
   // Update selected accounts when account type filter changes
   const handleAccountTypeFilterChange = (filterType: string) => {
@@ -132,6 +151,11 @@ const BalanceOverTime = () => {
     };
 
     fetchAccounts();
+  }, []);
+
+  // Load saved presets on mount
+  useEffect(() => {
+    setSavedPresets(loadSavedPresets());
   }, []);
 
   // Generate chart data when selected accounts or date range changes
@@ -370,6 +394,75 @@ const BalanceOverTime = () => {
     setSelectedAccounts([]);
   };
 
+  // Saved presets helpers
+  const loadSavedPresets = (): SavedBalancePreset[] => {
+    try {
+      const raw = localStorage.getItem(BALANCE_PRESETS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Failed to load saved presets', e);
+      return [];
+    }
+  };
+
+  const persistSavedPresets = (list: SavedBalancePreset[]) => {
+    try {
+      localStorage.setItem(BALANCE_PRESETS_STORAGE_KEY, JSON.stringify(list));
+    } catch (e) {
+      console.error('Failed to persist saved presets', e);
+    }
+  };
+
+  const makePresetId = (): string => {
+    return `preset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  };
+
+  const handleSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    const preset: SavedBalancePreset = {
+      id: makePresetId(),
+      name,
+      selectedAccounts: [...selectedAccounts],
+      startDate,
+      endDate,
+      activePreset,
+      granularity,
+      accountTypeFilter,
+      displayMode,
+    };
+    const next = [...savedPresets, preset];
+    setSavedPresets(next);
+    persistSavedPresets(next);
+    setPresetName('');
+    setSelectedPresetId(preset.id);
+  };
+
+  const handleApplyPreset = () => {
+    const preset = savedPresets.find(p => p.id === selectedPresetId);
+    if (!preset) return;
+    setActivePreset(preset.activePreset);
+    setStartDate(preset.startDate);
+    setEndDate(preset.endDate);
+    setGranularity(preset.granularity);
+    setAccountTypeFilter(preset.accountTypeFilter);
+    setDisplayMode(preset.displayMode);
+
+    const existingIds = new Set(accounts.map(a => a.id));
+    const filtered = preset.selectedAccounts.filter(id => existingIds.has(id));
+    setSelectedAccounts(filtered);
+  };
+
+  const handleDeletePreset = () => {
+    if (!selectedPresetId) return;
+    const next = savedPresets.filter(p => p.id !== selectedPresetId);
+    setSavedPresets(next);
+    persistSavedPresets(next);
+    setSelectedPresetId('');
+  };
+
   const getRandomColor = (index: number) => {
     const colors = [
       '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE',
@@ -537,6 +630,38 @@ const BalanceOverTime = () => {
               </label>
             </div>
           ))}
+        </div>
+
+        <div className="saved-presets">
+          <h3>Saved Configurations</h3>
+          <div className="save-preset">
+            <input
+              type="text"
+              placeholder="Preset name"
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+            />
+            <button type="button" className="button small" onClick={handleSavePreset} disabled={!presetName.trim()}>
+              Save
+            </button>
+          </div>
+          <div className="load-preset">
+            <select
+              value={selectedPresetId}
+              onChange={(e) => setSelectedPresetId(e.target.value)}
+            >
+              <option value="">Select a saved preset...</option>
+              {savedPresets.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button type="button" className="button small" onClick={handleApplyPreset} disabled={!selectedPresetId}>
+              Apply
+            </button>
+            <button type="button" className="button small" onClick={handleDeletePreset} disabled={!selectedPresetId}>
+              Delete
+            </button>
+          </div>
         </div>
       </div>
 

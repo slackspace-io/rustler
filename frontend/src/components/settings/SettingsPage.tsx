@@ -1,10 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSettings } from '../../contexts/useSettings';
 import FireflyImport from './FireflyImport';
+import { featuresApi } from '../../services/api';
+import type { Features } from '../../services/types';
 
 const SettingsPage = () => {
   const { settings, updateNumberFormat, formatNumber } = useSettings();
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [features, setFeatures] = useState<Features | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    featuresApi.getFeatures()
+      .then(f => { if (mounted) setFeatures(f); })
+      .catch(() => { if (mounted) setFeatures({ firefly_import: false }); });
+    return () => { mounted = false; };
+  }, []);
 
   // Example values to show the difference between formats
   const exampleValue = 1234.56;
@@ -67,7 +78,13 @@ const SettingsPage = () => {
         <h2>Data Import</h2>
         <p>Import data from other personal finance applications.</p>
 
-        <FireflyImport />
+        {features?.firefly_import ? (
+          <FireflyImport />
+        ) : (
+          <div style={{opacity: 0.8}}>
+            <p>Firefly III import is disabled.</p>
+          </div>
+        )}
       </div>
 
       <style>{`
