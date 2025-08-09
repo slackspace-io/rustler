@@ -1,14 +1,67 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { transactionsApi, accountsApi } from '../../services/api';
-import type { Transaction, Account } from '../../services/api';
+import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
+import type { Transaction, Account, Budget } from '../../services/api';
+
+// Column configuration
+const ALL_COLUMNS = [
+  { id: 'date', label: 'Date' },
+  { id: 'source_account', label: 'Source Account' },
+  { id: 'destination_account', label: 'Destination Account' },
+  { id: 'description', label: 'Description' },
+  { id: 'category', label: 'Category' },
+  { id: 'budget', label: 'Budget' },
+  { id: 'amount', label: 'Amount' },
+  { id: 'actions', label: 'Actions' },
+] as const;
+
+type ColumnId = typeof ALL_COLUMNS[number]['id'];
+const STORAGE_KEY = 'rustler_transactions_visible_columns';
 
 const TransactionsList = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Column visibility state with persistence
+  const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as string[];
+        // Validate and intersect with known columns
+        const valid = ALL_COLUMNS.map(c => c.id).filter(id => parsed.includes(id));
+        if (valid.length > 0) return valid as ColumnId[];
+      }
+    } catch (e) {
+      console.warn('Failed to read transactions column settings:', e);
+    }
+    return ALL_COLUMNS.map(c => c.id) as ColumnId[];
+  });
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+
+  const persistVisibleColumns = (cols: ColumnId[]) => {
+    setVisibleColumns(cols);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cols));
+    } catch (e) {
+      console.warn('Failed to save transactions column settings:', e);
+    }
+  };
+
+  const toggleColumn = (id: ColumnId) => {
+    const isChecked = visibleColumns.includes(id);
+    if (isChecked) {
+      // Prevent unchecking the last column
+      if (visibleColumns.length === 1) return;
+      persistVisibleColumns(visibleColumns.filter(c => c !== id));
+    } else {
+      persistVisibleColumns([...visibleColumns, id]);
+    }
+  };
 
   // Filter states
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
@@ -48,9 +101,13 @@ const TransactionsList = () => {
       try {
         setLoading(true);
 
-        // Fetch accounts first
-        const accountsData = await accountsApi.getAccounts();
+        // Fetch accounts and budgets first
+        const [accountsData, budgetsData] = await Promise.all([
+          accountsApi.getAccounts(),
+          budgetsApi.getBudgets(),
+        ]);
         setAccounts(accountsData);
+        setBudgets(budgetsData);
 
         // Fetch transactions
         let transactionsData: Transaction[];
@@ -174,6 +231,12 @@ const TransactionsList = () => {
     return account ? account.name : 'Unknown Account';
   };
 
+  const getBudgetName = (budgetId?: string) => {
+    if (!budgetId) return 'Unbudgeted';
+    const budget = budgets.find(b => b.id === budgetId);
+    return budget ? budget.name : 'Unbudgeted';
+  };
+
   if (loading) {
     return <div>Loading transactions...</div>;
   }
@@ -184,11 +247,32 @@ const TransactionsList = () => {
 
   return (
     <div className="transactions-list">
-      <div className="header-actions">
+      <div className="header-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
         <h1>Transactions</h1>
-        <div className="button-group">
+        <div className="button-group" style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
           <Link to="/transactions/new" className="button">Add New Transaction</Link>
           <Link to="/transactions/quick-add" className="button">Quick Add</Link>
+          <button className="button secondary" onClick={() => setShowColumnPicker(!showColumnPicker)}>Columns</button>
+          {showColumnPicker && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, background: 'var(--color-bg-primary, #fff)', border: '1px solid #ccc', borderRadius: 6, padding: 12, boxShadow: '0 4px 10px rgba(0,0,0,0.1)', zIndex: 10, minWidth: 200 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Visible columns</div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {ALL_COLUMNS.map(col => (
+                  <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.includes(col.id)}
+                      onChange={() => toggleColumn(col.id)}
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <button className="button small" onClick={() => setShowColumnPicker(false)}>Close</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -291,35 +375,64 @@ const TransactionsList = () => {
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Account</th>
-              <th>Description</th>
-              <th>Category</th>
-              <th>Amount</th>
-              <th>Actions</th>
+              {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => (
+                <th key={col.id}>{col.label}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {transactions.map(transaction => (
               <tr key={transaction.id}>
-                <td>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
-                <td>{getAccountName(transaction.source_account_id)}</td>
-                <td>{transaction.description}</td>
-                <td>{transaction.category}</td>
-                <td className={transaction.amount >= 0 ? 'positive' : 'negative'}>
-                  {transaction.amount.toFixed(2)}
-                </td>
-                <td>
-                  <div className="actions">
-                    <Link to={`/transactions/${transaction.id}/edit`} className="button small">Edit</Link>
-                    <button
-                      onClick={() => handleDeleteTransaction(transaction.id)}
-                      className="button small danger"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
+                {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
+                  switch (col.id) {
+                    case 'date':
+                      return (
+                        <td key={`${transaction.id}-date`}>{new Date(transaction.transaction_date).toLocaleDateString()}</td>
+                      );
+                    case 'source_account':
+                      return (
+                        <td key={`${transaction.id}-source`}>{getAccountName(transaction.source_account_id)}</td>
+                      );
+                    case 'destination_account':
+                      return (
+                        <td key={`${transaction.id}-destination`}>{transaction.destination_account_id ? getAccountName(transaction.destination_account_id) : '-'}</td>
+                      );
+                    case 'description':
+                      return (
+                        <td key={`${transaction.id}-description`}>{transaction.description}</td>
+                      );
+                    case 'category':
+                      return (
+                        <td key={`${transaction.id}-category`}>{transaction.category}</td>
+                      );
+                    case 'budget':
+                      return (
+                        <td key={`${transaction.id}-budget`}>{getBudgetName(transaction.budget_id)}</td>
+                      );
+                    case 'amount':
+                      return (
+                        <td key={`${transaction.id}-amount`} className={transaction.amount >= 0 ? 'positive' : 'negative'}>
+                          {transaction.amount.toFixed(2)}
+                        </td>
+                      );
+                    case 'actions':
+                      return (
+                        <td key={`${transaction.id}-actions`}>
+                          <div className="actions">
+                            <Link to={`/transactions/${transaction.id}/edit`} className="button small">Edit</Link>
+                            <button
+                              onClick={() => handleDeleteTransaction(transaction.id)}
+                              className="button small danger"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    default:
+                      return null;
+                  }
+                })}
               </tr>
             ))}
           </tbody>

@@ -138,6 +138,15 @@ export const accountsApi = {
 
 // API functions for transactions
 export const transactionsApi = {
+  // Get monthly incoming transactions (consistent with budget monthly incoming funds)
+  getMonthlyIncomingTransactions: async (year: number, month: number): Promise<Transaction[]> => {
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/transactions/monthly-incoming?year=${year}&month=${month}&${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch monthly incoming transactions');
+    }
+    return response.json();
+  },
   // Get all transactions with pagination
   getTransactions: async (page: number = 1, limit: number = 100): Promise<Transaction[]> => {
     // Add a cache-busting parameter to prevent browser caching

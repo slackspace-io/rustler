@@ -12,6 +12,49 @@ pub struct TransactionService {
 }
 
 impl TransactionService {
+    /// Get monthly incoming transactions to on-budget accounts, excluding on-budget to on-budget transfers
+    pub async fn get_monthly_incoming_transactions(&self, year: i32, month: u32) -> Result<Vec<Transaction>, sqlx::Error> {
+        // Calculate start and end of month in UTC
+        let start_naive = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let start_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(start_naive, Utc);
+        let end_naive = if month == 12 {
+            chrono::NaiveDate::from_ymd_opt(year + 1, 1, 1)
+        } else {
+            chrono::NaiveDate::from_ymd_opt(year, month + 1, 1)
+        }
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+        let end_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(end_naive, Utc);
+
+        // Mirror BudgetService::get_monthly_incoming_funds selection criteria:
+        // - Destination account is On Budget
+        // - Source account is not On Budget (or NULL)
+        // - Amount > 0 (consistent with existing monthly incoming funds query)
+        // - Date within [start_date, end_date)
+        let query = r#"
+            SELECT t.*
+            FROM transactions t
+            JOIN accounts dst ON t.destination_account_id = dst.id
+            LEFT JOIN accounts src ON t.source_account_id = src.id
+            WHERE dst.account_type = 'On Budget'
+              AND (src.account_type IS NULL OR src.account_type <> 'On Budget')
+              AND t.amount > 0
+              AND t.transaction_date >= $1
+              AND t.transaction_date < $2
+            ORDER BY t.transaction_date DESC
+        "#;
+
+        let rows = sqlx::query_as::<_, Transaction>(query)
+            .bind(start_date)
+            .bind(end_date)
+            .fetch_all(&self.db)
+            .await?;
+        Ok(rows)
+    }
     /// Create a new TransactionService with the given database pool
     pub fn new(db: Pool<Postgres>) -> Self {
         Self {

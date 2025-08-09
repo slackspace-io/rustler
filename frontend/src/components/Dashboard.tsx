@@ -12,6 +12,7 @@ const Dashboard = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+    const [incomingTransactions, setIncomingTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -181,6 +182,21 @@ const Dashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedYear, selectedMonth, allTransactions]);
 
+  // Fetch monthly incoming transactions from server to align with Monthly Income widget
+  useEffect(() => {
+    const fetchIncoming = async () => {
+      try {
+        const txs = await transactionsApi.getMonthlyIncomingTransactions(selectedYear, selectedMonth);
+        setIncomingTransactions(txs);
+      } catch (e) {
+        console.error('Failed to fetch monthly incoming transactions', e);
+      }
+    };
+    if (!loading) {
+      fetchIncoming();
+    }
+  }, [selectedYear, selectedMonth, loading]);
+
   // Memoized transactions for the selected month
   const monthlyTransactionsMemo = useMemo(() => {
     const start = new Date(selectedYear, selectedMonth - 1, 1);
@@ -198,10 +214,8 @@ const Dashboard = () => {
     return acc ? acc.account_type.toLowerCase().startsWith(ACCOUNT_TYPE.ON_BUDGET.toLowerCase()) : false;
   };
 
-  // Income transactions: inflows (positive amounts) to On Budget destination accounts (align with TransactionsList)
-  const incomeTransactions = useMemo(() =>
-    monthlyTransactionsMemo.filter(t => t.amount > 0 && isOnBudgetAccount(t.destination_account_id))
-  , [monthlyTransactionsMemo, accounts]);
+  // Income transactions fetched from server to match widget monthly income selection
+  const incomeTransactions = incomingTransactions;
 
   // Expense transactions per widget rules
   // - Withdrawals (positive amounts) from On Budget source accounts
@@ -226,6 +240,59 @@ const Dashboard = () => {
       : incomeTransactions.concat(expenseTransactions);
     return [...list].sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
   }, [selectedMetric, incomeTransactions, expenseTransactions]);
+
+  // Build rows with normalized display amount and running balance
+  // - Income tab: always show as positive (green), regardless of raw sign
+  // - Expenses tab: always show as negative (red), regardless of raw sign
+  // - Net tab: normalize by membership (income vs expense)
+  // Running balance is reversed so the top row shows the monthly total (after latest transaction)
+  const detailedRows = useMemo(() => {
+    // Precompute membership sets for reliable classification on 'net'
+    const incomeIds = new Set(incomeTransactions.map(t => t.id));
+    const expenseIds = new Set(expenseTransactions.map(t => t.id));
+
+    // First pass: compute display amounts in current visible order (latest -> oldest)
+    const base = selectedTransactions.map(tx => {
+      let displayAmount: number;
+      if (selectedMetric === 'income') {
+        // Always positive for display
+        displayAmount = Math.abs(tx.amount);
+      } else if (selectedMetric === 'expenses') {
+        // Always negative for display
+        displayAmount = -Math.abs(tx.amount);
+      } else {
+        // Net: decide based on semantic classification, not raw sign
+        if (incomeIds.has(tx.id)) {
+          displayAmount = Math.abs(tx.amount);
+        } else if (expenseIds.has(tx.id)) {
+          displayAmount = -Math.abs(tx.amount);
+        } else {
+          // Fallback: use raw sign if not classified (shouldn't happen)
+          displayAmount = tx.amount < 0 ? Math.abs(tx.amount) : -Math.abs(tx.amount);
+        }
+      }
+      return { tx, displayAmount };
+    });
+
+    // Compute total (sum of all display amounts)
+    const total = base.reduce((sum, r) => sum + r.displayAmount, 0);
+
+    // Second pass: assign reversed running balance so first row shows total
+    let remaining = total;
+    const rows = base.map(r => {
+      const row = { tx: r.tx, displayAmount: r.displayAmount, running: remaining };
+      remaining -= r.displayAmount;
+      return row;
+    });
+
+    return rows;
+  }, [selectedTransactions, selectedMetric, incomeTransactions, expenseTransactions]);
+
+  const detailedTotal = useMemo(() => {
+    if (detailedRows.length === 0) return 0;
+    // With reversed running, the first row holds the monthly total
+    return detailedRows[0].running;
+  }, [detailedRows]);
 
   // Ref and helper to scroll to the Monthly Details section and select metric
   const detailsRef = useRef<HTMLDivElement | null>(null);
@@ -700,22 +767,37 @@ const Dashboard = () => {
                     <th>Description</th>
                     <th>Category</th>
                     <th>Amount</th>
+                    <th>Running</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedTransactions.map(tx => (
-                    <tr key={tx.id}>
-                      <td>{new Date(tx.transaction_date).toLocaleDateString()}</td>
-                      <td>{getAccountName(tx.source_account_id)}</td>
-                      <td>{tx.destination_account_id ? getAccountName(tx.destination_account_id) : (tx.destination_name || '-')}</td>
-                      <td>{tx.description}</td>
-                      <td>{tx.category}</td>
-                      <td className={tx.amount < 0 ? 'positive' : 'negative'}>
-                        {tx.amount < 0 ? Math.abs(tx.amount).toFixed(2) : `-${tx.amount.toFixed(2)}`}
+                  {detailedRows.map(row => (
+                    <tr key={row.tx.id}>
+                      <td>{new Date(row.tx.transaction_date).toLocaleDateString()}</td>
+                      <td>{getAccountName(row.tx.source_account_id)}</td>
+                      <td>{row.tx.destination_account_id ? getAccountName(row.tx.destination_account_id) : (row.tx.destination_name || '-')}</td>
+                      <td>{row.tx.description}</td>
+                      <td>{row.tx.category}</td>
+                      <td className={row.displayAmount >= 0 ? 'positive' : 'negative'}>
+                        {row.displayAmount >= 0 ? row.displayAmount.toFixed(2) : `-${Math.abs(row.displayAmount).toFixed(2)}`}
+                      </td>
+                      <td className={row.running >= 0 ? 'positive' : 'negative'} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {row.running >= 0 ? row.running.toFixed(2) : `-${Math.abs(row.running).toFixed(2)}`}
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'right', fontWeight: 600 }}>Total</td>
+                    <td className={detailedTotal >= 0 ? 'positive' : 'negative'}>
+                      {detailedTotal >= 0 ? detailedTotal.toFixed(2) : `-${Math.abs(detailedTotal).toFixed(2)}`}
+                    </td>
+                    <td className={detailedTotal >= 0 ? 'positive' : 'negative'}>
+                      {detailedTotal >= 0 ? detailedTotal.toFixed(2) : `-${Math.abs(detailedTotal).toFixed(2)}`}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             )}
           </div>

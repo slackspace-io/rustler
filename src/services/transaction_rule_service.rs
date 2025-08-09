@@ -13,6 +13,10 @@ pub struct TransactionRuleService {
 }
 
 impl TransactionRuleService {
+    /// Get monthly incoming transactions (pass-through)
+    pub async fn get_monthly_incoming_transactions(&self, year: i32, month: u32) -> Result<Vec<Transaction>, sqlx::Error> {
+        self.transaction_service.get_monthly_incoming_transactions(year, month).await
+    }
     /// Create a new TransactionRuleService with the given services
     pub fn new(transaction_service: Arc<TransactionService>, rule_service: Arc<RuleService>) -> Self {
         Self {

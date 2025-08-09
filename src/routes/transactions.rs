@@ -16,6 +16,7 @@ use crate::services::TransactionRuleService;
 pub fn router(transaction_service: Arc<TransactionRuleService>) -> Router {
     Router::new()
         .route("/transactions", get(get_transactions))
+        .route("/transactions/monthly-incoming", get(get_monthly_incoming_transactions))
         .route("/transactions", post(create_transaction))
         .route("/transactions/{id}", get(get_transaction))
         .route("/transactions/{id}", put(update_transaction))
@@ -33,6 +34,12 @@ pub struct TransactionQuery {
     pub end_date: Option<String>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MonthlyIncomingQuery {
+    year: i32,
+    month: u32,
 }
 
 // Handler to get all transactions, with optional filtering and pagination
@@ -80,6 +87,20 @@ async fn get_transactions(
         Ok(transactions) => Ok(Json(transactions)),
         Err(err) => {
             eprintln!("Error getting transactions: {:?}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Handler to get monthly incoming transactions (mirrors budget_service selection)
+async fn get_monthly_incoming_transactions(
+    Query(params): Query<MonthlyIncomingQuery>,
+    State(state): State<Arc<TransactionRuleService>>,
+) -> Result<Json<Vec<Transaction>>, StatusCode> {
+    match state.get_monthly_incoming_transactions(params.year, params.month).await {
+        Ok(transactions) => Ok(Json(transactions)),
+        Err(err) => {
+            eprintln!("Error getting monthly incoming transactions: {:?}", err);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

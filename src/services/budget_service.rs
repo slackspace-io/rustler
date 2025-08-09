@@ -248,22 +248,25 @@ impl BudgetService {
         // - We only want to count deposits to on-budget accounts for the current month
 
         // Get deposits (negative amounts) to on-budget accounts
+        // Exclude internal transfers where BOTH source and destination are On Budget accounts
         let deposits = sqlx::query_scalar::<_, f64>(
             r#"
             SELECT COALESCE(SUM(ABS(t.amount)), 0.0)
             FROM transactions t
             JOIN accounts dst ON t.destination_account_id = dst.id
+            LEFT JOIN accounts src ON t.source_account_id = src.id
             WHERE dst.account_type = 'On Budget'
-            AND t.amount > 0
-            AND t.transaction_date >= $1
-            AND t.transaction_date < $2
+              AND (src.account_type IS NULL OR src.account_type <> 'On Budget')
+              AND t.amount > 0
+              AND t.transaction_date >= $1
+              AND t.transaction_date < $2
             "#,
         )
         .bind(start_date)
         .bind(end_date)
         .fetch_one(&self.db)
         .await?;
-        info!("Monthly incoming funds for {}-{}: ${:.2}", start_date, end_date, deposits);
+        info!("Monthly incoming funds (excluding on-budget↔on-budget transfers) for {}-{}: ${:.2}", start_date, end_date, deposits);
         Ok(deposits)
 
     }
