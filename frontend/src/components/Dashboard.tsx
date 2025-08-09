@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { accountsApi, transactionsApi, budgetsApi } from '../services/api';
 import type { Account, Transaction } from '../services/api';
@@ -10,14 +10,23 @@ const Dashboard = () => {
   const { formatNumber } = useSettings();
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Selected month/year for dashboard view
+  const today = useMemo(() => new Date(), []);
+  const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1); // 1-12
 
   // Summary data
   const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [monthlyExpenses, setMonthlyExpenses] = useState(0);
   const [monthlyNet, setMonthlyNet] = useState(0);
+
+  // Selector for which monthly metric to inspect
+  const [selectedMetric, setSelectedMetric] = useState<'income' | 'expenses' | 'net'>('income');
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -32,6 +41,47 @@ const Dashboard = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Month navigation helpers and labels
+  const canGoNext = useMemo(() => {
+    // Disallow navigating to months after current month
+    const nowYear = today.getFullYear();
+    const nowMonth = today.getMonth() + 1;
+    return selectedYear < nowYear || (selectedYear === nowYear && selectedMonth < nowMonth);
+  }, [selectedYear, selectedMonth, today]);
+
+  const monthLabel = useMemo(() => {
+    const d = new Date(selectedYear, selectedMonth - 1, 1);
+    return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  }, [selectedYear, selectedMonth]);
+
+  const handlePrevMonth = () => {
+    let y = selectedYear;
+    let m = selectedMonth - 1;
+    if (m < 1) {
+      m = 12;
+      y = y - 1;
+    }
+    setSelectedYear(y);
+    setSelectedMonth(m);
+  };
+
+  const handleNextMonth = () => {
+    if (!canGoNext) return;
+    let y = selectedYear;
+    let m = selectedMonth + 1;
+    if (m > 12) {
+      m = 1;
+      y = y + 1;
+    }
+    // Prevent going beyond current month
+    const nowYear = today.getFullYear();
+    const nowMonth = today.getMonth() + 1;
+    if (y > nowYear || (y === nowYear && m > nowMonth)) return;
+    setSelectedYear(y);
+    setSelectedMonth(m);
+  };
+
+  // Initial data fetch (accounts and all transactions)
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -41,37 +91,9 @@ const Dashboard = () => {
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
 
-
-        // Fetch all transactions
-        const allTransactions = await transactionsApi.getTransactions();
-
-        // Get recent transactions (last 10)
-        const recent = [...allTransactions]
-          .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
-          .slice(0, 10);
-        setRecentTransactions(recent);
-
-        // Calculate monthly income and expenses
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-        const monthlyTransactions = allTransactions.filter(
-          t => new Date(t.transaction_date) >= startOfMonth
-        );
-
-        // Get server-calculated monthly income to match budget page
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1; // 1-based month for API
-        const monthlyStatus = await budgetsApi.getMonthlyBudgetStatus(year, month);
-        const income = monthlyStatus.incoming_funds;
-        setMonthlyIncome(income);
-
-        const expenses = monthlyTransactions
-          .filter(t => t.amount > 0 && t.category !== "Initial Balance")
-          .reduce((sum, t) => sum + t.amount, 0);
-        setMonthlyExpenses(expenses);
-
-        setMonthlyNet(income - expenses);
+        // Fetch all transactions (we'll filter client-side per selected month)
+        const txns = await transactionsApi.getTransactions();
+        setAllTransactions(txns);
 
         setLoading(false);
       } catch (err) {
@@ -83,6 +105,94 @@ const Dashboard = () => {
 
     fetchData();
   }, []);
+
+  // Recompute month-dependent data whenever selected month/year or allTransactions change
+  useEffect(() => {
+    const computeMonthData = async () => {
+      try {
+        setLoading(true);
+        // Build date range for selected month
+        const startOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
+        const startOfNextMonth = new Date(selectedYear, selectedMonth, 1);
+
+        // Recent transactions from selected month (latest 10)
+        const monthlyTransactions = allTransactions.filter(t => {
+          const d = new Date(t.transaction_date);
+          return d >= startOfMonth && d < startOfNextMonth;
+        });
+        const recent = [...monthlyTransactions]
+          .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+          .slice(0, 10);
+        setRecentTransactions(recent);
+
+        // Monthly income via API (server-calculated)
+        const monthlyStatus = await budgetsApi.getMonthlyBudgetStatus(selectedYear, selectedMonth);
+        const income = monthlyStatus.incoming_funds;
+        setMonthlyIncome(income);
+
+        // Monthly expenses from transactions (exclude Initial Balance, consider positive amounts as expenses per existing logic)
+        const expenses = monthlyTransactions
+          .filter(t => t.amount > 0 && t.category !== 'Initial Balance')
+          .reduce((sum, t) => sum + t.amount, 0);
+        setMonthlyExpenses(expenses);
+
+        setMonthlyNet(income - expenses);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error computing month data:', err);
+        setError('Failed to compute monthly data.');
+        setLoading(false);
+      }
+    };
+
+    // Only compute if base data loaded
+    if (!loading) {
+      computeMonthData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear, selectedMonth, allTransactions]);
+
+  // Memoized transactions for the selected month
+  const monthlyTransactionsMemo = useMemo(() => {
+    const start = new Date(selectedYear, selectedMonth - 1, 1);
+    const end = new Date(selectedYear, selectedMonth, 1);
+    return allTransactions.filter(t => {
+      const d = new Date(t.transaction_date);
+      return d >= start && d < end;
+    });
+  }, [allTransactions, selectedYear, selectedMonth]);
+
+  // Helper to check if an account is On Budget (including subtypes)
+  const isOnBudgetAccount = (accountId: string) => {
+    const acc = accounts.find(a => a.id === accountId);
+    return acc ? acc.account_type.toLowerCase().startsWith(ACCOUNT_TYPE.ON_BUDGET.toLowerCase()) : false;
+  };
+
+  // Income transactions (negative amounts to On Budget accounts)
+  const incomeTransactions = useMemo(() =>
+    monthlyTransactionsMemo.filter(t => t.amount < 0 && isOnBudgetAccount(t.source_account_id))
+  , [monthlyTransactionsMemo, accounts]);
+
+  // Expense transactions (positive amounts, excluding Initial Balance)
+  const expenseTransactions = useMemo(() =>
+    monthlyTransactionsMemo.filter(t => t.amount > 0 && t.category !== 'Initial Balance')
+  , [monthlyTransactionsMemo]);
+
+  // Selected transactions for drill-down view
+  const selectedTransactions = useMemo(() => {
+    const list = selectedMetric === 'income' ? incomeTransactions
+      : selectedMetric === 'expenses' ? expenseTransactions
+      : incomeTransactions.concat(expenseTransactions);
+    return [...list].sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+  }, [selectedMetric, incomeTransactions, expenseTransactions]);
+
+  // Ref and helper to scroll to the Monthly Details section and select metric
+  const detailsRef = useRef<HTMLDivElement | null>(null);
+  const goToDetails = (metric: 'income' | 'expenses' | 'net') => {
+    setSelectedMetric(metric);
+    // scroll after state updates are applied
+    setTimeout(() => detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
 
   const getAccountName = (accountId: string) => {
     const account = accounts.find(a => a.id === accountId);
@@ -113,8 +223,13 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <div className="header-actions">
-        <h1>Dashboard</h1>
+      <div className="header-actions" style={{ alignItems: 'center', gap: '12px' }}>
+        <h1 style={{ marginBottom: 0 }}>Dashboard</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+          <button className="button secondary" onClick={handlePrevMonth} aria-label="Previous Month">◀</button>
+          <span style={{ minWidth: 160, textAlign: 'center', fontWeight: 600 }}>{monthLabel}</span>
+          <button className="button secondary" onClick={handleNextMonth} disabled={!canGoNext} aria-label="Next Month">▶</button>
+        </div>
         {!isMobile && (
           <button
             onClick={() => navigate('/transactions/quick-add')}
@@ -156,11 +271,13 @@ const Dashboard = () => {
         <div className="summary-card">
           <h2>Monthly Income</h2>
           <p className="amount positive">{formatNumber(monthlyIncome)}</p>
+          <button className="button secondary" onClick={() => goToDetails('income')}>View transactions</button>
         </div>
 
         <div className="summary-card">
           <h2>Monthly Expenses</h2>
           <p className="amount negative">{formatNumber(monthlyExpenses)}</p>
+          <button className="button secondary" onClick={() => goToDetails('expenses')}>View transactions</button>
         </div>
 
         <div className="summary-card">
@@ -168,6 +285,7 @@ const Dashboard = () => {
           <p className={`amount ${monthlyNet >= 0 ? 'positive' : 'negative'}`}>
             {formatNumber(monthlyNet)}
           </p>
+          <button className="button secondary" onClick={() => goToDetails('net')}>View transactions</button>
         </div>
       </div>
 
@@ -272,6 +390,62 @@ const Dashboard = () => {
                       <td>{transaction.category}</td>
                       <td className={transaction.amount < 0 ? 'positive' : 'negative'}>
                         {transaction.amount < 0 ? Math.abs(transaction.amount).toFixed(2) : `-${transaction.amount.toFixed(2)}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Monthly Details: drill-down for Income/Expenses/Net */}
+          <div className="dashboard-transactions" ref={detailsRef}>
+            <div className="section-header">
+              <h2>Monthly Details</h2>
+              <div className="header-actions" style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className={`button ${selectedMetric === 'income' ? '' : 'secondary'}`}
+                  onClick={() => setSelectedMetric('income')}
+                >
+                  Income
+                </button>
+                <button
+                  className={`button ${selectedMetric === 'expenses' ? '' : 'secondary'}`}
+                  onClick={() => setSelectedMetric('expenses')}
+                >
+                  Expenses
+                </button>
+                <button
+                  className={`button ${selectedMetric === 'net' ? '' : 'secondary'}`}
+                  onClick={() => setSelectedMetric('net')}
+                >
+                  Net
+                </button>
+              </div>
+            </div>
+
+            {selectedTransactions.length === 0 ? (
+              <p>No transactions for this selection.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Account</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedTransactions.map(tx => (
+                    <tr key={tx.id}>
+                      <td>{new Date(tx.transaction_date).toLocaleDateString()}</td>
+                      <td>{getAccountName(tx.source_account_id)}</td>
+                      <td>{tx.description}</td>
+                      <td>{tx.category}</td>
+                      <td className={tx.amount < 0 ? 'positive' : 'negative'}>
+                        {tx.amount < 0 ? Math.abs(tx.amount).toFixed(2) : `-${tx.amount.toFixed(2)}`}
                       </td>
                     </tr>
                   ))}
