@@ -15,6 +15,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Selection state for Total Balance widget
+  const [selectedBalanceAccountIds, setSelectedBalanceAccountIds] = useState<string[]>([]);
+  const [showAccountSelector, setShowAccountSelector] = useState(false);
+
   // Selected month/year for dashboard view
   const today = useMemo(() => new Date(), []);
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
@@ -209,6 +213,67 @@ const Dashboard = () => {
     return account ? account.name : 'Unknown Account';
   };
 
+  // Only allow selecting On Budget and Off Budget accounts in the Total Balance widget
+  const selectableAccounts = useMemo(() => {
+    const on = ACCOUNT_TYPE.ON_BUDGET.toLowerCase();
+    const off = ACCOUNT_TYPE.OFF_BUDGET.toLowerCase();
+    return accounts.filter(a => {
+      const t = a.account_type.toLowerCase();
+      return t.startsWith(on) || t.startsWith(off);
+    });
+  }, [accounts]);
+
+  // Selected accounts for Total Balance widget
+  useEffect(() => {
+    // Initialize from localStorage or default to eligible accounts (On/Off Budget)
+    try {
+      const key = 'dashboard_total_balance_accounts';
+      const saved = localStorage.getItem(key);
+      const allIds = selectableAccounts.map(a => a.id);
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        const filtered = parsed.filter(id => allIds.includes(id));
+        if (filtered.length > 0) {
+          setSelectedBalanceAccountIds(filtered);
+        } else {
+          setSelectedBalanceAccountIds(allIds);
+          localStorage.setItem(key, JSON.stringify(allIds));
+        }
+      } else {
+        setSelectedBalanceAccountIds(allIds);
+        localStorage.setItem(key, JSON.stringify(allIds));
+      }
+    } catch (_err) { void _err;
+      // Fallback to eligible accounts on parse error
+      const allIds = selectableAccounts.map(a => a.id);
+      setSelectedBalanceAccountIds(allIds);
+      try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify(allIds)); } catch (_e) { void _e; }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectableAccounts.length]);
+
+  const toggleSelectedAccount = (id: string) => {
+    setSelectedBalanceAccountIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify(next)); } catch (_e) { void _e; }
+      return next;
+    });
+  };
+
+  const selectAllAccounts = () => {
+    const allIds = selectableAccounts.map(a => a.id);
+    setSelectedBalanceAccountIds(allIds);
+    try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify(allIds)); } catch { void 0; }
+  };
+
+  const clearAllAccounts = () => {
+    setSelectedBalanceAccountIds([]);
+    try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify([])); } catch { void 0; }
+  };
+
+  const selectedAccounts = useMemo(() => accounts.filter(a => selectedBalanceAccountIds.includes(a.id)), [accounts, selectedBalanceAccountIds]);
+  const combinedSelectedTotal = useMemo(() => selectedAccounts.reduce((sum, a) => sum + a.balance, 0), [selectedAccounts]);
+
   if (loading) {
     return <div>Loading dashboard...</div>;
   }
@@ -230,6 +295,7 @@ const Dashboard = () => {
   const offBudgetTotal = offBudgetAccounts.reduce((sum, account) => sum + account.balance, 0);
   // Calculate combined total
   const combinedTotal = onBudgetTotal + offBudgetTotal;
+
 
   return (
     <div className="dashboard">
@@ -273,8 +339,39 @@ const Dashboard = () => {
 
       <div className="dashboard-summary">
         <div className="summary-card">
-          <h2>Total Balance</h2>
-          <p className="amount">{formatNumber(combinedTotal)}</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <h2 style={{ margin: 0 }}>Total Balance</h2>
+            <button
+              className="button secondary"
+              onClick={() => setShowAccountSelector(s => !s)}
+              aria-label="Select accounts for Total Balance"
+            >
+              Select accounts
+            </button>
+          </div>
+          <p className="amount">{formatNumber(combinedSelectedTotal)}</p>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+            Using {selectedAccounts.length} of {selectableAccounts.length} accounts
+          </div>
+          {showAccountSelector && (
+            <div style={{ border: '1px solid var(--color-border, #ccc)', borderRadius: 8, padding: 8, marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <button className="button small" onClick={selectAllAccounts}>Select All</button>
+                <button className="button small secondary" onClick={clearAllAccounts}>Clear</button>
+              </div>
+              {selectableAccounts.map(acc => (
+                <label key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedBalanceAccountIds.includes(acc.id)}
+                    onChange={() => toggleSelectedAccount(acc.id)}
+                  />
+                  <span style={{ flex: 1 }}>{acc.name}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.8 }}>{acc.balance.toFixed(2)}</span>
+                </label>
+              ))}
+            </div>
+          )}
           <Link to="/accounts" className="card-link">View Accounts</Link>
         </div>
 
