@@ -146,9 +146,22 @@ const Dashboard = () => {
         const income = monthlyStatus.incoming_funds;
         setMonthlyIncome(income);
 
-        // Monthly expenses from transactions (exclude Initial Balance, consider positive amounts as expenses per existing logic)
+        // Monthly expenses widget rules:
+        // - Count only withdrawals (positive amounts) from On Budget accounts
+        // - Exclude transfers between On Budget accounts
+        // - Include transfers from On Budget to Off Budget accounts
+        // - Exclude 'Initial Balance' transactions
         const expenses = monthlyTransactions
-          .filter(t => t.amount > 0 && t.category !== 'Initial Balance')
+          .filter(t => {
+            if (!(t.amount > 0)) return false; // only withdrawals (outflows)
+            if (t.category === 'Initial Balance') return false; // exclude initial balance
+            // source must be On Budget
+            if (!isOnBudgetAccount(t.source_account_id)) return false;
+            // Exclude transfers between On Budget accounts
+            const hasDst = !!t.destination_account_id;
+            if (hasDst && isOnBudgetAccount(t.destination_account_id!)) return false;
+            return true; // regular expenses or On->Off transfers
+          })
           .reduce((sum, t) => sum + t.amount, 0);
         setMonthlyExpenses(expenses);
 
@@ -190,10 +203,21 @@ const Dashboard = () => {
     monthlyTransactionsMemo.filter(t => t.amount > 0 && isOnBudgetAccount(t.destination_account_id))
   , [monthlyTransactionsMemo, accounts]);
 
-  // Expense transactions (positive amounts, excluding Initial Balance)
+  // Expense transactions per widget rules
+  // - Withdrawals (positive amounts) from On Budget source accounts
+  // - Exclude transfers between On Budget accounts
+  // - Include On Budget -> Off Budget transfers
+  // - Exclude 'Initial Balance'
   const expenseTransactions = useMemo(() =>
-    monthlyTransactionsMemo.filter(t => t.amount > 0 && t.category !== 'Initial Balance')
-  , [monthlyTransactionsMemo]);
+    monthlyTransactionsMemo.filter(t => {
+      if (!(t.amount > 0)) return false;
+      if (t.category === 'Initial Balance') return false;
+      if (!isOnBudgetAccount(t.source_account_id)) return false;
+      const hasDst = !!t.destination_account_id;
+      if (hasDst && isOnBudgetAccount(t.destination_account_id!)) return false;
+      return true;
+    })
+  , [monthlyTransactionsMemo, accounts]);
 
   // Selected transactions for drill-down view
   const selectedTransactions = useMemo(() => {
