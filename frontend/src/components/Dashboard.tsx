@@ -18,6 +18,9 @@ const Dashboard = () => {
   // Selection state for Total Balance widget
   const [selectedBalanceAccountIds, setSelectedBalanceAccountIds] = useState<string[]>([]);
   const [showAccountSelector, setShowAccountSelector] = useState(false);
+  const [tempSelectedBalanceAccountIds, setTempSelectedBalanceAccountIds] = useState<string[]>([]);
+  const [accountSearch, setAccountSearch] = useState('');
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
 
   // Selected month/year for dashboard view
   const today = useMemo(() => new Date(), []);
@@ -225,6 +228,8 @@ const Dashboard = () => {
 
   // Selected accounts for Total Balance widget
   useEffect(() => {
+    // Wait until eligible accounts are loaded to avoid wiping saved selection
+    if (selectableAccounts.length === 0) return;
     // Initialize from localStorage or default to eligible accounts (On/Off Budget)
     try {
       const key = 'dashboard_total_balance_accounts';
@@ -253,26 +258,65 @@ const Dashboard = () => {
   }, [selectableAccounts.length]);
 
   const toggleSelectedAccount = (id: string) => {
-    setSelectedBalanceAccountIds(prev => {
+    setTempSelectedBalanceAccountIds(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify(next)); } catch (_e) { void _e; }
       return next;
     });
   };
 
   const selectAllAccounts = () => {
     const allIds = selectableAccounts.map(a => a.id);
-    setSelectedBalanceAccountIds(allIds);
-    try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify(allIds)); } catch { void 0; }
+    setTempSelectedBalanceAccountIds(allIds);
   };
 
   const clearAllAccounts = () => {
-    setSelectedBalanceAccountIds([]);
-    try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify([])); } catch { void 0; }
+    setTempSelectedBalanceAccountIds([]);
   };
 
   const selectedAccounts = useMemo(() => accounts.filter(a => selectedBalanceAccountIds.includes(a.id)), [accounts, selectedBalanceAccountIds]);
   const combinedSelectedTotal = useMemo(() => selectedAccounts.reduce((sum, a) => sum + a.balance, 0), [selectedAccounts]);
+
+  const visibleAccounts = useMemo(() => {
+    const q = accountSearch.trim().toLowerCase();
+    const filtered = selectableAccounts.filter(a => {
+      const matchesSearch = q === '' || a.name.toLowerCase().includes(q);
+      const matchesSelected = !showSelectedOnly || tempSelectedBalanceAccountIds.includes(a.id);
+      return matchesSearch && matchesSelected;
+    });
+    return [...filtered].sort((a, b) => {
+      const aSel = tempSelectedBalanceAccountIds.includes(a.id) ? 0 : 1;
+      const bSel = tempSelectedBalanceAccountIds.includes(b.id) ? 0 : 1;
+      if (aSel !== bSel) return aSel - bSel;
+      return a.name.localeCompare(b.name);
+    });
+  }, [selectableAccounts, accountSearch, showSelectedOnly, tempSelectedBalanceAccountIds]);
+
+  const visibleOnBudgetAccounts = useMemo(() => {
+    const on = ACCOUNT_TYPE.ON_BUDGET.toLowerCase();
+    return visibleAccounts.filter(a => a.account_type.toLowerCase().startsWith(on));
+  }, [visibleAccounts]);
+
+  const visibleOffBudgetAccounts = useMemo(() => {
+    const off = ACCOUNT_TYPE.OFF_BUDGET.toLowerCase();
+    return visibleAccounts.filter(a => a.account_type.toLowerCase().startsWith(off));
+  }, [visibleAccounts]);
+
+  const openAccountSelector = () => {
+    setAccountSearch('');
+    setShowSelectedOnly(false);
+    setTempSelectedBalanceAccountIds(selectedBalanceAccountIds);
+    setShowAccountSelector(true);
+  };
+
+  const handleSaveSelection = () => {
+    setSelectedBalanceAccountIds(tempSelectedBalanceAccountIds);
+    try { localStorage.setItem('dashboard_total_balance_accounts', JSON.stringify(tempSelectedBalanceAccountIds)); } catch (_e) { void _e; }
+    setShowAccountSelector(false);
+  };
+
+  const handleCancelSelection = () => {
+    setShowAccountSelector(false);
+  };
 
   if (loading) {
     return <div>Loading dashboard...</div>;
@@ -343,7 +387,7 @@ const Dashboard = () => {
             <h2 style={{ margin: 0 }}>Total Balance</h2>
             <button
               className="button secondary"
-              onClick={() => setShowAccountSelector(s => !s)}
+              onClick={openAccountSelector}
               aria-label="Select accounts for Total Balance"
             >
               Select accounts
@@ -354,22 +398,111 @@ const Dashboard = () => {
             Using {selectedAccounts.length} of {selectableAccounts.length} accounts
           </div>
           {showAccountSelector && (
-            <div style={{ border: '1px solid var(--color-border, #ccc)', borderRadius: 8, padding: 8, marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                <button className="button small" onClick={selectAllAccounts}>Select All</button>
-                <button className="button small secondary" onClick={clearAllAccounts}>Clear</button>
-              </div>
-              {selectableAccounts.map(acc => (
-                <label key={acc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <div style={{ background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', borderRadius: 12, width: 'min(900px, 95vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border, #ccc)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <h3 style={{ margin: 0 }}>Select accounts for Total Balance</h3>
+                  <button className="button secondary" onClick={handleCancelSelection}>Close</button>
+                </div>
+                <div style={{ padding: 12, display: 'flex', gap: 12, alignItems: 'center', borderBottom: '1px solid var(--color-border, #ccc)' }}>
                   <input
-                    type="checkbox"
-                    checked={selectedBalanceAccountIds.includes(acc.id)}
-                    onChange={() => toggleSelectedAccount(acc.id)}
+                    type="text"
+                    value={accountSearch}
+                    onChange={(e) => setAccountSearch(e.target.value)}
+                    placeholder="Search accounts..."
+                    style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--color-border, #ccc)' }}
                   />
-                  <span style={{ flex: 1 }}>{acc.name}</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.8 }}>{acc.balance.toFixed(2)}</span>
-                </label>
-              ))}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input type="checkbox" checked={showSelectedOnly} onChange={(e) => setShowSelectedOnly(e.target.checked)} />
+                    Selected only
+                  </label>
+                  <button className="button small" onClick={selectAllAccounts}>Select All</button>
+                  <button className="button small secondary" onClick={clearAllAccounts}>Clear</button>
+                </div>
+                <div style={{ padding: '8px 16px', overflowY: 'auto' }}>
+                  {visibleAccounts.length === 0 ? (
+                    <p style={{ opacity: 0.8 }}>No accounts match your search.</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <h4 style={{ margin: 0 }}>On Budget</h4>
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--color-border, #ccc)' }}>Select</th>
+                              <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--color-border, #ccc)' }}>Account</th>
+                              <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid var(--color-border, #ccc)' }}>Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleOnBudgetAccounts.length === 0 ? (
+                              <tr>
+                                <td colSpan={3} style={{ padding: '8px', opacity: 0.8 }}>No on-budget accounts.</td>
+                              </tr>
+                            ) : (
+                              visibleOnBudgetAccounts.map(acc => (
+                                <tr key={acc.id} style={{ borderBottom: '1px solid var(--color-border, #eee)' }}>
+                                  <td style={{ padding: '6px 8px' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={tempSelectedBalanceAccountIds.includes(acc.id)}
+                                      onChange={() => toggleSelectedAccount(acc.id)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '6px 8px' }}>{acc.name}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', opacity: 0.9 }}>{acc.balance.toFixed(2)}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <h4 style={{ margin: 0 }}>Off Budget</h4>
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--color-border, #ccc)' }}>Select</th>
+                              <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--color-border, #ccc)' }}>Account</th>
+                              <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid var(--color-border, #ccc)' }}>Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleOffBudgetAccounts.length === 0 ? (
+                              <tr>
+                                <td colSpan={3} style={{ padding: '8px', opacity: 0.8 }}>No off-budget accounts.</td>
+                              </tr>
+                            ) : (
+                              visibleOffBudgetAccounts.map(acc => (
+                                <tr key={acc.id} style={{ borderBottom: '1px solid var(--color-border, #eee)' }}>
+                                  <td style={{ padding: '6px 8px' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={tempSelectedBalanceAccountIds.includes(acc.id)}
+                                      onChange={() => toggleSelectedAccount(acc.id)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '6px 8px' }}>{acc.name}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', opacity: 0.9 }}>{acc.balance.toFixed(2)}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: 12, borderTop: '1px solid var(--color-border, #ccc)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button className="button secondary" onClick={handleCancelSelection}>Cancel</button>
+                  <button className="button" onClick={handleSaveSelection}>Save</button>
+                </div>
+              </div>
             </div>
           )}
           <Link to="/accounts" className="card-link">View Accounts</Link>
