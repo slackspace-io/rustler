@@ -178,9 +178,9 @@ const Dashboard = () => {
     return acc ? acc.account_type.toLowerCase().startsWith(ACCOUNT_TYPE.ON_BUDGET.toLowerCase()) : false;
   };
 
-  // Income transactions: deposits (negative amounts) into On Budget accounts
+  // Income transactions: inflows (positive amounts) to On Budget destination accounts (align with TransactionsList)
   const incomeTransactions = useMemo(() =>
-    monthlyTransactionsMemo.filter(t => t.amount < 0 && isOnBudgetAccount(t.destination_account_id))
+    monthlyTransactionsMemo.filter(t => t.amount > 0 && isOnBudgetAccount(t.destination_account_id))
   , [monthlyTransactionsMemo, accounts]);
 
   // Expense transactions (positive amounts, excluding Initial Balance)
@@ -441,7 +441,8 @@ const Dashboard = () => {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Account</th>
+                    <th>Source</th>
+                    <th>Destination</th>
                     <th>Description</th>
                     <th>Category</th>
                     <th>Amount</th>
@@ -452,6 +453,7 @@ const Dashboard = () => {
                     <tr key={tx.id}>
                       <td>{new Date(tx.transaction_date).toLocaleDateString()}</td>
                       <td>{getAccountName(tx.source_account_id)}</td>
+                      <td>{tx.destination_account_id ? getAccountName(tx.destination_account_id) : (tx.destination_name || '-')}</td>
                       <td>{tx.description}</td>
                       <td>{tx.category}</td>
                       <td className={tx.amount < 0 ? 'positive' : 'negative'}>

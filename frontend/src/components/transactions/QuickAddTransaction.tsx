@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { transactionsApi, accountsApi, budgetsApi } from '../../services/api';
+import { ACCOUNT_TYPE } from '../../constants/accountTypes';
 import type { Account, Budget } from '../../services/api';
 import AccountInput from '../common/AccountInput';
 import CategoryInput from '../common/CategoryInput';
@@ -81,9 +82,10 @@ const QuickAddTransaction = () => {
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
 
-        // If there are accounts, preselect the first one
-        if (accountsData.length > 0) {
-          setSourceAccountId(accountsData[0].id);
+        // If there are on-budget accounts, preselect the first one
+        const onBudgetAccounts = accountsData.filter(a => a.account_type && a.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET));
+        if (onBudgetAccounts.length > 0) {
+          setSourceAccountId(onBudgetAccounts[0].id);
         }
 
         // Fetch budgets
@@ -192,7 +194,7 @@ const QuickAddTransaction = () => {
         {/* Source Account - Always required */}
         <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
           <AccountInput
-            accounts={accounts}
+            accounts={accounts.filter(a => a.account_type && a.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET))}
             value={sourceAccountId}
             onChange={setSourceAccountId}
             placeholder="Select Source Account"
