@@ -328,6 +328,9 @@ impl TransactionService {
             return Err(sqlx::Error::Protocol("Invalid transaction: source and destination accounts must differ".into()));
         }
 
+        // Normalize description by removing trailing whitespace before saving
+        let cleaned_description = req.description.trim_end().to_string();
+
         // Create the transaction record
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
@@ -340,7 +343,7 @@ impl TransactionService {
         .bind(req.source_account_id)
         .bind(destination_account_id)
         .bind(&destination_name)
-        .bind(&req.description)
+        .bind(&cleaned_description)
         .bind(req.amount)
         .bind(&req.category)
         .bind(category.id)
