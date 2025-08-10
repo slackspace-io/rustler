@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { budgetsApi, settingsApi, budgetGroupsApi } from '../../services/api';
 import type { Budget, MonthlyBudgetStatus, CategoryGroup as BudgetGroup } from '../../services/api';
+import './BudgetsList.css';
 
 interface BudgetWithSpent extends Budget {
   spent: number;

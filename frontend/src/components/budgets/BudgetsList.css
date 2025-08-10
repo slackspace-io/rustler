@@ -114,3 +114,70 @@
   color: var(--color-text-secondary);
   text-align: right;
 }
+
+/* Budget group headers and grouping styles */
+.budgets-grouped {
+  margin-top: 24px;
+}
+
+.budget-group {
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border, #e0e0e0);
+}
+
+.budget-group:first-child {
+  border-top: none;
+}
+
+.group-header {
+  margin-bottom: 8px;
+}
+
+.group-header h2 {
+  margin: 0;
+  font-size: 1.125rem; /* slightly larger than body, smaller than default h2 */
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+}
+
+.group-metrics {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+.group-metrics .group-total,
+.group-metrics .group-spent,
+.group-metrics .remaining-amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.group-metrics .remaining-amount {
+  font-weight: 600;
+  font-size: inherit; /* ensure same size as Total/Spent in group headers */
+}
+
+.group-description {
+  margin: 4px 0 12px;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.budget-group table {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.budget-group.drag-over {
+  background-color: var(--color-bg-hover, rgba(0,0,0,0.04));
+  transition: background-color 0.2s ease;
+}
+
+/* Ensure link values in summary boxes match paragraph value sizing */
+.summary-box a {
+  font-size: 1.8rem;
+  font-weight: bold;
+}
