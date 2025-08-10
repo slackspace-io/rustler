@@ -1,0 +1,28 @@
+changelog:
+  categories:
+    - title: 🚀 Features
+      labels:
+        - feat
+        - feature
+    - title: 🐛 Bug Fixes
+      labels:
+        - fix
+        - bug
+    - title: ⚡ Performance Improvements
+      labels:
+        - perf
+    - title: 🧰 Maintenance
+      labels:
+        - chore
+        - refactor
+        - ci
+        - build
+    - title: 📝 Documentation
+      labels:
+        - docs
+    - title: ✅ Tests
+      labels:
+        - test
+  exclude:
+    labels:
+      - skip-changelog
