@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import type React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { rulesApi } from '../../services/api';
-import type { Rule } from '../../services/api';
+import { rulesApi, ruleGroupsApi } from '../../services/api';
+import type { Rule, RuleGroup } from '../../services/api';
+import './Rules.css';
 
 const RulesList = () => {
   const [rules, setRules] = useState<Rule[]>([]);
@@ -10,6 +12,20 @@ const RulesList = () => {
   const [runningRules, setRunningRules] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Rule groups state
+  const [ruleGroups, setRuleGroups] = useState<RuleGroup[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDescription, setNewGroupDescription] = useState('');
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  // Drag-and-drop state for grouped visualization
+  const [draggedRule, setDraggedRule] = useState<Rule | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchRules = async () => {
@@ -26,7 +42,22 @@ const RulesList = () => {
       }
     };
 
+    const fetchGroups = async () => {
+      try {
+        setLoadingGroups(true);
+        const groups = await ruleGroupsApi.getRuleGroups();
+        setRuleGroups(groups);
+        setGroupsError(null);
+      } catch (err) {
+        console.error('Error fetching rule groups:', err);
+        setGroupsError('Failed to load rule groups.');
+      } finally {
+        setLoadingGroups(false);
+      }
+    };
+
     fetchRules();
+    fetchGroups();
   }, []);
 
   const handleToggleActive = async (rule: Rule) => {
@@ -92,6 +123,64 @@ const RulesList = () => {
     }
   };
 
+  const handleChangeRuleGroup = async (rule: Rule, newGroupId: string) => {
+    try {
+      const updated = await rulesApi.updateRule(rule.id, {
+        group_id: newGroupId || null,
+      });
+      setRules(prev => prev.map(r => (r.id === rule.id ? updated : r)));
+    } catch (err) {
+      console.error('Error updating rule group:', err);
+      setError('Failed to update rule group.');
+    }
+  };
+
+  // Helpers for grouped visualization and drag-and-drop
+
+  const handleDragStart = (rule: Rule) => (e: React.DragEvent<HTMLLIElement>) => {
+    setDraggedRule(rule);
+    try {
+      e.dataTransfer.setData('text/plain', rule.id);
+    } catch {
+      return; // ignore setData failures in some browsers/environments
+    }
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const rulesForGroup = (groupId: string | null) => {
+    return rules.filter(r => (r.group_id ?? null) === (groupId ?? null));
+  };
+
+  const handleDragOverGroup = (groupId: string | null) => (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOverGroupId(groupId);
+  };
+
+  const handleDragLeaveGroup = () => () => {
+    setDragOverGroupId(null);
+  };
+
+  const handleDropOnGroup = (groupId: string | null) => async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!draggedRule) return;
+    setIsUpdatingGroup(true);
+    try {
+      await handleChangeRuleGroup(draggedRule, groupId ?? '');
+    } finally {
+      setIsUpdatingGroup(false);
+      setDraggedRule(null);
+      setDragOverGroupId(null);
+    }
+  };
+
+  const toggleGroupCollapsed = (key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   if (loading) {
     return <div>Loading rules...</div>;
   }
@@ -115,6 +204,177 @@ const RulesList = () => {
       {error && <div className="error">{error}</div>}
       {successMessage && <div className="success">{successMessage}</div>}
 
+      <div className="panel">
+        <div className="header-with-button">
+          <h2>Rule Groups</h2>
+        </div>
+        {groupsError && <div className="error">{groupsError}</div>}
+        {loadingGroups ? (
+          <div>Loading groups...</div>
+        ) : (
+          <>
+            {ruleGroups.length === 0 ? (
+              <div className="empty-state">
+                <p>No rule groups yet.</p>
+              </div>
+            ) : (
+              <ul className="list">
+                {ruleGroups.map(group => (
+                  <li key={group.id} className="list-item">
+                    <div className="list-item-content">
+                      <div className="title">{group.name}</div>
+                      <div className="subtitle">{group.description || ''}</div>
+                    </div>
+                    <div className="actions">
+                      <button
+                        className="button small danger"
+                        onClick={async () => {
+                          if (window.confirm(`Delete group "${group.name}"?`)) {
+                            try {
+                              await ruleGroupsApi.deleteRuleGroup(group.id);
+                              setRuleGroups(prev => prev.filter(g => g.id !== group.id));
+                              // Clear group assignment for rules in this group locally
+                              setRules(prev => prev.map(r => r.group_id === group.id ? { ...r, group_id: undefined } : r));
+                            } catch (err) {
+                              console.error('Error deleting rule group:', err);
+                              setGroupsError('Failed to delete rule group.');
+                            }
+                          }
+                        }}
+                        title="Delete group"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form
+              className="inline-form"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  setCreatingGroup(true);
+                  const created = await ruleGroupsApi.createRuleGroup({ name: newGroupName.trim(), description: newGroupDescription.trim() || undefined });
+                  setRuleGroups(prev => [...prev, created]);
+                  setNewGroupName('');
+                  setNewGroupDescription('');
+                } catch (err) {
+                  console.error('Error creating rule group:', err);
+                  setGroupsError('Failed to create rule group.');
+                } finally {
+                  setCreatingGroup(false);
+                }
+              }}
+            >
+              <input
+                type="text"
+                placeholder="New group name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Description (optional)"
+                value={newGroupDescription}
+                onChange={(e) => setNewGroupDescription(e.target.value)}
+              />
+              <button className="button" disabled={creatingGroup || !newGroupName.trim()}>
+                {creatingGroup ? 'Creating...' : 'Create Group'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+
+      <div className="panel">
+        <div className="header-with-button">
+          <h2>Rules by Group</h2>
+          <div className="button-group">
+            <button
+              className="button small"
+              onClick={() => setCollapsedGroups(new Set(['UNGROUPED', ...ruleGroups.map(g => g.id)]))}
+              title="Collapse all groups"
+            >
+              Collapse All
+            </button>
+            <button
+              className="button small"
+              onClick={() => setCollapsedGroups(new Set())}
+              title="Expand all groups"
+            >
+              Expand All
+            </button>
+          </div>
+          {isUpdatingGroup && <span className="subtitle updating">Updating...</span>}
+        </div>
+        {/* Ungrouped section */}
+        <div
+          className={`group-section ${draggedRule && dragOverGroupId === null ? 'over' : ''}`}
+          onDragOver={handleDragOverGroup(null)}
+          onDrop={handleDropOnGroup(null)}
+          onDragLeave={handleDragLeaveGroup()}
+        >
+          <div className="group-header" onClick={() => toggleGroupCollapsed('UNGROUPED')}>
+            <strong>Ungrouped</strong>
+            <span>{rulesForGroup(null).length} rule(s)</span>
+          </div>
+          {!collapsedGroups.has('UNGROUPED') && (
+            <ul className="list">
+              {rulesForGroup(null).length === 0 ? (
+                <li className="list-item"><div className="subtitle">No rules</div></li>
+              ) : (
+                rulesForGroup(null).map(rule => (
+                  <li key={rule.id} className="list-item" draggable onDragStart={handleDragStart(rule)}>
+                    <div className="list-item-content">
+                      <div className="title"><Link to={`/rules/${rule.id}`}>{rule.name}</Link></div>
+                      <div className="subtitle">Priority: {rule.priority} • {rule.is_active ? 'Active' : 'Inactive'}</div>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
+        </div>
+        {/* Grouped sections */}
+        {ruleGroups.map(group => {
+          const key = group.id;
+          const over = draggedRule && dragOverGroupId === group.id;
+          return (
+            <div
+              key={group.id}
+              className={`group-section ${over ? 'over' : ''}`}
+              onDragOver={handleDragOverGroup(group.id)}
+              onDrop={handleDropOnGroup(group.id)}
+              onDragLeave={handleDragLeaveGroup()}
+            >
+              <div className="group-header" onClick={() => toggleGroupCollapsed(key)}>
+                <strong>{group.name}</strong>
+                <span>{rulesForGroup(group.id).length} rule(s)</span>
+              </div>
+              {!collapsedGroups.has(key) && (
+                <ul className="list">
+                  {rulesForGroup(group.id).length === 0 ? (
+                    <li className="list-item"><div className="subtitle">No rules</div></li>
+                  ) : (
+                    rulesForGroup(group.id).map(rule => (
+                      <li key={rule.id} className="list-item" draggable onDragStart={handleDragStart(rule)}>
+                        <div className="list-item-content">
+                          <div className="title"><Link to={`/rules/${rule.id}`}>{rule.name}</Link></div>
+                          <div className="subtitle">Priority: {rule.priority} • {rule.is_active ? 'Active' : 'Inactive'}</div>
+                        </div>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {rules.length === 0 ? (
         <div className="empty-state">
           <p>No rules found. Create your first rule to automate transaction categorization and more.</p>
@@ -130,6 +390,7 @@ const RulesList = () => {
                 <th>Name</th>
                 <th>Description</th>
                 <th>Priority</th>
+                <th>Group</th>
                 <th>Status</th>
                 <th>Conditions</th>
                 <th>Actions</th>
@@ -144,6 +405,17 @@ const RulesList = () => {
                   </td>
                   <td>{rule.description || '-'}</td>
                   <td>{rule.priority}</td>
+                  <td>
+                    <select
+                      value={rule.group_id || ''}
+                      onChange={(e) => handleChangeRuleGroup(rule, e.target.value)}
+                    >
+                      <option value="">None</option>
+                      {ruleGroups.map(group => (
+                        <option key={group.id} value={group.id}>{group.name}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td>
                     <span className={`status ${rule.is_active ? 'active' : 'inactive'}`}>
                       {rule.is_active ? 'Active' : 'Inactive'}

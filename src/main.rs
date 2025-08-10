@@ -136,6 +136,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Run migration to add budget groups functionality
     db::add_budget_groups_migration(&db_pool).await?;
 
+    // Run migration to add rule groups functionality
+    db::add_rule_groups(&db_pool).await?;
+
     // Run migration to add account_sub_type field and split account types
     db::add_account_sub_type(&db_pool).await?;
 
@@ -152,6 +155,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()).with_settings_service(settings_service.clone()));
     let budget_group_service = Arc::new(services::BudgetGroupService::new(db_pool.clone()));
     let rule_service = Arc::new(services::RuleService::new(db_pool.clone()));
+    let rule_group_service = Arc::new(services::RuleGroupService::new(db_pool.clone()));
     let import_service = Arc::new(services::FireflyImportService::new(db_pool.clone()));
 
     // Create transaction rule service that combines transaction service and rule service
@@ -176,6 +180,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         budget_service.clone(),
         budget_group_service.clone(),
         rule_service.clone(),
+        rule_group_service.clone(),
         import_service.clone(),
         settings_service.clone(),
         config.firefly_import,

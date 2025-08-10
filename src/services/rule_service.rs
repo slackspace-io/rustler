@@ -68,6 +68,7 @@ impl RuleService {
                 description: rule.description.clone(),
                 is_active: true,
                 priority: rule.priority,
+                group_id: None,
                 conditions_json: serde_json::to_string(&rule.conditions).unwrap_or_default(),
                 actions_json: serde_json::to_string(&rule.actions).unwrap_or_default(),
                 created_at: rule.created_at,
@@ -491,8 +492,8 @@ impl RuleService {
         // Create the rule
         let rule = sqlx::query_as::<_, Rule>(
             r#"
-            INSERT INTO rules (id, name, description, is_active, priority, conditions_json, actions_json, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO rules (id, name, description, is_active, priority, group_id, conditions_json, actions_json, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
             "#,
         )
@@ -501,6 +502,7 @@ impl RuleService {
         .bind(&req.description)
         .bind(req.is_active)
         .bind(priority)
+        .bind(&req.group_id)
         .bind(&conditions_json)
         .bind(&actions_json)
         .bind(now)
@@ -540,6 +542,10 @@ impl RuleService {
 
         if let Some(priority) = req.priority {
             params.push(format!("priority = {}", priority));
+        }
+
+        if let Some(group_id) = &req.group_id {
+            params.push(format!("group_id = '{}'", group_id));
         }
 
         if let Some(conditions) = &req.conditions {

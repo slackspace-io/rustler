@@ -74,6 +74,8 @@ pub struct Rule {
     pub is_active: bool,
     /// Priority of the rule (lower numbers have higher priority)
     pub priority: i32,
+    /// Optional rule group this rule belongs to
+    pub group_id: Option<Uuid>,
     /// Conditions for the rule (serialized as JSON)
     pub conditions_json: String,
     /// Actions for the rule (serialized as JSON)
@@ -95,6 +97,8 @@ pub struct CreateRuleRequest {
     pub is_active: bool,
     /// Priority of the rule (lower numbers have higher priority)
     pub priority: Option<i32>,
+    /// Optional rule group this rule belongs to
+    pub group_id: Option<Uuid>,
     /// Conditions for the rule
     pub conditions: Vec<RuleCondition>,
     /// Actions for the rule
@@ -112,6 +116,8 @@ pub struct UpdateRuleRequest {
     pub is_active: Option<bool>,
     /// Priority of the rule (lower numbers have higher priority)
     pub priority: Option<i32>,
+    /// Optional rule group this rule belongs to
+    pub group_id: Option<Uuid>,
     /// Conditions for the rule
     pub conditions: Option<Vec<RuleCondition>>,
     /// Actions for the rule
@@ -131,6 +137,8 @@ pub struct RuleResponse {
     pub is_active: bool,
     /// Priority of the rule (lower numbers have higher priority)
     pub priority: i32,
+    /// Optional rule group this rule belongs to
+    pub group_id: Option<Uuid>,
     /// Conditions for the rule
     pub conditions: Vec<RuleCondition>,
     /// Actions for the rule
@@ -153,6 +161,7 @@ impl Rule {
             description: self.description.clone(),
             is_active: self.is_active,
             priority: self.priority,
+            group_id: self.group_id,
             conditions,
             actions,
             created_at: self.created_at,

@@ -7,6 +7,14 @@ export interface CategoryGroup {
   updated_at: string;
 }
 
+export interface RuleGroup {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -77,6 +85,7 @@ export interface Rule {
   description?: string;
   is_active: boolean;
   priority: number;
+  group_id?: string;
   conditions: RuleCondition[];
   actions: RuleAction[];
   created_at: string;

@@ -8,6 +8,7 @@ mod web;
 mod category_spending;
 mod reports;
 mod rules;
+mod rule_groups;
 mod imports;
 mod settings;
 
@@ -27,6 +28,7 @@ pub fn create_router(
     budget_service: Arc<BudgetService>,
     budget_group_service: Arc<BudgetGroupService>,
     rule_service: Arc<RuleService>,
+    rule_group_service: Arc<RuleGroupService>,
     import_service: Arc<FireflyImportService>,
     settings_service: Arc<SettingsService>,
     firefly_import_enabled: bool,
@@ -41,6 +43,7 @@ pub fn create_router(
         .merge(category_spending::router(transaction_service.clone()))
         .merge(reports::router(transaction_service.clone()))
         .merge(rules::router(rule_service))
+        .merge(rule_groups::router(rule_group_service))
         .merge(settings::router(settings_service))
         .merge(features::router(firefly_import_enabled));
 
@@ -54,7 +57,7 @@ pub fn create_router(
 pub use web::router as web_router_impl;
 
 use std::sync::Arc;
-use crate::services::{AccountService, TransactionService, TransactionRuleService, CategoryService, CategoryGroupService, BudgetService, BudgetGroupService, RuleService, FireflyImportService, SettingsService};
+use crate::services::{AccountService, TransactionService, TransactionRuleService, CategoryService, CategoryGroupService, BudgetService, BudgetGroupService, RuleService, RuleGroupService, FireflyImportService, SettingsService};
 
 pub fn web_router(
     account_service: Arc<AccountService>,

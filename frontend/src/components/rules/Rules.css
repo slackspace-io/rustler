@@ -1,0 +1,48 @@
+.rules-list {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Panel and headers already share global styles (panel, header-with-button, button-group) */
+
+/* Rule Groups and Grouped Rules sections */
+.group-section {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background-color: transparent;
+  transition: var(--transition-standard);
+}
+
+.group-section.over {
+  background-color: var(--color-highlight);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  background-color: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border);
+  transition: var(--transition-standard);
+}
+
+.group-header strong {
+  flex: 1;
+}
+
+.group-header span {
+  color: var(--color-text-muted);
+}
+
+.group-section .list {
+  padding: 8px 12px;
+}
+
+/* Small subtitle badge e.g. Updating... */
+.subtitle.updating {
+  margin-left: 8px;
+  color: var(--color-text-muted);
+}

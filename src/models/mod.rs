@@ -7,6 +7,7 @@ mod budget_group;
 mod rule;
 mod settings;
 pub mod firefly_import;
+mod rule_group;
 
 pub use account::*;
 pub use transaction::*;
@@ -17,3 +18,4 @@ pub use budget_group::*;
 pub use rule::*;
 pub use settings::*;
 pub use firefly_import::*;
+pub use rule_group::*;

@@ -20,7 +20,8 @@ import type {
   ForecastedMonthlyIncomeResponse,
   SpendingReportRow,
   Features,
-  RuleTestResponse
+  RuleTestResponse,
+  RuleGroup
 } from './types.ts';
 
 // Re-export types for convenience
@@ -28,6 +29,7 @@ export type {
   Account,
   Category,
   CategoryGroup,
+  RuleGroup,
   Transaction,
   Budget,
   MonthlyBudgetStatus,
@@ -585,6 +587,49 @@ export const budgetsApi = {
   },
 };
 
+// API functions for rule groups
+export const ruleGroupsApi = {
+  // Get all rule groups
+  getRuleGroups: async (): Promise<RuleGroup[]> => {
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/rule-groups?${cacheBuster}`);
+    if (!response.ok) throw new Error('Failed to fetch rule groups');
+    return response.json();
+  },
+  // Create a new rule group
+  createRuleGroup: async (group: { name: string; description?: string }): Promise<RuleGroup> => {
+    const response = await fetch(`${API_BASE_URL}/rule-groups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(group),
+    });
+    if (!response.ok) throw new Error('Failed to create rule group');
+    return response.json();
+  },
+  // Update an existing rule group
+  updateRuleGroup: async (id: string, group: { name?: string; description?: string }): Promise<RuleGroup> => {
+    const response = await fetch(`${API_BASE_URL}/rule-groups/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(group),
+    });
+    if (!response.ok) throw new Error(`Failed to update rule group with ID ${id}`);
+    return response.json();
+  },
+  // Delete a rule group
+  deleteRuleGroup: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/rule-groups/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`Failed to delete rule group with ID ${id}`);
+  },
+  // Get rules in a specific group
+  getRulesByGroup: async (groupId: string): Promise<Rule[]> => {
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/rule-groups/${groupId}/rules?${cacheBuster}`);
+    if (!response.ok) throw new Error(`Failed to fetch rules for group with ID ${groupId}`);
+    return response.json();
+  },
+};
+
 // API functions for rules
 export const rulesApi = {
   // Get all rules
@@ -615,6 +660,7 @@ export const rulesApi = {
     description?: string;
     is_active: boolean;
     priority?: number;
+    group_id?: string | null;
     conditions: RuleCondition[];
     actions: RuleAction[];
   }): Promise<Rule> => {
@@ -637,6 +683,7 @@ export const rulesApi = {
     description?: string;
     is_active?: boolean;
     priority?: number;
+    group_id?: string | null;
     conditions?: RuleCondition[];
     actions?: RuleAction[];
   }): Promise<Rule> => {

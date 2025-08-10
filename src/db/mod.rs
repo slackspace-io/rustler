@@ -10,6 +10,7 @@ mod settings_migration;
 mod category_groups_migration;
 mod budget_groups_migration;
 mod account_sub_type_migration;
+mod rule_groups_migration;
 
 pub use migrations::run_migrations;
 pub use double_entry_migration::migrate_to_double_entry;
@@ -20,6 +21,7 @@ pub use settings_migration::add_settings_table;
 pub use category_groups_migration::add_category_groups;
 pub use budget_groups_migration::add_budget_groups as add_budget_groups_migration;
 pub use account_sub_type_migration::add_account_sub_type;
+pub use rule_groups_migration::add_rule_groups;
 
 /// Initialize a connection pool to the database
 pub async fn init_db_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
