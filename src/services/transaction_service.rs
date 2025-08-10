@@ -79,21 +79,21 @@ impl TransactionService {
             _ => "month",
         };
 
-        // Base query joins source accounts and optional category/group by matching category name
+        // Base query joins source accounts and optional category/group by matching category_id (stable)
         let mut query = format!(
             "SELECT to_char(date_trunc('{period}', t.transaction_date), 'YYYY-MM-DD') AS period,
                     {{name_expr}} AS name,
                     SUM(t.amount) AS total_amount
              FROM transactions t
              JOIN accounts src ON t.source_account_id = src.id
-             LEFT JOIN categories c ON c.name = t.category
+             LEFT JOIN categories c ON c.id = t.category_id
              LEFT JOIN category_groups cg ON cg.id = c.group_id
              WHERE src.account_type = 'On Budget' AND t.amount > 0",
             period = period_fn
         );
 
-        // Exclude transfers if present by category label
-        query.push_str(" AND (t.category IS NULL OR t.category NOT IN ('Transfer', 'Transfers'))");
+        // Exclude transfers if present by category label (coalesce current category name or legacy string)
+        query.push_str(" AND (COALESCE(c.name, t.category) IS NULL OR COALESCE(c.name, t.category) NOT IN ('Transfer', 'Transfers'))");
 
         if let Some(start) = start_date {
             query.push_str(&format!(" AND t.transaction_date >= '{}'", start));
@@ -114,6 +114,7 @@ impl TransactionService {
         if group_by_group {
             query = query.replace("{name_expr}", "COALESCE(cg.name, 'Ungrouped')");
         } else {
+            // Prefer current category name via join; fall back to legacy transaction category if id is null
             query = query.replace("{name_expr}", "COALESCE(c.name, t.category, 'Uncategorized')");
         }
 
@@ -139,20 +140,21 @@ impl TransactionService {
         end_date: Option<DateTime<Utc>>,
     ) -> Result<Vec<(String, f64)>, sqlx::Error> {
         let mut query = String::from(
-            "SELECT COALESCE(category, 'No category') as category, SUM(amount) as total_amount
-             FROM transactions
+            "SELECT COALESCE(c.name, t.category, 'No category') as category, SUM(t.amount) as total_amount
+             FROM transactions t
+             LEFT JOIN categories c ON c.id = t.category_id
              WHERE 1=1"
         );
 
         if let Some(start_date) = start_date {
-            query.push_str(&format!(" AND transaction_date >= '{}'", start_date));
+            query.push_str(&format!(" AND t.transaction_date >= '{}'", start_date));
         }
 
         if let Some(end_date) = end_date {
-            query.push_str(&format!(" AND transaction_date <= '{}'", end_date));
+            query.push_str(&format!(" AND t.transaction_date <= '{}'", end_date));
         }
 
-        query.push_str(" GROUP BY category ORDER BY total_amount DESC");
+        query.push_str(" GROUP BY 1 ORDER BY total_amount DESC");
 
         let rows = sqlx::query(&query)
             .fetch_all(&self.db)
@@ -184,8 +186,9 @@ impl TransactionService {
             query.push_str(&format!(" AND source_account_id = '{}'", source_account_id));
         }
 
-        if let Some(category) = category {
-            query.push_str(&format!(" AND category = '{}'", category));
+        if let Some(category_name) = category {
+            // Filter by resolved category name via join on category_id
+            query.push_str(&format!(" AND COALESCE((SELECT name FROM categories WHERE id = transactions.category_id), transactions.category) = '{}'", category_name.replace("'","''")));
         }
 
         if let Some(start_date) = start_date {
@@ -258,7 +261,7 @@ impl TransactionService {
         // Start a transaction to update both the transaction table and the account balance(s)
         let mut tx = self.db.begin().await?;
 
-        // Find or create the category
+        // Find or create the category and get its ID
         let category = self.category_service.find_or_create_category(&req.category).await?;
 
         // Determine if this is a transfer (destination matches an on or off budget account)
@@ -327,8 +330,8 @@ impl TransactionService {
         // Create the transaction record
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
-            INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, destination_name, description, amount, category, budget_id, transaction_date, created_at, updated_at)
-            VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            INSERT INTO transactions (id, account_id, source_account_id, destination_account_id, destination_name, description, amount, category, category_id, budget_id, transaction_date, created_at, updated_at)
+            VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
             "#,
         )
@@ -339,6 +342,7 @@ impl TransactionService {
         .bind(&req.description)
         .bind(req.amount)
         .bind(&req.category)
+        .bind(category.id)
         .bind(req.budget_id)
         .bind(transaction_date)
         .bind(now)
@@ -460,8 +464,15 @@ impl TransactionService {
                 params.push(format!("description = '{}'", description));
             }
 
-            if let Some(category) = &req.category {
-                params.push(format!("category = '{}'", category));
+            if let Some(category_name) = &req.category {
+                // Resolve category and set both legacy category name and stable category_id
+                if let Ok(cat) = self.category_service.find_or_create_category(category_name).await {
+                    params.push(format!("category = '{}'", category_name.replace("'", "''")));
+                    params.push(format!("category_id = '{}'", cat.id));
+                } else {
+                    // Fall back to just updating the legacy string if resolution fails
+                    params.push(format!("category = '{}'", category_name.replace("'", "''")));
+                }
             }
 
             if let Some(budget_id) = req.budget_id {

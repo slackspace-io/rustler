@@ -265,6 +265,42 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
         )
         .execute(pool)
         .await?;
+
+        // Backfill category_id from existing category names
+        info!("Backfilling transactions.category_id from category names...");
+        // Ensure categories exist for all names in transactions
+        let rows = sqlx::query("SELECT DISTINCT category FROM transactions")
+            .fetch_all(pool)
+            .await?;
+        let now = chrono::Utc::now();
+        for row in rows {
+            let cat_name: String = row.get(0);
+            // Insert if missing
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO categories (id, name, description, created_at, updated_at)
+                VALUES ($1, $2, NULL, $3, $4)
+                ON CONFLICT (name) DO NOTHING
+                "#,
+            )
+            .bind(uuid::Uuid::new_v4())
+            .bind(&cat_name)
+            .bind(now)
+            .bind(now)
+            .execute(pool)
+            .await;
+        }
+        // Now set category_id where possible
+        sqlx::query(
+            r#"
+            UPDATE transactions t
+            SET category_id = c.id
+            FROM categories c
+            WHERE t.category_id IS NULL AND t.category = c.name
+            "#,
+        )
+        .execute(pool)
+        .await?;
     }
 
     // Check if budgets table exists

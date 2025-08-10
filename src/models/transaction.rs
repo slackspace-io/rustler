@@ -18,8 +18,10 @@ pub struct Transaction {
     pub description: String,
     /// Amount of the transaction (always positive for transfers)
     pub amount: f64,
-    /// Category of the transaction (e.g., "Food", "Transportation", "Income", "Transfer")
+    /// Legacy category name stored on the transaction (kept for backward compatibility)
     pub category: String,
+    /// Stable category ID reference; used for linking to categories so renames do not break associations
+    pub category_id: Option<Uuid>,
     /// Optional budget ID this transaction is assigned to
     pub budget_id: Option<Uuid>,
     /// Date and time when the transaction occurred
@@ -41,6 +43,7 @@ pub struct CreateTransactionRequest {
     pub destination_name: Option<String>,
     pub description: String,
     pub amount: f64,
+    /// Category name to assign; the backend will resolve and store category_id
     pub category: String,
     /// Optional budget ID this transaction is assigned to
     pub budget_id: Option<Uuid>,
@@ -56,6 +59,7 @@ pub struct UpdateTransactionRequest {
     pub destination_name: Option<String>,
     pub description: Option<String>,
     pub amount: Option<f64>,
+    /// Category name to assign; the backend will resolve and store category_id
     pub category: Option<String>,
     /// Optional budget ID this transaction is assigned to
     pub budget_id: Option<Uuid>,

@@ -75,17 +75,17 @@ impl CategoryService {
 
     /// Update an existing category
     pub async fn update_category(&self, id: Uuid, req: UpdateCategoryRequest) -> Result<Option<Category>, sqlx::Error> {
-        // First, check if the category exists
-        let category = self.get_category(id).await?;
+        // First, check if the category exists and capture the original name
+        let existing = self.get_category(id).await?;
 
-        if let Some(_) = category {
+        if let Some(original) = existing {
             // Build the update query dynamically based on which fields are provided
             let mut query = String::from("UPDATE categories SET updated_at = $1");
             let mut params: Vec<String> = vec![];
             let now = chrono::Utc::now();
 
             if let Some(name) = &req.name {
-                params.push(format!("name = '{}'", name));
+                params.push(format!("name = '{}'", name.replace("'", "''")));
             }
 
             if let Some(description) = &req.description {
@@ -103,11 +103,32 @@ impl CategoryService {
 
             query.push_str(" WHERE id = $2 RETURNING *");
 
-            sqlx::query_as::<_, Category>(&query)
+            // Perform the category update
+            let updated = sqlx::query_as::<_, Category>(&query)
                 .bind(now)
                 .bind(id)
                 .fetch_optional(&self.db)
-                .await
+                .await?;
+
+            // If the name changed, retroactively link legacy transactions (with NULL category_id)
+            if let (Some(ref new_name), Some(ref updated_cat)) = (req.name.as_ref(), updated.as_ref()) {
+                if new_name.as_str() != original.name.as_str() {
+                    // Set category_id on transactions where category matches the old name and category_id is NULL
+                    let _ = sqlx::query(
+                        r#"
+                        UPDATE transactions t
+                        SET category_id = $1
+                        WHERE t.category_id IS NULL AND t.category = $2
+                        "#,
+                    )
+                    .bind(updated_cat.id)
+                    .bind(&original.name)
+                    .execute(&self.db)
+                    .await?;
+                }
+            }
+
+            Ok(updated)
         } else {
             Ok(None)
         }
