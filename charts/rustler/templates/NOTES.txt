@@ -1,0 +1,16 @@
+1. Get the application URL by running these commands:
+
+{{- if .Values.ingress.enabled }}
+  Ingress enabled, access via:
+  {{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+  {{- end }}
+{{- else }}
+  Export the service URL:
+  export SERVICE_IP=$(kubectl get svc {{ include "rustler.fullname" . }} -o jsonpath='{.spec.clusterIP}')
+  echo "Rustler service is listening on ${SERVICE_IP}:{{ .Values.service.port }}"
+{{- end }}
+
+2. Ensure DATABASE_URL is configured via a Secret:
+   - Using existing secret: {{ .Values.database.existingSecret | default "<not set>" }}
+   - Creating secret: {{ .Values.database.createSecret }} (name: {{ .Values.database.secretName }})

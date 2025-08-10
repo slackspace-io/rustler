@@ -1,0 +1,14 @@
+apiVersion: v2
+name: rustler
+description: A Helm chart for deploying the Rustler personal finance backend.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/yourusername/rustler
+sources:
+  - https://github.com/yourusername/rustler
+keywords:
+  - rust
+  - finance
+  - personal-finance
+kubeVersion: ">=1.22.0-0"

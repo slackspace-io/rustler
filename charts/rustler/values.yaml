@@ -1,0 +1,86 @@
+# Default values for rustler Helm chart.
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/yourusername/rustler
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 256Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: rustler.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: rustler-tls
+  #    hosts:
+  #      - rustler.local
+
+env:
+  HOST: "0.0.0.0"
+  PORT: 3000
+  RUST_LOG: "info"
+
+# Database configuration. Prefer using an existing secret for DATABASE_URL.
+database:
+  # Set to true to create a Secret from .Values.database.url
+  createSecret: false
+  # Name to give the created secret (if createSecret is true)
+  secretName: "rustler-db"
+  # Key within the secret for database URL
+  secretKey: "DATABASE_URL"
+  # The DATABASE_URL value (used only if createSecret is true)
+  url: ""
+  # If using an already-existing secret, set its name here (overrides createSecret)
+  existingSecret: ""
+
+# Extra environment variables (list of name/value or name/valueFrom objects)
+extraEnv: []
+  # - name: SOME_VAR
+  #   value: some-value
+
+# Extra environment variables from Secret/ConfigMap refs
+extraEnvFrom: []
+  # - secretRef:
+  #     name: my-secret
