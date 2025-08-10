@@ -79,21 +79,22 @@ impl TransactionService {
             _ => "month",
         };
 
-        // Base query joins source accounts and optional category/group by matching category_id (stable)
+        // Base query joins source accounts and resolves category/group either by category_id (preferred) or by legacy category name
         let mut query = format!(
             "SELECT to_char(date_trunc('{period}', t.transaction_date), 'YYYY-MM-DD') AS period,
                     {{name_expr}} AS name,
                     SUM(t.amount) AS total_amount
              FROM transactions t
              JOIN accounts src ON t.source_account_id = src.id
-             LEFT JOIN categories c ON c.id = t.category_id
-             LEFT JOIN category_groups cg ON cg.id = c.group_id
+             LEFT JOIN categories c_id ON c_id.id = t.category_id
+             LEFT JOIN categories c_name ON t.category_id IS NULL AND t.category IS NOT NULL AND c_name.name = t.category
+             LEFT JOIN category_groups cg ON cg.id = COALESCE(c_id.group_id, c_name.group_id)
              WHERE src.account_type = 'On Budget' AND t.amount > 0",
             period = period_fn
         );
 
         // Exclude transfers if present by category label (coalesce current category name or legacy string)
-        query.push_str(" AND (COALESCE(c.name, t.category) IS NULL OR COALESCE(c.name, t.category) NOT IN ('Transfer', 'Transfers'))");
+        query.push_str(" AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) NOT IN ('Transfer', 'Transfers'))");
 
         if let Some(start) = start_date {
             query.push_str(&format!(" AND t.transaction_date >= '{}'", start));
@@ -115,7 +116,7 @@ impl TransactionService {
             query = query.replace("{name_expr}", "COALESCE(cg.name, 'Ungrouped')");
         } else {
             // Prefer current category name via join; fall back to legacy transaction category if id is null
-            query = query.replace("{name_expr}", "COALESCE(c.name, t.category, 'Uncategorized')");
+            query = query.replace("{name_expr}", "COALESCE(c_id.name, c_name.name, t.category, 'Uncategorized')");
         }
 
         query.push_str(" GROUP BY 1, 2 ORDER BY 1, 2");
