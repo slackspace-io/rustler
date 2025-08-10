@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { budgetsApi, settingsApi } from '../../services/api';
-import type { Budget, MonthlyBudgetStatus } from '../../services/api';
+import { budgetsApi, settingsApi, budgetGroupsApi } from '../../services/api';
+import type { Budget, MonthlyBudgetStatus, CategoryGroup as BudgetGroup } from '../../services/api';
 
 interface BudgetWithSpent extends Budget {
   spent: number;
@@ -9,7 +9,9 @@ interface BudgetWithSpent extends Budget {
 
 const BudgetsList = () => {
   const [budgets, setBudgets] = useState<BudgetWithSpent[]>([]);
+  const [budgetGroups, setBudgetGroups] = useState<BudgetGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingGroups, setLoadingGroups] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalAllocated, setTotalAllocated] = useState(0);
   const [unbudgetedSpent, setUnbudgetedSpent] = useState(0);
@@ -18,6 +20,17 @@ const BudgetsList = () => {
   const [statusLoading, setStatusLoading] = useState(true);
   const [isEditingForecast, setIsEditingForecast] = useState(false);
   const [forecastedIncome, setForecastedIncome] = useState<string>('');
+
+  // New budget group form state
+  const [newGroupName, setNewGroupName] = useState<string>('');
+  const [newGroupDescription, setNewGroupDescription] = useState<string>('');
+  const [creatingGroup, setCreatingGroup] = useState<boolean>(false);
+  const [createGroupError, setCreateGroupError] = useState<string | null>(null);
+
+  // Drag & Drop state for moving budgets between groups
+  const [draggedBudget, setDraggedBudget] = useState<BudgetWithSpent | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null); // null => Ungrouped
+  const [isUpdatingGroup, setIsUpdatingGroup] = useState<boolean>(false);
 
   // Month navigation state
   const now = new Date();
@@ -98,6 +111,18 @@ const BudgetsList = () => {
       }
     };
 
+    const fetchBudgetGroups = async () => {
+      try {
+        setLoadingGroups(true);
+        const groups = await budgetGroupsApi.getBudgetGroups();
+        setBudgetGroups(groups);
+        setLoadingGroups(false);
+      } catch (err) {
+        console.error('Error fetching budget groups:', err);
+        setLoadingGroups(false);
+      }
+    };
+
     const fetchMonthlyStatus = async () => {
       try {
         setStatusLoading(true);
@@ -123,6 +148,7 @@ const BudgetsList = () => {
     };
 
     fetchBudgets();
+    fetchBudgetGroups();
     fetchMonthlyStatus();
     fetchUnbudgetedSpent();
   }, [selectedYear, selectedMonth]);
@@ -142,6 +168,104 @@ const BudgetsList = () => {
         setError('Failed to delete budget. Please try again later.');
         console.error('Error deleting budget:', err);
       }
+    }
+  };
+
+  // Create a new budget group from this page
+  const handleCreateBudgetGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Basic validation
+    if (!newGroupName.trim()) {
+      setCreateGroupError('Group name is required');
+      return;
+    }
+
+    try {
+      setCreatingGroup(true);
+      setCreateGroupError(null);
+
+      const created = await budgetGroupsApi.createBudgetGroup({
+        name: newGroupName.trim(),
+        description: newGroupDescription.trim() || undefined,
+      });
+
+      // Append to local group list
+      setBudgetGroups(prev => [...prev, created]);
+
+      // Reset form
+      setNewGroupName('');
+      setNewGroupDescription('');
+    } catch (err) {
+      console.error('Error creating budget group:', err);
+      setCreateGroupError('Failed to create budget group. Please try again.');
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  // Drag & Drop handlers for moving budgets between groups
+  const handleBudgetDragStart = (budget: BudgetWithSpent, e: React.DragEvent<HTMLTableRowElement>) => {
+    setDraggedBudget(budget);
+    e.dataTransfer.setData('text/plain', budget.id);
+    e.dataTransfer.setData('type', 'budget');
+    e.dataTransfer.effectAllowed = 'move';
+    if (e.currentTarget.classList) {
+      e.currentTarget.classList.add('dragging');
+    }
+  };
+
+  const handleBudgetDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    if (e.currentTarget.classList) {
+      e.currentTarget.classList.remove('dragging');
+    }
+    setDraggedBudget(null);
+    setDragOverGroupId(null);
+  };
+
+  const handleGroupDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleGroupDragEnter = (groupId: string | null, e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOverGroupId(groupId);
+  };
+
+  const handleGroupDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) {
+      return;
+    }
+    setDragOverGroupId(null);
+  };
+
+  const handleGroupDrop = async (groupId: string | null, e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOverGroupId(null);
+    const dataType = e.dataTransfer.getData('type');
+    if (dataType !== 'budget') return;
+    const budgetId = e.dataTransfer.getData('text/plain');
+    if (!budgetId || !draggedBudget) return;
+    if ((draggedBudget.group_id || null) === groupId) return;
+    await updateBudgetGroup(budgetId, groupId);
+  };
+
+  const updateBudgetGroup = async (budgetId: string, groupId: string | null) => {
+    try {
+      setIsUpdatingGroup(true);
+      // Update backend
+      const updated = await budgetsApi.updateBudget(budgetId, {
+        group_id: groupId || undefined,
+      });
+      // Update local budgets state
+      setBudgets(prev => prev.map(b => (b.id === budgetId ? { ...b, group_id: updated.group_id } : b)));
+    } catch (err) {
+      console.error('Error updating budget group:', err);
+      alert('Failed to move budget to the selected group.');
+    } finally {
+      setIsUpdatingGroup(false);
     }
   };
 
@@ -175,6 +299,30 @@ const BudgetsList = () => {
       <div className="header-actions">
         <h1>Budgets</h1>
         <Link to="/budgets/new" className="button">Add New Budget</Link>
+      </div>
+
+      {/* Quick create Budget Group */}
+      <div className="new-budget-group" style={{ margin: '16px 0' }}>
+        <h2 style={{ marginTop: 0 }}>Create Budget Group</h2>
+        {createGroupError && <div className="error">{createGroupError}</div>}
+        <form onSubmit={handleCreateBudgetGroup} style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="Group name"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Description (optional)"
+            value={newGroupDescription}
+            onChange={(e) => setNewGroupDescription(e.target.value)}
+          />
+          <button type="submit" className="button" disabled={creatingGroup}>
+            {creatingGroup ? 'Creating...' : 'Create Group'}
+          </button>
+        </form>
       </div>
 
       {/* Monthly Budget Status */}
@@ -301,60 +449,158 @@ const BudgetsList = () => {
         </div>
       </div>
 
-      {budgets.length === 0 ? (
+      {/* Loading overlay for drag-and-drop moves */}
+      {isUpdatingGroup && (
+        <div className="drag-loading-overlay">
+          <div className="drag-loading-message">Moving budget to new group...</div>
+        </div>
+      )}
+
+      {(loading || loadingGroups) ? (
+        <div>Loading budgets...</div>
+      ) : budgets.length === 0 ? (
         <p>No budgets found. Create your first budget to get started.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Amount</th>
-              <th>Spent</th>
-              <th>Remaining</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {budgets.map(budget => (
-              <tr key={budget.id}>
-                <td>
-                  <Link to={`/budgets/${budget.id}`}>{budget.name}</Link>
-                </td>
-                <td>{budget.amount.toFixed(2)}</td>
-                <td>
-                  {(() => {
-                    const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-                    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-                    const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-                    const link = `/transactions?start_date=${startDate}&end_date=${endDate}&budget_id=${budget.id}`;
-                    return (
-                      <Link to={link} title={`View transactions for ${budget.name} in ${getMonthName(selectedMonth)} ${selectedYear}`}>
-                        {budget.spent.toFixed(2)}
-                      </Link>
-                    );
-                  })()}
-                </td>
-                <td>{(budget.amount - budget.spent).toFixed(2)}</td>
-                <td>{formatDate(budget.start_date)}</td>
-                <td>{formatDate(budget.end_date)}</td>
-                <td>
-                  <div className="actions">
-                    <Link to={`/budgets/${budget.id}`} className="button small">View</Link>
-                    <Link to={`/budgets/${budget.id}/edit`} className="button small">Edit</Link>
-                    <button
-                      onClick={() => handleDeleteBudget(budget.id)}
-                      className="button small danger"
+        <div className="budgets-grouped">
+          {/* Ungrouped budgets */}
+          <div
+            className={`budget-group ${dragOverGroupId === null ? 'drag-over' : ''}`}
+            onDragOver={handleGroupDragOver}
+            onDragEnter={(e) => handleGroupDragEnter(null, e)}
+            onDragLeave={handleGroupDragLeave}
+            onDrop={(e) => handleGroupDrop(null, e)}
+          >
+            <h2>Ungrouped Budgets</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Amount</th>
+                  <th>Spent</th>
+                  <th>Remaining</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {budgets.filter(b => !b.group_id).length === 0 ? (
+                  <tr><td colSpan={7}>No ungrouped budgets</td></tr>
+                ) : (
+                  budgets.filter(b => !b.group_id).map(budget => (
+                    <tr
+                      key={budget.id}
+                      draggable
+                      onDragStart={(e) => handleBudgetDragStart(budget, e)}
+                      onDragEnd={handleBudgetDragEnd}
+                      className={draggedBudget?.id === budget.id ? 'dragging' : ''}
                     >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <td><Link to={`/budgets/${budget.id}`}>{budget.name}</Link></td>
+                      <td>{budget.amount.toFixed(2)}</td>
+                      <td>
+                        {(() => {
+                          const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+                          const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+                          const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                          const link = `/transactions?start_date=${startDate}&end_date=${endDate}&budget_id=${budget.id}`;
+                          return (
+                            <Link to={link} title={`View transactions for ${budget.name} in ${getMonthName(selectedMonth)} ${selectedYear}`}>
+                              {budget.spent.toFixed(2)}
+                            </Link>
+                          );
+                        })()}
+                      </td>
+                      <td>{(budget.amount - budget.spent).toFixed(2)}</td>
+                      <td>{formatDate(budget.start_date)}</td>
+                      <td>{formatDate(budget.end_date)}</td>
+                      <td>
+                        <div className="actions">
+                          <Link to={`/budgets/${budget.id}`} className="button small">View</Link>
+                          <Link to={`/budgets/${budget.id}/edit`} className="button small">Edit</Link>
+                          <button onClick={() => handleDeleteBudget(budget.id)} className="button small danger">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Budgets grouped by budget groups */}
+          {budgetGroups.map(group => {
+            const groupBudgets = budgets.filter(b => b.group_id === group.id);
+            return (
+              <div
+                key={group.id}
+                className={`budget-group ${dragOverGroupId === group.id ? 'drag-over' : ''}`}
+                onDragOver={handleGroupDragOver}
+                onDragEnter={(e) => handleGroupDragEnter(group.id, e)}
+                onDragLeave={handleGroupDragLeave}
+                onDrop={(e) => handleGroupDrop(group.id, e)}
+              >
+                <div className="group-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h2 style={{ margin: 0 }}>{group.name}</h2>
+                </div>
+                {group.description && <p className="group-description">{group.description}</p>}
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Amount</th>
+                      <th>Spent</th>
+                      <th>Remaining</th>
+                      <th>Start Date</th>
+                      <th>End Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupBudgets.length === 0 ? (
+                      <tr><td colSpan={7}>No budgets in this group</td></tr>
+                    ) : (
+                      groupBudgets.map(budget => (
+                        <tr
+                          key={budget.id}
+                          draggable
+                          onDragStart={(e) => handleBudgetDragStart(budget, e)}
+                          onDragEnd={handleBudgetDragEnd}
+                          className={draggedBudget?.id === budget.id ? 'dragging' : ''}
+                        >
+                          <td><Link to={`/budgets/${budget.id}`}>{budget.name}</Link></td>
+                          <td>{budget.amount.toFixed(2)}</td>
+                          <td>
+                            {(() => {
+                              const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+                              const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+                              const endDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                              const link = `/transactions?start_date=${startDate}&end_date=${endDate}&budget_id=${budget.id}`;
+                              return (
+                                <Link to={link} title={`View transactions for ${budget.name} in ${getMonthName(selectedMonth)} ${selectedYear}`}>
+                                  {budget.spent.toFixed(2)}
+                                </Link>
+                              );
+                            })()}
+                          </td>
+                          <td>{(budget.amount - budget.spent).toFixed(2)}</td>
+                          <td>{formatDate(budget.start_date)}</td>
+                          <td>{formatDate(budget.end_date)}</td>
+                          <td>
+                            <div className="actions">
+                              <Link to={`/budgets/${budget.id}`} className="button small">View</Link>
+                              <Link to={`/budgets/${budget.id}/edit`} className="button small">Edit</Link>
+                              <button onClick={() => handleDeleteBudget(budget.id)} className="button small danger">Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

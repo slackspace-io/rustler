@@ -80,8 +80,8 @@ impl BudgetService {
 
         let budget = sqlx::query_as::<_, Budget>(
             r#"
-            INSERT INTO budgets (id, name, description, amount, start_date, end_date, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO budgets (id, name, description, amount, start_date, end_date, group_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
             "#,
         )
@@ -91,6 +91,7 @@ impl BudgetService {
         .bind(req.amount)
         .bind(start_date)
         .bind(end_date)
+        .bind(req.group_id)
         .bind(now)
         .bind(now)
         .fetch_one(&self.db)
@@ -123,8 +124,9 @@ impl BudgetService {
                 amount = COALESCE($3, amount),
                 start_date = COALESCE($4, start_date),
                 end_date = $5,
-                updated_at = $6
-            WHERE id = $7
+                group_id = $6,
+                updated_at = $7
+            WHERE id = $8
             RETURNING *
             "#,
         )
@@ -133,6 +135,7 @@ impl BudgetService {
         .bind(req.amount)
         .bind(req.start_date)
         .bind(req.end_date) // We allow setting end_date to NULL
+        .bind(req.group_id)
         .bind(now)
         .bind(id)
         .fetch_one(&self.db)

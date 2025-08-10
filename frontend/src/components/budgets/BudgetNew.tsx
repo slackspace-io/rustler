@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { budgetsApi } from '../../services/api';
+import { budgetsApi, budgetGroupsApi } from '../../services/api';
+import type { CategoryGroup as BudgetGroup } from '../../services/api';
 
 const BudgetNew = () => {
   const navigate = useNavigate();
@@ -13,6 +14,27 @@ const BudgetNew = () => {
   const [amount, setAmount] = useState('0');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]); // Today's date in YYYY-MM-DD format
   const [endDate, setEndDate] = useState(''); // Empty string for no end date (ongoing budget)
+
+  // Budget groups
+  const [budgetGroups, setBudgetGroups] = useState<BudgetGroup[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState<boolean>(true);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        setGroupsLoading(true);
+        const groups = await budgetGroupsApi.getBudgetGroups();
+        setBudgetGroups(groups);
+      } catch (err) {
+        console.error('Error fetching budget groups:', err);
+      } finally {
+        setGroupsLoading(false);
+      }
+    };
+
+    fetchGroups();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +64,7 @@ const BudgetNew = () => {
         amount: parseFloat(amount),
         start_date: startDateISO,
         end_date: endDateISO,
+        group_id: selectedGroupId || undefined,
       });
 
       // Redirect to budgets list on success
@@ -97,6 +120,21 @@ const BudgetNew = () => {
               required
             />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="group">Budget Group (Optional)</label>
+          <select
+            id="group"
+            value={selectedGroupId}
+            onChange={(e) => setSelectedGroupId(e.target.value)}
+            disabled={groupsLoading}
+          >
+            <option value="">No Group</option>
+            {budgetGroups.map(group => (
+              <option key={group.id} value={group.id}>{group.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">

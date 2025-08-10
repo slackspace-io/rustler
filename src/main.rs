@@ -150,6 +150,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings_service = Arc::new(services::SettingsService::new(db_pool.clone()));
     // Wire settings service into budget service so forecasted monthly income works on budget page
     let budget_service = Arc::new(services::BudgetService::new(db_pool.clone()).with_settings_service(settings_service.clone()));
+    let budget_group_service = Arc::new(services::BudgetGroupService::new(db_pool.clone()));
     let rule_service = Arc::new(services::RuleService::new(db_pool.clone()));
     let import_service = Arc::new(services::FireflyImportService::new(db_pool.clone()));
 
@@ -173,6 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         category_service.clone(),
         category_group_service.clone(),
         budget_service.clone(),
+        budget_group_service.clone(),
         rule_service.clone(),
         import_service.clone(),
         settings_service.clone(),

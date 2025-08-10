@@ -18,6 +18,8 @@ pub struct Budget {
     pub start_date: DateTime<Utc>,
     /// End date of the budget period
     pub end_date: Option<DateTime<Utc>>,
+    /// Group this budget belongs to (optional)
+    pub group_id: Option<Uuid>,
     /// When the budget was created
     pub created_at: DateTime<Utc>,
     /// When the budget was last updated
@@ -32,6 +34,7 @@ pub struct CreateBudgetRequest {
     pub amount: f64,
     pub start_date: DateTime<Utc>,
     pub end_date: Option<DateTime<Utc>>,
+    pub group_id: Option<Uuid>,
 }
 
 /// Data required to update an existing budget
@@ -42,4 +45,5 @@ pub struct UpdateBudgetRequest {
     pub amount: Option<f64>,
     pub start_date: Option<DateTime<Utc>>,
     pub end_date: Option<DateTime<Utc>>,
+    pub group_id: Option<Uuid>,
 }

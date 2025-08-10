@@ -414,6 +414,52 @@ export const categoryGroupsApi = {
   },
 };
 
+export const budgetGroupsApi = {
+  // Get all budget groups
+  getBudgetGroups: async (): Promise<CategoryGroup[]> => {
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budget-groups?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch budget groups');
+    }
+    return response.json();
+  },
+
+  // Create a new budget group
+  createBudgetGroup: async (budgetGroup: { name: string; description?: string }): Promise<CategoryGroup> => {
+    const response = await fetch(`${API_BASE_URL}/budget-groups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(budgetGroup),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create budget group');
+    }
+    return response.json();
+  },
+
+  // Update an existing budget group
+  updateBudgetGroup: async (id: string, budgetGroup: { name?: string; description?: string }): Promise<CategoryGroup> => {
+    const response = await fetch(`${API_BASE_URL}/budget-groups/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(budgetGroup),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to update budget group with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Delete a budget group
+  deleteBudgetGroup: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/budget-groups/${id}`, { method: 'DELETE' });
+    if (!response.ok) {
+      throw new Error(`Failed to delete budget group with ID ${id}`);
+    }
+  },
+};
+
 export const budgetsApi = {
   // Get all budgets
   getBudgets: async (): Promise<Budget[]> => {

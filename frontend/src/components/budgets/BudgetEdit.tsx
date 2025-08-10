@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { budgetsApi } from '../../services/api';
+import { budgetsApi, budgetGroupsApi } from '../../services/api';
+import type { CategoryGroup as BudgetGroup } from '../../services/api';
 
 const BudgetEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,13 +17,24 @@ const BudgetEdit = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Budget groups
+  const [budgetGroups, setBudgetGroups] = useState<BudgetGroup[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState<boolean>(true);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+
   useEffect(() => {
-    const fetchBudget = async () => {
+    const fetchBudgetAndGroups = async () => {
       if (!id) return;
 
       try {
         setLoading(true);
-        const budget = await budgetsApi.getBudget(id);
+        setGroupsLoading(true);
+        // Fetch groups and budget in parallel
+        const [groups, budget] = await Promise.all([
+          budgetGroupsApi.getBudgetGroups(),
+          budgetsApi.getBudget(id)
+        ]);
+        setBudgetGroups(groups);
 
         // Initialize form with budget data
         setName(budget.name);
@@ -37,16 +49,19 @@ const BudgetEdit = () => {
 
         setStartDate(formatDateForInput(budget.start_date));
         setEndDate(formatDateForInput(budget.end_date));
+        setSelectedGroupId(budget.group_id || '');
 
         setLoading(false);
+        setGroupsLoading(false);
       } catch (err) {
         setError('Failed to fetch budget details. Please try again later.');
         setLoading(false);
-        console.error('Error fetching budget:', err);
+        setGroupsLoading(false);
+        console.error('Error fetching budget/groups:', err);
       }
     };
 
-    fetchBudget();
+    fetchBudgetAndGroups();
   }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,6 +94,7 @@ const BudgetEdit = () => {
         amount: parseFloat(amount),
         start_date: startDateISO,
         end_date: endDateISO,
+        group_id: selectedGroupId || undefined,
       });
 
       // Redirect to budget view on success
@@ -142,6 +158,21 @@ const BudgetEdit = () => {
               required
             />
           </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="group">Budget Group (Optional)</label>
+          <select
+            id="group"
+            value={selectedGroupId}
+            onChange={(e) => setSelectedGroupId(e.target.value)}
+            disabled={groupsLoading}
+          >
+            <option value="">No Group</option>
+            {budgetGroups.map(group => (
+              <option key={group.id} value={group.id}>{group.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">

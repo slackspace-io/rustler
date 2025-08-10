@@ -122,6 +122,7 @@ export interface Budget {
   amount: number;
   start_date: string;
   end_date?: string;
+  group_id?: string;
   created_at: string;
   updated_at: string;
 }
