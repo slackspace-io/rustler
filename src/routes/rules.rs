@@ -9,7 +9,7 @@ use uuid::Uuid;
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 
-use crate::models::{CreateRuleRequest, UpdateRuleRequest, RuleResponse};
+use crate::models::{CreateRuleRequest, UpdateRuleRequest, RuleResponse, RuleCondition, Transaction};
 use crate::services::RuleService;
 
 
@@ -19,6 +19,8 @@ pub fn router(rule_service: Arc<RuleService>) -> Router {
         .route("/rules", post(create_rule))
         .route("/rules/run", post(run_all_rules))
         .route("/rules/{id}/run", post(run_rule))
+        .route("/rules/test", post(test_rule_conditions))
+        .route("/rules/{id}/test", post(test_rule_by_id))
         .route("/rules/{id}", get(get_rule))
         .route("/rules/{id}", put(update_rule))
         .route("/rules/{id}", delete(delete_rule))
@@ -118,6 +120,19 @@ struct RuleExecutionResponse {
     message: String,
 }
 
+// Request payload to test rule conditions
+#[derive(Deserialize)]
+struct RuleTestRequest {
+    conditions: Vec<RuleCondition>,
+}
+
+// Response for testing rule conditions
+#[derive(Serialize)]
+struct RuleTestResponse {
+    total_matches: usize,
+    sample: Vec<Transaction>,
+}
+
 /// Handler to run all active rules on all transactions
 ///
 /// This endpoint allows manually running all active rules on all transactions.
@@ -157,6 +172,47 @@ async fn run_all_rules(
 /// want to apply the changes to existing transactions.
 ///
 /// Returns the number of transactions that were affected by the rule.
+/// Handler to test rule conditions against transactions (payload-based)
+async fn test_rule_conditions(
+    State(state): State<Arc<RuleService>>,
+    Json(payload): Json<RuleTestRequest>,
+) -> Result<Json<RuleTestResponse>, StatusCode> {
+    // Accept empty conditions as matching none
+    let (total, sample) = match state.test_conditions(payload.conditions).await {
+        Ok(res) => res,
+        Err(err) => {
+            eprintln!("Error testing rule conditions: {:?}", err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    Ok(Json(RuleTestResponse { total_matches: total, sample }))
+}
+
+/// Handler to test an existing rule's conditions by ID
+async fn test_rule_by_id(
+    Path(id): Path<Uuid>,
+    State(state): State<Arc<RuleService>>,
+) -> Result<Json<RuleTestResponse>, StatusCode> {
+    let rule = match state.get_rule(id).await {
+        Ok(Some(rule)) => rule,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(err) => {
+            eprintln!("Error retrieving rule {}: {:?}", id, err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let (total, sample) = match state.test_conditions(rule.conditions).await {
+        Ok(res) => res,
+        Err(err) => {
+            eprintln!("Error testing rule {} conditions: {:?}", id, err);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    Ok(Json(RuleTestResponse { total_matches: total, sample }))
+}
+
 async fn run_rule(
     Path(id): Path<Uuid>,
     State(state): State<Arc<RuleService>>,

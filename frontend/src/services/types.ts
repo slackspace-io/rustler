@@ -19,6 +19,7 @@ export interface Category {
 // String literal types for rule condition types
 export type ConditionType =
   | 'description_contains'
+  | 'description_starts_with'
   | 'description_equals'
   | 'source_account_equals'
   | 'destination_account_equals'
@@ -31,6 +32,7 @@ export type ConditionType =
 // Constant values for condition types (for reference)
 export const ConditionTypes = {
   DescriptionContains: 'description_contains' as ConditionType,
+  DescriptionStartsWith: 'description_starts_with' as ConditionType,
   DescriptionEquals: 'description_equals' as ConditionType,
   SourceAccountEquals: 'source_account_equals' as ConditionType,
   DestinationAccountEquals: 'destination_account_equals' as ConditionType,
@@ -105,6 +107,12 @@ export interface Transaction {
   budget_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+// Response for testing rule conditions
+export interface RuleTestResponse {
+  total_matches: number;
+  sample: Transaction[];
 }
 
 export interface Budget {

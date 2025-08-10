@@ -133,6 +133,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Run migration to add category groups functionality
     db::add_category_groups(&db_pool).await?;
 
+    // Run migration to add budget groups functionality
+    db::add_budget_groups_migration(&db_pool).await?;
+
     // Run migration to add account_sub_type field and split account types
     db::add_account_sub_type(&db_pool).await?;
 

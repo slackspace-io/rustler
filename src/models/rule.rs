@@ -9,6 +9,8 @@ use uuid::Uuid;
 pub enum ConditionType {
     /// Check if description contains a specific string
     DescriptionContains,
+    /// Check if description starts with a specific string
+    DescriptionStartsWith,
     /// Check if description matches a specific string exactly
     DescriptionEquals,
     /// Check if source account ID matches

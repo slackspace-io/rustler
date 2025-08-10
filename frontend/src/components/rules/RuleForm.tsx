@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   accountsApi,
   budgetsApi,
-  categoriesApi
+  categoriesApi,
+  rulesApi
 } from '../../services/api';
 import type {
   Rule,
@@ -54,6 +55,21 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
   // Form state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Test conditions state
+  const [testLoading, setTestLoading] = useState(false);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [testTotal, setTestTotal] = useState<number | null>(null);
+  const [testSample, setTestSample] = useState<RuleFormTransactionSample[]>([]);
+
+  interface RuleFormTransactionSample {
+    id: string;
+    description: string;
+    amount: number;
+    transaction_date: string;
+    destination_name?: string;
+    category: string;
+  }
 
   // Load initial data if in edit mode
   useEffect(() => {
@@ -111,6 +127,34 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
     const updatedConditions = [...conditions];
     updatedConditions.splice(index, 1);
     setConditions(updatedConditions);
+  };
+
+  // Test conditions handler
+  const handleTestConditions = async () => {
+    try {
+      setTestLoading(true);
+      setTestError(null);
+      setTestTotal(null);
+      setTestSample([]);
+
+      const res = await rulesApi.testConditions(conditions);
+      setTestTotal(res.total_matches);
+      // Map to a small subset of fields for display
+      const sample = res.sample.map(tx => ({
+        id: tx.id,
+        description: tx.description,
+        amount: tx.amount,
+        transaction_date: tx.transaction_date,
+        destination_name: tx.destination_name,
+        category: tx.category,
+      }));
+      setTestSample(sample);
+    } catch (err) {
+      console.error('Error testing conditions:', err);
+      setTestError('Failed to test conditions. Please try again.');
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   // Add a new action
@@ -183,6 +227,8 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
     switch (type) {
       case 'description_contains':
         return 'Description contains';
+      case 'description_starts_with':
+        return 'Description starts with';
       case 'description_equals':
         return 'Description equals';
       case 'source_account_equals':
@@ -399,6 +445,7 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
                 onChange={(e) => setNewConditionType(e.target.value as ConditionType)}
               >
                 <option value="description_contains">Description contains</option>
+                <option value="description_starts_with">Description starts with</option>
                 <option value="description_equals">Description equals</option>
                 <option value="source_account_equals">Source account equals</option>
                 <option value="destination_account_equals">Destination account equals</option>
@@ -474,6 +521,57 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Test Conditions Section */}
+        <div className="rule-section">
+          <h2>Test Conditions</h2>
+          <p className="section-description">See how many transactions would match these conditions and preview a sample of the first 100 (most recent first).</p>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <button
+              type="button"
+              className="button"
+              onClick={handleTestConditions}
+              disabled={testLoading || conditions.length === 0}
+            >
+              {testLoading ? 'Testing…' : 'Test Conditions'}
+            </button>
+            {conditions.length === 0 && (
+              <small>Add at least one condition to enable testing.</small>
+            )}
+          </div>
+          {testError && <div className="error">{testError}</div>}
+          {typeof testTotal === 'number' && (
+            <div className="info" style={{ marginBottom: '0.5rem' }}>
+              Total matches: <strong>{testTotal}</strong>
+            </div>
+          )}
+          {testSample.length > 0 && (
+            <div className="sample-list" style={{ overflowX: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Destination</th>
+                    <th>Category</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {testSample.map((tx) => (
+                    <tr key={tx.id}>
+                      <td>{new Date(tx.transaction_date).toLocaleDateString()}</td>
+                      <td>{tx.description}</td>
+                      <td>{tx.destination_name || ''}</td>
+                      <td>{tx.category}</td>
+                      <td style={{ textAlign: 'right' }}>{tx.amount.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="form-actions">

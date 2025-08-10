@@ -19,7 +19,8 @@ import type {
   ImportResult,
   ForecastedMonthlyIncomeResponse,
   SpendingReportRow,
-  Features
+  Features,
+  RuleTestResponse
 } from './types.ts';
 
 // Re-export types for convenience
@@ -39,7 +40,8 @@ export type {
   FireflyImportOptions,
   ImportResult,
   ForecastedMonthlyIncomeResponse,
-  SpendingReportRow
+  SpendingReportRow,
+  RuleTestResponse
 };
 
 // Reports API
@@ -633,6 +635,28 @@ export const rulesApi = {
     });
     if (!response.ok) {
       throw new Error(`Failed to run rule with ID ${id}`);
+    }
+    return response.json();
+  },
+
+  // Test conditions (without saving a rule)
+  testConditions: async (conditions: RuleCondition[]): Promise<RuleTestResponse> => {
+    const response = await fetch(`${API_BASE_URL}/rules/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conditions }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to test rule conditions');
+    }
+    return response.json();
+  },
+
+  // Test an existing rule's conditions by ID
+  testRule: async (id: string): Promise<RuleTestResponse> => {
+    const response = await fetch(`${API_BASE_URL}/rules/${id}/test`, { method: 'POST' });
+    if (!response.ok) {
+      throw new Error(`Failed to test rule with ID ${id}`);
     }
     return response.json();
   },

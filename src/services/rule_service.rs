@@ -108,6 +108,9 @@ impl RuleService {
                     ConditionType::DescriptionContains => {
                         transaction.description.to_lowercase().contains(&condition.value.to_lowercase())
                     },
+                    ConditionType::DescriptionStartsWith => {
+                        transaction.description.to_lowercase().starts_with(&condition.value.to_lowercase())
+                    },
                     ConditionType::DescriptionEquals => {
                         transaction.description.to_lowercase() == condition.value.to_lowercase()
                     },
@@ -291,6 +294,9 @@ impl RuleService {
                     match condition.condition_type {
                         ConditionType::DescriptionContains => {
                             transaction.description.to_lowercase().contains(&condition.value.to_lowercase())
+                        },
+                        ConditionType::DescriptionStartsWith => {
+                            transaction.description.to_lowercase().starts_with(&condition.value.to_lowercase())
                         },
                         ConditionType::DescriptionEquals => {
                             transaction.description.to_lowercase() == condition.value.to_lowercase()
@@ -639,6 +645,9 @@ impl RuleService {
                     ConditionType::DescriptionContains => {
                         transaction.description.to_lowercase().contains(&condition.value.to_lowercase())
                     },
+                    ConditionType::DescriptionStartsWith => {
+                        transaction.description.to_lowercase().starts_with(&condition.value.to_lowercase())
+                    },
                     ConditionType::DescriptionEquals => {
                         transaction.description.to_lowercase() == condition.value.to_lowercase()
                     },
@@ -719,5 +728,75 @@ impl RuleService {
         } else {
             Ok(None)
         }
+    }
+
+    /// Test a set of conditions against all transactions and return total matches and a sample (first 100 by date desc)
+    pub async fn test_conditions(&self, conditions: Vec<RuleCondition>) -> Result<(usize, Vec<Transaction>), sqlx::Error> {
+        // Fetch all transactions ordered by most recent first for a helpful sample
+        let transactions = sqlx::query_as::<_, Transaction>("SELECT * FROM transactions ORDER BY transaction_date DESC")
+            .fetch_all(&self.db)
+            .await?;
+
+        let mut matched: Vec<Transaction> = Vec::new();
+
+        for transaction in transactions.into_iter() {
+            let all_match = conditions.iter().all(|condition| {
+                match condition.condition_type {
+                    ConditionType::DescriptionContains => {
+                        transaction.description.to_lowercase().contains(&condition.value.to_lowercase())
+                    },
+                    ConditionType::DescriptionStartsWith => {
+                        transaction.description.to_lowercase().starts_with(&condition.value.to_lowercase())
+                    },
+                    ConditionType::DescriptionEquals => {
+                        transaction.description.to_lowercase() == condition.value.to_lowercase()
+                    },
+                    ConditionType::SourceAccountEquals => {
+                        transaction.source_account_id.to_string() == condition.value
+                    },
+                    ConditionType::DestinationAccountEquals => {
+                        transaction.destination_account_id.to_string() == condition.value
+                    },
+                    ConditionType::DestinationNameContains => {
+                        match &transaction.destination_name {
+                            Some(name) => name.to_lowercase().contains(&condition.value.to_lowercase()),
+                            None => false,
+                        }
+                    },
+                    ConditionType::DestinationNameEquals => {
+                        match &transaction.destination_name {
+                            Some(name) => name.to_lowercase() == condition.value.to_lowercase(),
+                            None => false,
+                        }
+                    },
+                    ConditionType::AmountGreaterThan => {
+                        match condition.value.parse::<f64>() {
+                            Ok(value) => transaction.amount > value,
+                            Err(_) => false,
+                        }
+                    },
+                    ConditionType::AmountLessThan => {
+                        match condition.value.parse::<f64>() {
+                            Ok(value) => transaction.amount < value,
+                            Err(_) => false,
+                        }
+                    },
+                    ConditionType::AmountEquals => {
+                        match condition.value.parse::<f64>() {
+                            Ok(value) => (transaction.amount - value).abs() < 0.001,
+                            Err(_) => false,
+                        }
+                    },
+                }
+            });
+
+            if all_match {
+                matched.push(transaction);
+            }
+        }
+
+        let total = matched.len();
+        let sample: Vec<Transaction> = matched.into_iter().take(100).collect();
+        Ok((total, sample))
     }
 }
