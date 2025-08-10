@@ -294,6 +294,12 @@ const BudgetsList = () => {
   const goPrevMonth = () => changeMonth(-1);
   const goNextMonth = () => changeMonth(1);
 
+  // Precompute ungrouped budgets for reuse
+  const ungroupedBudgets = budgets.filter(b => !b.group_id);
+  const ungroupedAmount = ungroupedBudgets.reduce((sum, b) => sum + b.amount, 0);
+  const ungroupedSpent = ungroupedBudgets.reduce((sum, b) => sum + (b.spent || 0), 0);
+  const ungroupedRemaining = ungroupedAmount - ungroupedSpent;
+
   return (
     <div className="budgets-list">
       <div className="header-actions">
@@ -470,7 +476,14 @@ const BudgetsList = () => {
             onDragLeave={handleGroupDragLeave}
             onDrop={(e) => handleGroupDrop(null, e)}
           >
-            <h2>Ungrouped Budgets</h2>
+            <div className="group-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0 }}>Ungrouped Budgets</h2>
+              <div className="group-metrics" style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+                <span className="group-total">Total: {ungroupedAmount.toFixed(2)}</span>
+                <span className="group-spent">Spent: {ungroupedSpent.toFixed(2)}</span>
+                <span className={`remaining-amount ${ungroupedRemaining >= 0 ? 'positive' : 'negative'}`}>Remaining: {ungroupedRemaining.toFixed(2)}</span>
+              </div>
+            </div>
             <table>
               <thead>
                 <tr>
@@ -530,6 +543,9 @@ const BudgetsList = () => {
           {/* Budgets grouped by budget groups */}
           {budgetGroups.map(group => {
             const groupBudgets = budgets.filter(b => b.group_id === group.id);
+            const groupAmount = groupBudgets.reduce((sum, b) => sum + b.amount, 0);
+            const groupSpent = groupBudgets.reduce((sum, b) => sum + (b.spent || 0), 0);
+            const groupRemaining = groupAmount - groupSpent;
             return (
               <div
                 key={group.id}
@@ -539,8 +555,13 @@ const BudgetsList = () => {
                 onDragLeave={handleGroupDragLeave}
                 onDrop={(e) => handleGroupDrop(group.id, e)}
               >
-                <div className="group-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="group-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                   <h2 style={{ margin: 0 }}>{group.name}</h2>
+                  <div className="group-metrics" style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+                    <span className="group-total">Total: {groupAmount.toFixed(2)}</span>
+                    <span className="group-spent">Spent: {groupSpent.toFixed(2)}</span>
+                    <span className={`remaining-amount ${groupRemaining >= 0 ? 'positive' : 'negative'}`}>Remaining: {groupRemaining.toFixed(2)}</span>
+                  </div>
                 </div>
                 {group.description && <p className="group-description">{group.description}</p>}
                 <table>

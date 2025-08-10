@@ -19,6 +19,15 @@ import type {
 
 interface RuleFormProps {
   initialRule?: Rule;
+  // Optional initial data for creating a new rule (used to prefill form when not editing)
+  initialCreateData?: {
+    name?: string;
+    description?: string;
+    is_active?: boolean;
+    priority?: number;
+    conditions?: RuleCondition[];
+    actions?: RuleAction[];
+  };
   isEditMode: boolean;
   onSubmit: (rule: {
     name: string;
@@ -30,7 +39,7 @@ interface RuleFormProps {
   }) => Promise<void>;
 }
 
-const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }) => {
+const RuleForm: React.FC<RuleFormProps> = ({ initialRule, initialCreateData, isEditMode, onSubmit }) => {
   const navigate = useNavigate();
 
   // Form state
@@ -82,6 +91,18 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, isEditMode, onSubmit }
       setActions(initialRule.actions);
     }
   }, [initialRule]);
+
+  // Load initial data for create mode if provided
+  useEffect(() => {
+    if (!initialRule && !isEditMode && initialCreateData) {
+      if (initialCreateData.name !== undefined) setName(initialCreateData.name);
+      if (initialCreateData.description !== undefined) setDescription(initialCreateData.description);
+      if (initialCreateData.is_active !== undefined) setIsActive(initialCreateData.is_active);
+      if (initialCreateData.priority !== undefined) setPriority(String(initialCreateData.priority));
+      if (initialCreateData.conditions !== undefined) setConditions(initialCreateData.conditions);
+      if (initialCreateData.actions !== undefined) setActions(initialCreateData.actions);
+    }
+  }, [initialCreateData, isEditMode, initialRule]);
 
   // Load reference data for dropdowns
   useEffect(() => {

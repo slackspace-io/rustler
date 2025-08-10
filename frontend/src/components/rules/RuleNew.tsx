@@ -1,10 +1,44 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { rulesApi } from '../../services/api';
-import type { RuleCondition, RuleAction, ConditionType, ActionType } from '../../services/api';
+import type { RuleCondition, RuleAction, ConditionType, ActionType, Transaction } from '../../services/api';
 import RuleForm from './RuleForm';
 
 const RuleNew = () => {
   const [error, setError] = useState<string | null>(null);
+  const location = useLocation() as { state?: { seedTransaction?: Transaction } };
+  const seedTransaction = location?.state?.seedTransaction as Transaction | undefined;
+
+  const initialCreateData = (() => {
+    if (!seedTransaction) return undefined;
+
+    const nameBase = seedTransaction.destination_name?.trim() || seedTransaction.description.trim();
+    const ruleName = `Rule for ${nameBase}`;
+
+    const conditions: RuleCondition[] = [];
+    if (seedTransaction.destination_name && seedTransaction.destination_name.trim().length > 0) {
+      conditions.push({ condition_type: 'destination_name_equals', value: seedTransaction.destination_name });
+    } else if (seedTransaction.description && seedTransaction.description.trim().length > 0) {
+      conditions.push({ condition_type: 'description_contains', value: seedTransaction.description });
+    }
+
+    const actions: RuleAction[] = [];
+    if (seedTransaction.category && seedTransaction.category.trim().length > 0) {
+      actions.push({ action_type: 'set_category', value: seedTransaction.category });
+    }
+    if (seedTransaction.budget_id) {
+      actions.push({ action_type: 'set_budget', value: seedTransaction.budget_id });
+    }
+
+    return {
+      name: ruleName,
+      description: '',
+      is_active: true,
+      priority: 100,
+      conditions,
+      actions,
+    };
+  })();
 
   const handleSubmit = async (rule: {
     name: string;
@@ -55,6 +89,7 @@ const RuleNew = () => {
       {error && <div className="error">{error}</div>}
       <RuleForm
         isEditMode={false}
+        initialCreateData={initialCreateData}
         onSubmit={handleSubmit}
       />
     </div>

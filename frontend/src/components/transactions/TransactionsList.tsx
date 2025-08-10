@@ -418,8 +418,9 @@ const TransactionsList = () => {
                     case 'actions':
                       return (
                         <td key={`${transaction.id}-actions`}>
-                          <div className="actions">
+                          <div className="actions" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <Link to={`/transactions/${transaction.id}/edit`} className="button small">Edit</Link>
+                            <Link to="/rules/new" state={{ seedTransaction: transaction }} className="button small">Create Rule</Link>
                             <button
                               onClick={() => handleDeleteTransaction(transaction.id)}
                               className="button small danger"

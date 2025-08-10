@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { accountsApi, reportsApi } from '../../services/api';
 import type { Account, SpendingReportRow } from '../../services/api';
 import { ACCOUNT_TYPE } from '../../constants/accountTypes';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
 import { useRechartsRedraw } from '../../hooks/useRechartsRedraw';
 
 // Minimal spending over time report UI
@@ -36,6 +36,91 @@ const SpendingOverTime = () => {
   const [displayMode, setDisplayMode] = useState<'summed' | 'individual'>('summed');
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
 
+  // Chart type state
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+
+  // Presets
+  type SavedPreset = {
+    id: string;
+    name: string;
+    selectedAccounts: string[];
+    group: boolean;
+    period: 'day' | 'week' | 'month';
+    startDate: string;
+    endDate: string;
+    selectedNames: string[];
+    chartType: 'line' | 'bar';
+    displayMode: 'summed' | 'individual';
+  };
+
+  const PRESETS_KEY = 'rustler:savedPresets:spendingOverTime';
+  const loadSavedPresets = (): SavedPreset[] => {
+    try {
+      const raw = localStorage.getItem(PRESETS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed as SavedPreset[] : [];
+    } catch (e) {
+      console.warn('Failed to load saved presets', e);
+      return [];
+    }
+  };
+  const saveSavedPresets = (items: SavedPreset[]) => {
+    try {
+      localStorage.setItem(PRESETS_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.warn('Failed to save presets', e);
+    }
+  };
+
+  const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
+  const [presetName, setPresetName] = useState<string>('');
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+
+  // Preset handlers
+  const handleSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    const preset: SavedPreset = {
+      id: String(Date.now()),
+      name,
+      selectedAccounts,
+      group,
+      period,
+      startDate,
+      endDate,
+      selectedNames,
+      chartType,
+      displayMode,
+    };
+    const next = [...savedPresets, preset];
+    setSavedPresets(next);
+    saveSavedPresets(next);
+    setPresetName('');
+  };
+
+  const handleApplyPreset = () => {
+    const p = savedPresets.find(x => x.id === selectedPresetId);
+    if (!p) return;
+    setSelectedAccounts(p.selectedAccounts);
+    setGroup(!!p.group);
+    setPeriod(p.period);
+    setStartDate(p.startDate);
+    setEndDate(p.endDate);
+    setSelectedNames(p.selectedNames || []);
+    setChartType(p.chartType || 'line');
+    setDisplayMode(p.displayMode || 'summed');
+    fetchReport();
+  };
+
+  const handleDeletePreset = () => {
+    if (!selectedPresetId) return;
+    const next = savedPresets.filter(x => x.id !== selectedPresetId);
+    setSavedPresets(next);
+    saveSavedPresets(next);
+    setSelectedPresetId('');
+  };
+
   // Load on-budget accounts by default and preselect all on-budget
   useEffect(() => {
     const load = async () => {
@@ -52,17 +137,11 @@ const SpendingOverTime = () => {
     load();
   }, []);
 
-  const fetchReport = async () => {
+  const fetchReportWith = async (params: { start_date: string; end_date: string; account_ids: string[]; group: boolean; period: 'day' | 'week' | 'month'; }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await reportsApi.getSpending({
-        start_date: startDate,
-        end_date: endDate,
-        account_ids: selectedAccounts,
-        group,
-        period,
-      });
+      const data = await reportsApi.getSpending(params);
       setRows(data);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to fetch report';
@@ -70,6 +149,16 @@ const SpendingOverTime = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchReport = async () => {
+    return fetchReportWith({
+      start_date: startDate,
+      end_date: endDate,
+      account_ids: selectedAccounts,
+      group,
+      period,
+    });
   };
 
   useEffect(() => {
@@ -114,6 +203,10 @@ const SpendingOverTime = () => {
       return intersect.length > 0 ? intersect : names;
     });
   }, [names]);
+
+  useEffect(() => {
+    setSavedPresets(loadSavedPresets());
+  }, []);
 
   const effectiveSelectedNames = selectedNames.length > 0 ? selectedNames : names;
 
@@ -247,6 +340,61 @@ const SpendingOverTime = () => {
         </div>
       </div>
 
+      <div className="chart-type" style={{ marginBottom: 16 }}>
+        <strong>Chart Type</strong>
+        <div>
+          <label style={{ marginRight: 12 }}>
+            <input
+              type="radio"
+              name="chartType"
+              value="line"
+              checked={chartType === 'line'}
+              onChange={() => setChartType('line')}
+            />{' '}
+            Line
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="chartType"
+              value="bar"
+              checked={chartType === 'bar'}
+              onChange={() => setChartType('bar')}
+            />{' '}
+            Bar
+          </label>
+        </div>
+      </div>
+
+      <div className="saved-presets" style={{ marginBottom: 16 }}>
+        <strong>Saved Configurations</strong>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
+          <input
+            type="text"
+            placeholder="Preset name"
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+          />
+          <button type="button" className="button small" onClick={handleSavePreset} disabled={!presetName.trim()}>
+            Save
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select value={selectedPresetId} onChange={(e) => setSelectedPresetId(e.target.value)}>
+            <option value="">Select a saved preset...</option>
+            {savedPresets.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <button type="button" className="button small" onClick={handleApplyPreset} disabled={!selectedPresetId}>
+            Apply
+          </button>
+          <button type="button" className="button small" onClick={handleDeletePreset} disabled={!selectedPresetId}>
+            Delete
+          </button>
+        </div>
+      </div>
+
       {error && <div className="error" style={{ color: 'var(--color-error, #c00)', marginBottom: 12 }}>{error}</div>}
       {loading && <div>Loading...</div>}
 
@@ -256,29 +404,46 @@ const SpendingOverTime = () => {
         <>
           <div className="chart-container" style={{ marginBottom: 16 }}>
             <ResponsiveContainer width="100%" height={360}>
-              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="period" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                {displayMode === 'individual' ? (
-                  effectiveSelectedNames.map((n, idx) => (
-                    <Line
-                      key={n}
-                      type="monotone"
-                      dataKey={n}
-                      name={n}
-                      stroke={getColor(idx)}
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 5 }}
-                    />
-                  ))
-                ) : (
-                  <Line type="monotone" dataKey="totalSelected" name="Total Spending" stroke="#8884d8" strokeWidth={2} activeDot={{ r: 6 }} />
-                )}
-              </LineChart>
+              {chartType === 'line' ? (
+                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {displayMode === 'individual' ? (
+                    effectiveSelectedNames.map((n, idx) => (
+                      <Line
+                        key={n}
+                        type="monotone"
+                        dataKey={n}
+                        name={n}
+                        stroke={getColor(idx)}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 5 }}
+                      />
+                    ))
+                  ) : (
+                    <Line type="monotone" dataKey="totalSelected" name="Total Spending" stroke="#8884d8" strokeWidth={2} activeDot={{ r: 6 }} />
+                  )}
+                </LineChart>
+              ) : (
+                <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {displayMode === 'individual' ? (
+                    effectiveSelectedNames.map((n, idx) => (
+                      <Bar key={n} dataKey={n} name={n} fill={getColor(idx)} />
+                    ))
+                  ) : (
+                    <Bar dataKey="totalSelected" name="Total Spending" fill="#8884d8" />
+                  )}
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </div>
 
