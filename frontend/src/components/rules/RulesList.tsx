@@ -20,6 +20,12 @@ const RulesList = () => {
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
+  // Inline edit state for rule groups (to mirror Categories UX)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupDescription, setEditGroupDescription] = useState('');
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [editGroupError, setEditGroupError] = useState<string | null>(null);
 
   // Drag-and-drop state for grouped visualization
   const [draggedRule, setDraggedRule] = useState<Rule | null>(null);
@@ -137,7 +143,7 @@ const RulesList = () => {
 
   // Helpers for grouped visualization and drag-and-drop
 
-  const handleDragStart = (rule: Rule) => (e: React.DragEvent<HTMLLIElement>) => {
+  const handleDragStart = (rule: Rule) => (e: React.DragEvent<HTMLElement>) => {
     setDraggedRule(rule);
     try {
       e.dataTransfer.setData('text/plain', rule.id);
@@ -221,31 +227,116 @@ const RulesList = () => {
               <ul className="list">
                 {ruleGroups.map(group => (
                   <li key={group.id} className="list-item">
-                    <div className="list-item-content">
-                      <div className="title">{group.name}</div>
-                      <div className="subtitle">{group.description || ''}</div>
-                    </div>
-                    <div className="actions">
-                      <button
-                        className="button small danger"
-                        onClick={async () => {
-                          if (window.confirm(`Delete group "${group.name}"?`)) {
-                            try {
-                              await ruleGroupsApi.deleteRuleGroup(group.id);
-                              setRuleGroups(prev => prev.filter(g => g.id !== group.id));
-                              // Clear group assignment for rules in this group locally
-                              setRules(prev => prev.map(r => r.group_id === group.id ? { ...r, group_id: undefined } : r));
-                            } catch (err) {
-                              console.error('Error deleting rule group:', err);
-                              setGroupsError('Failed to delete rule group.');
-                            }
+                    {editingGroupId === group.id ? (
+                      <form
+                        className="inline-form"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const trimmedName = editGroupName.trim();
+                          if (!trimmedName) {
+                            setEditGroupError('Group name is required');
+                            return;
+                          }
+                          const nameExists = ruleGroups.some(g => g.id !== group.id && g.name.toLowerCase() === trimmedName.toLowerCase());
+                          if (nameExists) {
+                            setEditGroupError('A group with this name already exists');
+                            return;
+                          }
+                          try {
+                            setSavingGroup(true);
+                            setEditGroupError(null);
+                            const updated = await ruleGroupsApi.updateRuleGroup(group.id, {
+                              name: trimmedName,
+                              description: editGroupDescription.trim() || undefined,
+                            });
+                            setRuleGroups(prev => prev.map(g => g.id === group.id ? updated : g));
+                            setEditingGroupId(null);
+                            setEditGroupName('');
+                            setEditGroupDescription('');
+                          } catch (err) {
+                            console.error('Error updating rule group:', err);
+                            setEditGroupError('Failed to update rule group');
+                          } finally {
+                            setSavingGroup(false);
                           }
                         }}
-                        title="Delete group"
                       >
-                        Delete
-                      </button>
-                    </div>
+                        <input
+                          type="text"
+                          placeholder="Group name"
+                          value={editGroupName}
+                          onChange={(e) => setEditGroupName(e.target.value)}
+                          required
+                        />
+                        <input
+                          type="text"
+                          placeholder="Description (optional)"
+                          value={editGroupDescription}
+                          onChange={(e) => setEditGroupDescription(e.target.value)}
+                        />
+                        {editGroupError && <div className="error">{editGroupError}</div>}
+                        <div className="button-group">
+                          <button className="button small" disabled={savingGroup} type="submit">
+                            {savingGroup ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            className="button small secondary"
+                            onClick={() => {
+                              setEditingGroupId(null);
+                              setEditGroupName('');
+                              setEditGroupDescription('');
+                              setEditGroupError(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div className="list-item-content">
+                          <div className="title">{group.name}</div>
+                          <div className="subtitle">{group.description || ''}</div>
+                        </div>
+                        <div className="actions">
+                          <button
+                            className="button small"
+                            onClick={() => {
+                              setEditingGroupId(group.id);
+                              setEditGroupName(group.name);
+                              setEditGroupDescription(group.description || '');
+                              setEditGroupError(null);
+                            }}
+                            title="Edit group"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="button small danger"
+                            onClick={async () => {
+                              if (window.confirm(`Delete group "${group.name}"?`)) {
+                                try {
+                                  await ruleGroupsApi.deleteRuleGroup(group.id);
+                                  setRuleGroups(prev => prev.filter(g => g.id !== group.id));
+                                  // Clear group assignment for rules in this group locally
+                                  setRules(prev => prev.map(r => r.group_id === group.id ? { ...r, group_id: undefined } : r));
+                                  if (editingGroupId === group.id) {
+                                    setEditingGroupId(null);
+                                  }
+                                } catch (err) {
+                                  console.error('Error deleting rule group:', err);
+                                  setGroupsError('Failed to delete rule group.');
+                                }
+                              }
+                            }}
+                            title="Delete group"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -312,30 +403,67 @@ const RulesList = () => {
         </div>
         {/* Ungrouped section */}
         <div
-          className={`group-section ${draggedRule && dragOverGroupId === null ? 'over' : ''}`}
+          className={`rules-group ${draggedRule && dragOverGroupId === null ? 'drag-over' : ''}`}
           onDragOver={handleDragOverGroup(null)}
           onDrop={handleDropOnGroup(null)}
           onDragLeave={handleDragLeaveGroup()}
         >
-          <div className="group-header" onClick={() => toggleGroupCollapsed('UNGROUPED')}>
-            <strong>Ungrouped</strong>
-            <span>{rulesForGroup(null).length} rule(s)</span>
+          <div className="group-header">
+            <h3>Ungrouped</h3>
+            <button
+              className="collapse-toggle"
+              onClick={() => toggleGroupCollapsed('UNGROUPED')}
+              title={collapsedGroups.has('UNGROUPED') ? 'Expand' : 'Collapse'}
+            >
+              {collapsedGroups.has('UNGROUPED') ? '▼' : '▲'}
+            </button>
           </div>
+          <div className="group-total">Rules: {rulesForGroup(null).length}</div>
           {!collapsedGroups.has('UNGROUPED') && (
-            <ul className="list">
-              {rulesForGroup(null).length === 0 ? (
-                <li className="list-item"><div className="subtitle">No rules</div></li>
-              ) : (
-                rulesForGroup(null).map(rule => (
-                  <li key={rule.id} className="list-item" draggable onDragStart={handleDragStart(rule)}>
-                    <div className="list-item-content">
-                      <div className="title"><Link to={`/rules/${rule.id}`}>{rule.name}</Link></div>
-                      <div className="subtitle">Priority: {rule.priority} • {rule.is_active ? 'Active' : 'Inactive'}</div>
-                    </div>
-                  </li>
-                ))
-              )}
-            </ul>
+            <div className="group-content">
+              <table className="rules-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rulesForGroup(null).length === 0 ? (
+                    <tr>
+                      <td colSpan={5}>No rules</td>
+                    </tr>
+                  ) : (
+                    rulesForGroup(null).map(rule => (
+                      <tr
+                        key={rule.id}
+                        draggable
+                        onDragStart={handleDragStart(rule)}
+                        className={draggedRule?.id === rule.id ? 'dragging' : ''}
+                      >
+                        <td><Link to={`/rules/${rule.id}`}>{rule.name}</Link></td>
+                        <td>{rule.description || '-'}</td>
+                        <td>{rule.priority}</td>
+                        <td>
+                          <span className={`status ${rule.is_active ? 'active' : 'inactive'}`}>
+                            {rule.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="row-actions">
+                            <Link to={`/rules/${rule.id}/edit`} className="button small">Edit</Link>
+                            <button className="button small danger" onClick={() => handleDelete(rule.id)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
         {/* Grouped sections */}
@@ -345,30 +473,68 @@ const RulesList = () => {
           return (
             <div
               key={group.id}
-              className={`group-section ${over ? 'over' : ''}`}
+              className={`rules-group ${over ? 'drag-over' : ''}`}
               onDragOver={handleDragOverGroup(group.id)}
               onDrop={handleDropOnGroup(group.id)}
               onDragLeave={handleDragLeaveGroup()}
             >
-              <div className="group-header" onClick={() => toggleGroupCollapsed(key)}>
-                <strong>{group.name}</strong>
-                <span>{rulesForGroup(group.id).length} rule(s)</span>
+              <div className="group-header">
+                <h3>{group.name}</h3>
+                <button
+                  className="collapse-toggle"
+                  onClick={() => toggleGroupCollapsed(key)}
+                  title={collapsedGroups.has(key) ? 'Expand' : 'Collapse'}
+                >
+                  {collapsedGroups.has(key) ? '▼' : '▲'}
+                </button>
               </div>
+              {group.description && <p className="group-description">{group.description}</p>}
+              <div className="group-total">Rules: {rulesForGroup(group.id).length}</div>
               {!collapsedGroups.has(key) && (
-                <ul className="list">
-                  {rulesForGroup(group.id).length === 0 ? (
-                    <li className="list-item"><div className="subtitle">No rules</div></li>
-                  ) : (
-                    rulesForGroup(group.id).map(rule => (
-                      <li key={rule.id} className="list-item" draggable onDragStart={handleDragStart(rule)}>
-                        <div className="list-item-content">
-                          <div className="title"><Link to={`/rules/${rule.id}`}>{rule.name}</Link></div>
-                          <div className="subtitle">Priority: {rule.priority} • {rule.is_active ? 'Active' : 'Inactive'}</div>
-                        </div>
-                      </li>
-                    ))
-                  )}
-                </ul>
+                <div className="group-content">
+                  <table className="rules-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rulesForGroup(group.id).length === 0 ? (
+                        <tr>
+                          <td colSpan={5}>No rules in this group</td>
+                        </tr>
+                      ) : (
+                        rulesForGroup(group.id).map(rule => (
+                          <tr
+                            key={rule.id}
+                            draggable
+                            onDragStart={handleDragStart(rule)}
+                            className={draggedRule?.id === rule.id ? 'dragging' : ''}
+                          >
+                            <td><Link to={`/rules/${rule.id}`}>{rule.name}</Link></td>
+                            <td>{rule.description || '-'}</td>
+                            <td>{rule.priority}</td>
+                            <td>
+                              <span className={`status ${rule.is_active ? 'active' : 'inactive'}`}>
+                                {rule.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="row-actions">
+                                <Link to={`/rules/${rule.id}/edit`} className="button small">Edit</Link>
+                                <button className="button small danger" onClick={() => handleDelete(rule.id)}>Delete</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           );
