@@ -129,6 +129,44 @@ const RulesList = () => {
     }
   };
 
+  // Run all active rules within a specific group (groupId or null for Ungrouped)
+  const handleRunRuleGroup = async (groupId: string | null, groupName: string) => {
+    try {
+      setRunningRules(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const groupRules = rulesForGroup(groupId);
+      if (groupRules.length === 0) {
+        setSuccessMessage(`No rules to run in group "${groupName}"`);
+        return;
+      }
+
+      let totalAffected = 0;
+      for (const r of groupRules) {
+        if (!r.is_active) continue; // Only run active rules, consistent with UI
+        try {
+          const res = await rulesApi.runRule(r.id);
+          totalAffected += res.affected_transactions || 0;
+        } catch (e) {
+          console.error(`Failed running rule ${r.id} in group ${groupName}:`, e);
+          // Continue running other rules but surface a generic error; success will still display aggregate
+        }
+      }
+
+      setSuccessMessage(
+        totalAffected > 0
+          ? `Successfully applied group "${groupName}" rules to ${totalAffected} transactions`
+          : `No transactions were affected by rules in group "${groupName}"`
+      );
+    } catch (err) {
+      console.error(`Error running group ${groupName}:`, err);
+      setError(`Failed to run rules for group "${groupName}". Please try again later.`);
+    } finally {
+      setRunningRules(false);
+    }
+  };
+
   const handleChangeRuleGroup = async (rule: Rule, newGroupId: string) => {
     try {
       const updated = await rulesApi.updateRule(rule.id, {
@@ -410,13 +448,23 @@ const RulesList = () => {
         >
           <div className="group-header">
             <h3>Ungrouped</h3>
-            <button
-              className="collapse-toggle"
-              onClick={() => toggleGroupCollapsed('UNGROUPED')}
-              title={collapsedGroups.has('UNGROUPED') ? 'Expand' : 'Collapse'}
-            >
-              {collapsedGroups.has('UNGROUPED') ? '▼' : '▲'}
-            </button>
+            <div className="button-group" style={{ marginLeft: 'auto' }}>
+              <button
+                className="button small secondary"
+                onClick={() => handleRunRuleGroup(null, 'Ungrouped')}
+                disabled={runningRules || rulesForGroup(null).every(r => !r.is_active)}
+                title="Run all rules in this group"
+              >
+                {runningRules ? 'Running…' : 'Run Group'}
+              </button>
+              <button
+                className="collapse-toggle"
+                onClick={() => toggleGroupCollapsed('UNGROUPED')}
+                title={collapsedGroups.has('UNGROUPED') ? 'Expand' : 'Collapse'}
+              >
+                {collapsedGroups.has('UNGROUPED') ? '▼' : '▲'}
+              </button>
+            </div>
           </div>
           <div className="group-total">Rules: {rulesForGroup(null).length}</div>
           {!collapsedGroups.has('UNGROUPED') && (
@@ -454,6 +502,23 @@ const RulesList = () => {
                         </td>
                         <td>
                           <div className="row-actions">
+                            <button
+                              onClick={() => handleToggleActive(rule)}
+                              className="button small"
+                              title={rule.is_active ? 'Deactivate' : 'Activate'}
+                            >
+                              {rule.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            {rule.is_active && (
+                              <button
+                                onClick={() => handleRunRule(rule.id, rule.name)}
+                                className="button small secondary"
+                                disabled={runningRules}
+                                title="Run this rule on all transactions"
+                              >
+                                {runningRules ? 'Running...' : 'Run Rule'}
+                              </button>
+                            )}
                             <Link to={`/rules/${rule.id}/edit`} className="button small">Edit</Link>
                             <button className="button small danger" onClick={() => handleDelete(rule.id)}>Delete</button>
                           </div>
@@ -480,13 +545,23 @@ const RulesList = () => {
             >
               <div className="group-header">
                 <h3>{group.name}</h3>
-                <button
-                  className="collapse-toggle"
-                  onClick={() => toggleGroupCollapsed(key)}
-                  title={collapsedGroups.has(key) ? 'Expand' : 'Collapse'}
-                >
-                  {collapsedGroups.has(key) ? '▼' : '▲'}
-                </button>
+                <div className="button-group" style={{ marginLeft: 'auto' }}>
+                  <button
+                    className="button small secondary"
+                    onClick={() => handleRunRuleGroup(group.id, group.name)}
+                    disabled={runningRules || rulesForGroup(group.id).every(r => !r.is_active)}
+                    title="Run all rules in this group"
+                  >
+                    {runningRules ? 'Running…' : 'Run Group'}
+                  </button>
+                  <button
+                    className="collapse-toggle"
+                    onClick={() => toggleGroupCollapsed(key)}
+                    title={collapsedGroups.has(key) ? 'Expand' : 'Collapse'}
+                  >
+                    {collapsedGroups.has(key) ? '▼' : '▲'}
+                  </button>
+                </div>
               </div>
               {group.description && <p className="group-description">{group.description}</p>}
               <div className="group-total">Rules: {rulesForGroup(group.id).length}</div>
@@ -525,6 +600,23 @@ const RulesList = () => {
                             </td>
                             <td>
                               <div className="row-actions">
+                                <button
+                                  onClick={() => handleToggleActive(rule)}
+                                  className="button small"
+                                  title={rule.is_active ? 'Deactivate' : 'Activate'}
+                                >
+                                  {rule.is_active ? 'Deactivate' : 'Activate'}
+                                </button>
+                                {rule.is_active && (
+                                  <button
+                                    onClick={() => handleRunRule(rule.id, rule.name)}
+                                    className="button small secondary"
+                                    disabled={runningRules}
+                                    title="Run this rule on all transactions"
+                                  >
+                                    {runningRules ? 'Running...' : 'Run Rule'}
+                                  </button>
+                                )}
                                 <Link to={`/rules/${rule.id}/edit`} className="button small">Edit</Link>
                                 <button className="button small danger" onClick={() => handleDelete(rule.id)}>Delete</button>
                               </div>
