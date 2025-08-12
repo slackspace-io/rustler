@@ -163,6 +163,23 @@ export const transactionsApi = {
     return response.json();
   },
 
+  // Get transactions within a date range (inclusive)
+  getTransactionsByDateRange: async (
+    startDate: string,
+    endDate: string,
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<Transaction[]> => {
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(
+      `${API_BASE_URL}/transactions?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&limit=${limit}&offset=${offset}&${cacheBuster}`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to fetch transactions by date range');
+    }
+    return response.json();
+  },
+
   // Get transactions for a specific account with pagination
   getAccountTransactions: async (accountId: string, page: number = 1, limit: number = 100): Promise<Transaction[]> => {
     // Add a cache-busting parameter to prevent browser caching

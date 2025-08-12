@@ -89,33 +89,15 @@ const Dashboard = () => {
     setSelectedMonth(m);
   };
 
-  // Initial data fetch (accounts and all transactions)
+  // Initial data fetch (accounts only). Monthly transactions are fetched in a separate effect.
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true);
-
         // Fetch accounts
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
-
-        // Fetch all transactions (paginate to avoid missing items)
-        const limit = 1000;
-        let page = 1;
-        let txns: Transaction[] = [];
-        while (true) {
-          const batch = await transactionsApi.getTransactions(page, limit);
-          txns = txns.concat(batch);
-          if (batch.length < limit) break;
-          page += 1;
-          if (page > 100) break; // safety cap to prevent infinite loops
-        }
-        setAllTransactions(txns);
-
-        setLoading(false);
       } catch (err) {
         setError('Failed to fetch dashboard data. Please try again later.');
-        setLoading(false);
         console.error('Error fetching dashboard data:', err);
       }
     };
@@ -123,11 +105,43 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  // Helper to format dates as YYYY-MM-DD without timezone shifts
+  const formatYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // Fetch only the selected month's transactions
+  useEffect(() => {
+    const fetchMonthlyTransactions = async () => {
+      try {
+        setLoading(true);
+        const startOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
+        const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0);
+        const txns = await transactionsApi.getTransactionsByDateRange(
+          formatYMD(startOfMonth),
+          formatYMD(lastDayOfMonth),
+          2000,
+          0
+        );
+        setAllTransactions(txns);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching monthly transactions:', err);
+        setError('Failed to fetch monthly transactions. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    fetchMonthlyTransactions();
+  }, [selectedYear, selectedMonth]);
+
   // Recompute month-dependent data whenever selected month/year or allTransactions change
   useEffect(() => {
     const computeMonthData = async () => {
       try {
-        setLoading(true);
         // Build date range for selected month
         const startOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
         const startOfNextMonth = new Date(selectedYear, selectedMonth, 1);
@@ -167,11 +181,9 @@ const Dashboard = () => {
         setMonthlyExpenses(expenses);
 
         setMonthlyNet(income - expenses);
-        setLoading(false);
       } catch (err) {
         console.error('Error computing month data:', err);
         setError('Failed to compute monthly data.');
-        setLoading(false);
       }
     };
 
@@ -179,8 +191,7 @@ const Dashboard = () => {
     if (!loading) {
       computeMonthData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedYear, selectedMonth, allTransactions]);
+  }, [selectedYear, selectedMonth, allTransactions, accounts]);
 
   // Fetch monthly incoming transactions from server to align with Monthly Income widget
   useEffect(() => {
