@@ -205,6 +205,25 @@ const BudgetsList = () => {
     }
   };
 
+  // Delete a budget group
+  const handleDeleteBudgetGroup = async (groupId: string) => {
+    const group = budgetGroups.find(g => g.id === groupId);
+    const name = group?.name || 'this group';
+    if (!window.confirm(`Are you sure you want to delete the budget group "${name}"? Budgets in this group will become ungrouped.`)) {
+      return;
+    }
+    try {
+      await budgetGroupsApi.deleteBudgetGroup(groupId);
+      // Remove the group from local state
+      setBudgetGroups(prev => prev.filter(g => g.id !== groupId));
+      // Any budgets referencing this group should become ungrouped locally
+      setBudgets(prev => prev.map(b => (b.group_id === groupId ? { ...b, group_id: undefined } : b)) as BudgetWithSpent[]);
+    } catch (err) {
+      console.error('Error deleting budget group:', err);
+      alert('Failed to delete budget group. Please try again.');
+    }
+  };
+
   // Drag & Drop handlers for moving budgets between groups
   const handleBudgetDragStart = (budget: BudgetWithSpent, e: React.DragEvent<HTMLTableRowElement>) => {
     setDraggedBudget(budget);
@@ -558,10 +577,13 @@ const BudgetsList = () => {
               >
                 <div className="group-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                   <h2 style={{ margin: 0 }}>{group.name}</h2>
-                  <div className="group-metrics" style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
-                    <span className="group-total">Total: {groupAmount.toFixed(2)}</span>
-                    <span className="group-spent">Spent: {groupSpent.toFixed(2)}</span>
-                    <span className={`remaining-amount ${groupRemaining >= 0 ? 'positive' : 'negative'}`}>Remaining: {groupRemaining.toFixed(2)}</span>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div className="group-metrics" style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+                      <span className="group-total">Total: {groupAmount.toFixed(2)}</span>
+                      <span className="group-spent">Spent: {groupSpent.toFixed(2)}</span>
+                      <span className={`remaining-amount ${groupRemaining >= 0 ? 'positive' : 'negative'}`}>Remaining: {groupRemaining.toFixed(2)}</span>
+                    </div>
+                    <button onClick={() => handleDeleteBudgetGroup(group.id)} className="button small danger">Delete Group</button>
                   </div>
                 </div>
                 {group.description && <p className="group-description">{group.description}</p>}

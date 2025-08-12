@@ -9,7 +9,7 @@ use uuid::Uuid;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Budget, CreateBudgetRequest, UpdateBudgetRequest};
+use crate::models::{Budget, CreateBudgetRequest, UpdateBudgetRequest, Transaction};
 use crate::services::BudgetService;
 
 // Query parameters for monthly budget status
@@ -41,6 +41,7 @@ pub fn router(budget_service: Arc<BudgetService>) -> Router {
         .route("/budgets/{id}", delete(delete_budget))
         .route("/budgets/{id}/spent", get(get_budget_spent))
         .route("/budgets/{id}/remaining", get(get_budget_remaining))
+        .route("/budgets/{id}/transactions", get(get_budget_transactions_for_month))
         .with_state(budget_service)
 }
 
@@ -247,6 +248,21 @@ async fn get_unbudgeted_spent(
                 eprintln!("Error getting unbudgeted spent: {:?}", err);
                 Err(StatusCode::INTERNAL_SERVER_ERROR)
             }
+        }
+    }
+}
+
+
+// Handler to get transactions for a budget within the month linked to that budget (via start_date)
+async fn get_budget_transactions_for_month(
+    Path(id): Path<Uuid>,
+    State(state): State<Arc<BudgetService>>,
+) -> Result<Json<Vec<Transaction>>, StatusCode> {
+    match state.get_budget_transactions_for_month(id).await {
+        Ok(txs) => Ok(Json(txs)),
+        Err(err) => {
+            eprintln!("Error getting budget transactions for month: {:?}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 }

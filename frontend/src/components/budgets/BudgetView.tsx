@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { budgetsApi } from '../../services/api';
+import type { Transaction } from '../../services/api';
 import type { Budget } from '../../services/api';
 
 const BudgetView = () => {
@@ -10,6 +11,7 @@ const BudgetView = () => {
   const [spent, setSpent] = useState<number>(0);
   const [remaining, setRemaining] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,6 +24,14 @@ const BudgetView = () => {
         // Fetch budget details
         const budgetData = await budgetsApi.getBudget(id);
         setBudget(budgetData);
+
+        // Fetch transactions for the month linked to this budget
+        try {
+          const txs = await budgetsApi.getBudgetTransactionsForMonth(id);
+          setTransactions(txs);
+        } catch (e) {
+          console.error('Error fetching budget transactions:', e);
+        }
 
         // Fetch spent amount
         const spentAmount = await budgetsApi.getBudgetSpent(id);
@@ -135,10 +145,31 @@ const BudgetView = () => {
       </div>
 
       <div className="budget-transactions">
-        <h2>Related Transactions</h2>
-        <p className="note">
-          This feature is coming soon. You'll be able to see all transactions associated with this budget.
-        </p>
+        <h2>Transactions for {new Date(budget.start_date).toLocaleString(undefined, { month: 'long', year: 'numeric' })}</h2>
+        {transactions.length === 0 ? (
+          <p className="note">No transactions found for this budget in the selected month.</p>
+        ) : (
+          <table className="transactions-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Destination</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map(tx => (
+                <tr key={tx.id}>
+                  <td>{new Date(tx.transaction_date).toLocaleDateString()}</td>
+                  <td>{tx.description}</td>
+                  <td>{tx.destination_name || '—'}</td>
+                  <td style={{ textAlign: 'right' }}>{tx.amount.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

@@ -1,9 +1,9 @@
-use chrono::Utc;
+use chrono::{Utc, Datelike};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 use std::sync::Arc;
 use tracing::{debug, info};
-use crate::models::{Budget, CreateBudgetRequest, UpdateBudgetRequest};
+use crate::models::{Budget, CreateBudgetRequest, UpdateBudgetRequest, Transaction};
 use crate::services::SettingsService;
 
 pub struct BudgetService {
@@ -12,6 +12,51 @@ pub struct BudgetService {
 }
 
 impl BudgetService {
+    /// Get transactions assigned to the given budget within the month of the budget's start_date
+    pub async fn get_budget_transactions_for_month(&self, budget_id: Uuid) -> Result<Vec<Transaction>, sqlx::Error> {
+        // Load the budget to determine its linked month (based on start_date)
+        let budget = self.get_budget(budget_id).await?;
+        let budget = match budget {
+            Some(b) => b,
+            None => return Ok(vec![]),
+        };
+
+        let dt = budget.start_date;
+        let year = dt.year();
+        let month = dt.month();
+
+        // Calculate the start (inclusive) and end (exclusive) of that month in UTC
+        let start_naive = chrono::NaiveDate::from_ymd_opt(year, month, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let start_date = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(start_naive, chrono::Utc);
+
+        let next_month = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
+        let end_naive = chrono::NaiveDate::from_ymd_opt(next_month.0, next_month.1, 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let end_date = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(end_naive, chrono::Utc);
+
+        // Query transactions with this budget_id within the month
+        let transactions = sqlx::query_as::<_, Transaction>(
+            r#"
+            SELECT * FROM transactions
+            WHERE budget_id = $1
+              AND transaction_date >= $2
+              AND transaction_date < $3
+            ORDER BY transaction_date DESC
+            "#,
+        )
+        .bind(budget_id)
+        .bind(start_date)
+        .bind(end_date)
+        .fetch_all(&self.db)
+        .await?;
+
+        Ok(transactions)
+    }
     pub fn new(db: Pool<Postgres>) -> Self {
         Self {
             db,

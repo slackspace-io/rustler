@@ -547,6 +547,16 @@ export const budgetsApi = {
     }
   },
 
+  // Get transactions for a budget's month
+  getBudgetTransactionsForMonth: async (id: string): Promise<Transaction[]> => {
+    const cacheBuster = `_t=${Date.now()}`;
+    const response = await fetch(`${API_BASE_URL}/budgets/${id}/transactions?${cacheBuster}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch transactions for budget with ID ${id}`);
+    }
+    return response.json();
+  },
+
   // Get the total spent amount for a budget
   getBudgetSpent: async (id: string, year?: number, month?: number): Promise<number> => {
     // Add a cache-busting parameter to prevent browser caching
