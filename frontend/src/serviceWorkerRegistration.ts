@@ -14,46 +14,46 @@ export function registerServiceWorker() {
         .then((registration) => {
           console.log('Service Worker registered with scope:', registration.scope);
 
-          // Check for updates on page load
+          // Reload the page when a new service worker takes control
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('Service Worker controller changed, reloading.');
+            window.location.reload();
+          });
+
+          // Proactively check for updates on page load
           registration.update();
 
-          // Set up periodic updates
+          // Periodic update checks
           setInterval(() => {
             registration.update();
             console.log('Service Worker update check');
-          }, 1000 * 60 * 60); // Check for updates every hour
+          }, 1000 * 60 * 60); // every hour
 
-          // Handle updates
-          registration.onupdatefound = () => {
-            const installingWorker = registration.installing;
-            if (installingWorker) {
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed') {
-                  if (navigator.serviceWorker.controller) {
-                    // New content is available
-                    console.log('New content is available, reloading page.');
-
-                    // Show notification to user
-                    if ('Notification' in window && Notification.permission === 'granted') {
-                      new Notification('Rustler Finance Update', {
-                        body: 'New version available. Page will refresh shortly.',
-                        icon: '/icons/icon-192x192.png'
-                      });
-                    }
-
-                    // Force reload the page after a short delay
-                    // This ensures the user gets the latest version
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 1000);
+          // Handle updates: when a new worker is installed, tell it to skip waiting
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing as ServiceWorker | null;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  console.log('New content available, activating new Service Worker.');
+                  // If there's a waiting worker, ask it to activate immediately
+                  if (registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
                   } else {
-                    // Content is cached for offline use
-                    console.log('Content is cached for offline use.');
+                    // Fallback: try messaging the installing worker
+                    try {
+                      newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    } catch (e) {
+                      console.warn('Failed to postMessage SKIP_WAITING to installing SW', e);
+                    }
                   }
+                } else {
+                  console.log('Content cached for offline use.');
                 }
-              };
-            }
-          };
+              }
+            });
+          });
         })
         .catch((error) => {
           console.error('Error during service worker registration:', error);

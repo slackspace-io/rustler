@@ -18,12 +18,12 @@ else
   exit 1
 fi
 
-# Check if the service worker contains the timestamp-based cache versioning
+# Check if the service worker contains explicit cache versioning
 echo "Checking service worker cache versioning..."
-if curl -s "$BASE_URL/sw.js" | grep -q "const TIMESTAMP = new Date().toISOString()"; then
-  echo "✓ Service worker includes timestamp-based cache versioning"
+if curl -s "$BASE_URL/sw.js" | grep -q "CACHE_VERSION"; then
+  echo "✓ Service worker includes explicit cache versioning"
 else
-  echo "✗ Service worker does not include timestamp-based cache versioning"
+  echo "✗ Service worker does not include explicit cache versioning"
   exit 1
 fi
 
