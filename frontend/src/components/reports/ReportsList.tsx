@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import BalanceOverTime from './BalanceOverTime';
 import SpendingOverTime from './SpendingOverTime';
+import InflowVsOutflow from './InflowVsOutflow';
 
 const ReportsList = () => {
   const [activeReport, setActiveReport] = useState<string>('balance-over-time');
@@ -22,11 +23,18 @@ const ReportsList = () => {
         >
           Spending Over Time
         </button>
+        <button
+          className={activeReport === 'inflow-vs-outflow' ? 'active' : ''}
+          onClick={() => setActiveReport('inflow-vs-outflow')}
+        >
+          Inflow vs Outflow
+        </button>
       </div>
 
       <div className="report-content">
         {activeReport === 'balance-over-time' && <BalanceOverTime />}
         {activeReport === 'spending-over-time' && <SpendingOverTime />}
+        {activeReport === 'inflow-vs-outflow' && <InflowVsOutflow />}
       </div>
     </div>
   );

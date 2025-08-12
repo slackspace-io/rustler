@@ -95,6 +95,8 @@ impl TransactionService {
 
         // Exclude transfers if present by category label (coalesce current category name or legacy string)
         query.push_str(" AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) NOT IN ('Transfer', 'Transfers'))");
+        // Exclude initial balance from spending
+        query.push_str(" AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) <> 'Initial Balance')");
 
         if let Some(start) = start_date {
             query.push_str(&format!(" AND t.transaction_date >= '{}'", start));
@@ -131,6 +133,101 @@ impl TransactionService {
             result.push((period_str, name, amount));
         }
 
+        Ok(result)
+    }
+
+    /// Get inflow vs outflow over time for on-budget cash flow.
+    /// Inflow: to On Budget destination from non-On Budget (or NULL) source; amount > 0; excludes 'Initial Balance'.
+    /// Outflow: from On Budget source; amount > 0; excludes transfers to On Budget and 'Initial Balance'. Includes On->Off transfers.
+    pub async fn get_inflow_outflow_over_time(
+        &self,
+        account_ids: Option<Vec<Uuid>>,
+        start_date: Option<DateTime<Utc>>,
+        end_date: Option<DateTime<Utc>>,
+        period: &str,
+    ) -> Result<Vec<(String, f64, f64)>, sqlx::Error> {
+        let period_fn = match period {
+            "week" => "week",
+            "day" => "day",
+            _ => "month",
+        };
+
+        // Build filter snippets
+        let mut date_filter = String::new();
+        if let Some(start) = start_date { date_filter.push_str(&format!(" AND t.transaction_date >= '{}'", start)); }
+        if let Some(end) = end_date { date_filter.push_str(&format!(" AND t.transaction_date <= '{}'", end)); }
+
+        let mut inflow_account_filter = String::new();
+        let mut outflow_account_filter = String::new();
+        if let Some(ids) = &account_ids {
+            if !ids.is_empty() {
+                let id_list = ids.iter().map(|u| format!("'{}'", u)).collect::<Vec<_>>().join(",");
+                inflow_account_filter.push_str(&format!(" AND dst.id IN ({})", id_list));
+                outflow_account_filter.push_str(&format!(" AND src.id IN ({})", id_list));
+            }
+        }
+
+        // Inflow query
+        let inflow_query = format!(
+            "SELECT to_char(date_trunc('{period}', t.transaction_date), 'YYYY-MM-DD') AS period, SUM(t.amount) AS total
+             FROM transactions t
+             LEFT JOIN accounts src ON t.source_account_id = src.id
+             JOIN accounts dst ON t.destination_account_id = dst.id
+             LEFT JOIN categories c_id ON c_id.id = t.category_id
+             LEFT JOIN categories c_name ON t.category_id IS NULL AND t.category IS NOT NULL AND c_name.name = t.category
+             WHERE dst.account_type = 'On Budget'
+               AND (src.account_type IS NULL OR src.account_type <> 'On Budget')
+               AND t.amount > 0
+               AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) <> 'Initial Balance')
+               {date_filter}
+               {account_filter}
+             GROUP BY 1 ORDER BY 1",
+            period = period_fn,
+            date_filter = date_filter,
+            account_filter = inflow_account_filter,
+        );
+
+        // Outflow query
+        let outflow_query = format!(
+            "SELECT to_char(date_trunc('{period}', t.transaction_date), 'YYYY-MM-DD') AS period, SUM(t.amount) AS total
+             FROM transactions t
+             JOIN accounts src ON t.source_account_id = src.id
+             LEFT JOIN accounts dst ON t.destination_account_id = dst.id
+             LEFT JOIN categories c_id ON c_id.id = t.category_id
+             LEFT JOIN categories c_name ON t.category_id IS NULL AND t.category IS NOT NULL AND c_name.name = t.category
+             WHERE src.account_type = 'On Budget'
+               AND t.amount > 0
+               AND NOT (dst.account_type = 'On Budget')
+               AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) NOT IN ('Initial Balance', 'Transfer', 'Transfers'))
+               {date_filter}
+               {account_filter}
+             GROUP BY 1 ORDER BY 1",
+            period = period_fn,
+            date_filter = date_filter,
+            account_filter = outflow_account_filter,
+        );
+
+        let inflow_rows = sqlx::query(&inflow_query).fetch_all(&self.db).await?;
+        let outflow_rows = sqlx::query(&outflow_query).fetch_all(&self.db).await?;
+
+        use std::collections::BTreeMap;
+        let mut map: BTreeMap<String, (f64, f64)> = BTreeMap::new();
+
+        for row in inflow_rows {
+            let p: String = row.get("period");
+            let v: f64 = row.get("total");
+            let entry = map.entry(p).or_insert((0.0, 0.0));
+            entry.0 = v;
+        }
+        for row in outflow_rows {
+            let p: String = row.get("period");
+            let v: f64 = row.get("total");
+            let entry = map.entry(p).or_insert((0.0, 0.0));
+            entry.1 = v;
+        }
+
+        let mut result: Vec<(String, f64, f64)> = map.into_iter().map(|(p, (inflow, outflow))| (p, inflow, outflow)).collect();
+        // Already sorted by BTreeMap key order (period string lexicographic aligns with YYYY-MM-DD)
         Ok(result)
     }
 

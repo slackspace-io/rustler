@@ -19,6 +19,7 @@ import type {
   ImportResult,
   ForecastedMonthlyIncomeResponse,
   SpendingReportRow,
+  InflowOutflowReportRow,
   Features,
   RuleTestResponse,
   RuleGroup
@@ -43,6 +44,7 @@ export type {
   ImportResult,
   ForecastedMonthlyIncomeResponse,
   SpendingReportRow,
+  InflowOutflowReportRow,
   RuleTestResponse
 };
 
@@ -70,6 +72,29 @@ export const reportsApi = {
     const res = await fetch(`${API_BASE_URL}/reports/spending?${query.toString()}`);
     if (!res.ok) {
       throw new Error('Failed to fetch spending report');
+    }
+    return res.json();
+  },
+
+  // Get inflow vs outflow over time
+  getInflowOutflow: async (params: {
+    start_date?: string;
+    end_date?: string;
+    account_ids?: string[];
+    period?: 'day' | 'week' | 'month';
+  }): Promise<InflowOutflowReportRow[]> => {
+    const query = new URLSearchParams();
+    if (params.start_date) query.set('start_date', params.start_date);
+    if (params.end_date) query.set('end_date', params.end_date);
+    if (params.account_ids && params.account_ids.length > 0) {
+      query.set('account_ids', params.account_ids.join(','));
+    }
+    if (params.period) query.set('period', params.period);
+    query.set('_t', String(Date.now()));
+
+    const res = await fetch(`${API_BASE_URL}/reports/inflow-outflow?${query.toString()}`);
+    if (!res.ok) {
+      throw new Error('Failed to fetch inflow/outflow report');
     }
     return res.json();
   },

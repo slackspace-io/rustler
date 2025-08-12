@@ -193,3 +193,10 @@ export interface SpendingReportRow {
   name: string;   // category group name (or category name when group=false)
   amount: number; // total spending (positive outflows)
 }
+
+// Inflow vs Outflow report row from /api/reports/inflow-outflow
+export interface InflowOutflowReportRow {
+  period: string;
+  inflow: number;
+  outflow: number;
+}

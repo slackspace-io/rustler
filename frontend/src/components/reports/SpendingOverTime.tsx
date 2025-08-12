@@ -30,6 +30,8 @@ const SpendingOverTime = () => {
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('month');
   const [startDate, setStartDate] = useState<string>(defaultStartEnd().start);
   const [endDate, setEndDate] = useState<string>(defaultStartEnd().end);
+  type DatePreset = 'last-month' | '3-months' | '6-months' | 'ytd' | '1-year' | 'all-time' | 'custom';
+  const [activePreset, setActivePreset] = useState<DatePreset>('3-months');
   const [rows, setRows] = useState<SpendingReportRow[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -232,13 +234,24 @@ const SpendingOverTime = () => {
     <div>
       <h2>Spending Over Time</h2>
       <div className="controls" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: 16 }}>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <strong>Date Range</strong>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            <button className={activePreset === 'last-month' ? 'active' : ''} onClick={() => { setActivePreset('last-month'); const s=new Date(); const e=new Date(); s.setMonth(s.getMonth()-1); const sStr=s.toISOString().split('T')[0]; const eStr=e.toISOString().split('T')[0]; setStartDate(sStr); setEndDate(eStr); fetchReportWith({ start_date: sStr, end_date: eStr, account_ids: selectedAccounts, group, period }); }}>Last Month</button>
+            <button className={activePreset === '3-months' ? 'active' : ''} onClick={() => { setActivePreset('3-months'); const s=new Date(); const e=new Date(); s.setMonth(s.getMonth()-3); const sStr=s.toISOString().split('T')[0]; const eStr=e.toISOString().split('T')[0]; setStartDate(sStr); setEndDate(eStr); fetchReportWith({ start_date: sStr, end_date: eStr, account_ids: selectedAccounts, group, period }); }}>3 Months</button>
+            <button className={activePreset === '6-months' ? 'active' : ''} onClick={() => { setActivePreset('6-months'); const s=new Date(); const e=new Date(); s.setMonth(s.getMonth()-6); const sStr=s.toISOString().split('T')[0]; const eStr=e.toISOString().split('T')[0]; setStartDate(sStr); setEndDate(eStr); fetchReportWith({ start_date: sStr, end_date: eStr, account_ids: selectedAccounts, group, period }); }}>6 Months</button>
+            <button className={activePreset === 'ytd' ? 'active' : ''} onClick={() => { setActivePreset('ytd'); const now=new Date(); const s=new Date(now.getFullYear(),0,1); const e=new Date(); const sStr=s.toISOString().split('T')[0]; const eStr=e.toISOString().split('T')[0]; setStartDate(sStr); setEndDate(eStr); fetchReportWith({ start_date: sStr, end_date: eStr, account_ids: selectedAccounts, group, period }); }}>YTD</button>
+            <button className={activePreset === '1-year' ? 'active' : ''} onClick={() => { setActivePreset('1-year'); const s=new Date(); const e=new Date(); s.setFullYear(s.getFullYear()-1); const sStr=s.toISOString().split('T')[0]; const eStr=e.toISOString().split('T')[0]; setStartDate(sStr); setEndDate(eStr); fetchReportWith({ start_date: sStr, end_date: eStr, account_ids: selectedAccounts, group, period }); }}>1 Year</button>
+            <button className={activePreset === 'all-time' ? 'active' : ''} onClick={() => { setActivePreset('all-time'); const s=new Date(); const e=new Date(); s.setFullYear(s.getFullYear()-5); const sStr=s.toISOString().split('T')[0]; const eStr=e.toISOString().split('T')[0]; setStartDate(sStr); setEndDate(eStr); fetchReportWith({ start_date: sStr, end_date: eStr, account_ids: selectedAccounts, group, period }); }}>All Time</button>
+          </div>
+        </div>
         <div>
           <label>Start date</label>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setActivePreset('custom'); }} />
         </div>
         <div>
           <label>End date</label>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setActivePreset('custom'); }} />
         </div>
         <div>
           <label>Period</label>
