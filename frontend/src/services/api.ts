@@ -176,6 +176,19 @@ export const transactionsApi = {
     }
     return response.json();
   },
+  // Get unbudgeted transactions with optional date range (server-side filtered for consistency)
+  getUnbudgetedTransactions: async (startDate?: string, endDate?: string): Promise<Transaction[]> => {
+    const params = new URLSearchParams();
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+    params.set('_t', String(Date.now()));
+    const response = await fetch(`${API_BASE_URL}/transactions/unbudgeted?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch unbudgeted transactions');
+    }
+    return response.json();
+  },
+
   // Get all transactions with pagination
   getTransactions: async (page: number = 1, limit: number = 100): Promise<Transaction[]> => {
     // Add a cache-busting parameter to prevent browser caching

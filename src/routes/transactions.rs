@@ -17,6 +17,7 @@ pub fn router(transaction_service: Arc<TransactionRuleService>) -> Router {
     Router::new()
         .route("/transactions", get(get_transactions))
         .route("/transactions/monthly-incoming", get(get_monthly_incoming_transactions))
+        .route("/transactions/unbudgeted", get(get_unbudgeted_transactions))
         .route("/transactions", post(create_transaction))
         .route("/transactions/{id}", get(get_transaction))
         .route("/transactions/{id}", put(update_transaction))
@@ -101,6 +102,45 @@ async fn get_monthly_incoming_transactions(
         Ok(transactions) => Ok(Json(transactions)),
         Err(err) => {
             eprintln!("Error getting monthly incoming transactions: {:?}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Handler to get unbudgeted transactions (uses the same base query as unbudgeted total)
+async fn get_unbudgeted_transactions(
+    Query(query): Query<TransactionQuery>,
+    State(state): State<Arc<TransactionRuleService>>,
+) -> Result<Json<Vec<Transaction>>, StatusCode> {
+    // Parse dates if provided
+    let start_date = query.start_date.as_ref().and_then(|date_str| {
+        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok().map(|date| {
+            chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::new(
+                    date,
+                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+                ),
+                chrono::Utc,
+            )
+        })
+    });
+
+    let end_date = query.end_date.as_ref().and_then(|date_str| {
+        chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d").ok().map(|date| {
+            chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::new(
+                    date,
+                    chrono::NaiveTime::from_hms_opt(23, 59, 59).unwrap(),
+                ),
+                chrono::Utc,
+            )
+        })
+    });
+
+    match state.get_unbudgeted_transactions(start_date, end_date).await {
+        Ok(txs) => Ok(Json(txs)),
+        Err(err) => {
+            eprintln!("Error getting unbudgeted transactions: {:?}", err);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

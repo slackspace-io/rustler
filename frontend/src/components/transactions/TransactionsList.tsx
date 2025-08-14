@@ -112,7 +112,10 @@ const TransactionsList = () => {
         // Fetch transactions
         let transactionsData: Transaction[];
 
-        if (selectedAccountId) {
+        if (unbudgetedOnly) {
+          // Fetch unbudgeted transactions from the server to ensure parity with totals
+          transactionsData = await transactionsApi.getUnbudgetedTransactions(startDate || undefined, endDate || undefined);
+        } else if (selectedAccountId) {
           transactionsData = await transactionsApi.getAccountTransactions(selectedAccountId);
         } else {
           transactionsData = await transactionsApi.getTransactions();
@@ -136,15 +139,18 @@ const TransactionsList = () => {
         }
 
         if (endDate) {
-          const endDateTime = new Date(endDate).getTime();
+          // Include the entire end day by setting time to 23:59:59.999
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          const endDateTime = end.getTime();
           filteredTransactions = filteredTransactions.filter(
             t => new Date(t.transaction_date).getTime() <= endDateTime
           );
         }
 
-        // If unbudgetedOnly is set, filter transactions that do not have a budget_id
+        // Unbudgeted filter is handled server-side for consistency with totals
         if (unbudgetedOnly) {
-          filteredTransactions = filteredTransactions.filter(t => !t.budget_id);
+          // no-op: already filtered by server
         }
 
         // If selectedBudgetId is set, filter transactions for that budget only

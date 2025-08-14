@@ -838,4 +838,34 @@ impl TransactionService {
 
         Ok(())
     }
+
+    /// Get unbudgeted transactions with optional date bounds (uses same criteria as unbudgeted total)
+    pub async fn get_unbudgeted_transactions(
+        &self,
+        start_date: Option<DateTime<Utc>>,
+        end_date: Option<DateTime<Utc>>,
+    ) -> Result<Vec<Transaction>, sqlx::Error> {
+        let mut query = String::from(
+            "SELECT t.*\n\
+             FROM transactions t\n\
+             JOIN accounts src ON t.source_account_id = src.id\n\
+             LEFT JOIN accounts dst ON t.destination_account_id = dst.id\n\
+             LEFT JOIN categories c_id ON c_id.id = t.category_id\n\
+             LEFT JOIN categories c_name ON t.category_id IS NULL AND t.category IS NOT NULL AND c_name.name = t.category\n\
+             WHERE t.budget_id IS NULL\n\
+               AND src.account_type = 'On Budget'\n\
+               AND t.amount > 0\n\
+               AND NOT (dst.account_type = 'On Budget')\n\
+               AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) NOT IN ('Initial Balance', 'Transfer', 'Transfers'))"
+        );
+
+        if let Some(start) = start_date { query.push_str(&format!(" AND t.transaction_date >= '{}'", start)); }
+        if let Some(end) = end_date { query.push_str(&format!(" AND t.transaction_date <= '{}'", end)); }
+
+        query.push_str(" ORDER BY t.transaction_date DESC");
+
+        sqlx::query_as::<_, Transaction>(&query)
+            .fetch_all(&self.db)
+            .await
+    }
 }

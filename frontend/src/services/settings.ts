@@ -60,12 +60,25 @@ export function updateSettings(updatedSettings: Partial<Settings>): Settings {
 export function formatNumber(value: number, decimals: number = 2): string {
   const settings = getSettings();
 
-  if (settings.numberFormat === 'comma') {
-    // Use comma as decimal separator and period as thousands separator
-    return value.toFixed(decimals).replace('.', ',');
-  } else {
-    // Use period as decimal separator (default)
-    return value.toFixed(decimals);
+  // Use Intl.NumberFormat to handle both decimal symbol and thousands grouping
+  const locale = settings.numberFormat === 'comma' ? 'de-DE' : 'en-US';
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'decimal',
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+      useGrouping: true,
+    }).format(value);
+  } catch {
+    // Fallback: manual formatting
+    const isComma = settings.numberFormat === 'comma';
+    const [intPartRaw, fracPartRaw = ''] = Math.abs(value).toFixed(decimals).split('.');
+    // Insert grouping separators
+    const groupSep = isComma ? '.' : ',';
+    const intPart = intPartRaw.replace(/\B(?=(\d{3})+(?!\d))/g, groupSep);
+    const decSep = isComma ? ',' : '.';
+    const sign = value < 0 ? '-' : '';
+    return `${sign}${intPart}${decSep}${fracPartRaw}`;
   }
 }
 
@@ -75,10 +88,16 @@ export function formatNumber(value: number, decimals: number = 2): string {
 export function parseNumber(value: string): number {
   const settings = getSettings();
 
+  const raw = (value || '').trim();
+  if (raw === '') return NaN;
+
   if (settings.numberFormat === 'comma') {
-    // Replace comma with period for parsing
-    return parseFloat(value.replace(',', '.'));
+    // Remove thousands separators (.) and replace decimal comma with period
+    const normalized = raw.replace(/\./g, '').replace(/,/g, '.');
+    return parseFloat(normalized);
   } else {
-    return parseFloat(value);
+    // Remove thousands separators (,) keep decimal period
+    const normalized = raw.replace(/,/g, '');
+    return parseFloat(normalized);
   }
 }

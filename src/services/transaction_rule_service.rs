@@ -108,4 +108,13 @@ impl TransactionRuleService {
     ) -> Result<Vec<(String, f64)>, sqlx::Error> {
         self.transaction_service.get_spending_by_category(start_date, end_date).await
     }
+
+    /// Get unbudgeted transactions (pass-through to ensure base query parity with totals)
+    pub async fn get_unbudgeted_transactions(
+        &self,
+        start_date: Option<chrono::DateTime<chrono::Utc>>,
+        end_date: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<Vec<Transaction>, sqlx::Error> {
+        self.transaction_service.get_unbudgeted_transactions(start_date, end_date).await
+    }
 }

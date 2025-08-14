@@ -380,11 +380,20 @@ impl BudgetService {
 
     /// Get the total spent amount not associated with any budget (all time)
     pub async fn get_unbudgeted_spent(&self) -> Result<f64, sqlx::Error> {
+        // Sum unbudgeted spending (outflows) from On Budget accounts, excluding transfers and initial balance
         let spent = sqlx::query_scalar::<_, f64>(
             r#"
-            SELECT COALESCE(SUM(amount), 0.0)
-            FROM transactions
-            WHERE budget_id IS NULL
+            SELECT COALESCE(SUM(t.amount), 0.0)
+            FROM transactions t
+            JOIN accounts src ON t.source_account_id = src.id
+            LEFT JOIN accounts dst ON t.destination_account_id = dst.id
+            LEFT JOIN categories c_id ON c_id.id = t.category_id
+            LEFT JOIN categories c_name ON t.category_id IS NULL AND t.category IS NOT NULL AND c_name.name = t.category
+            WHERE t.budget_id IS NULL
+              AND src.account_type = 'On Budget'
+              AND t.amount > 0
+              AND NOT (dst.account_type = 'On Budget')
+              AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) NOT IN ('Initial Balance', 'Transfer', 'Transfers'))
             "#,
         )
         .fetch_one(&self.db)
@@ -413,13 +422,22 @@ impl BudgetService {
         .unwrap();
         let end_date = chrono::DateTime::<Utc>::from_naive_utc_and_offset(end_date, Utc);
 
+        // Sum unbudgeted spending (outflows) from On Budget accounts within the month, excluding transfers and initial balance
         let spent = sqlx::query_scalar::<_, f64>(
             r#"
-            SELECT COALESCE(SUM(amount), 0.0)
-            FROM transactions
-            WHERE budget_id IS NULL
-            AND transaction_date >= $1
-            AND transaction_date < $2
+            SELECT COALESCE(SUM(t.amount), 0.0)
+            FROM transactions t
+            JOIN accounts src ON t.source_account_id = src.id
+            LEFT JOIN accounts dst ON t.destination_account_id = dst.id
+            LEFT JOIN categories c_id ON c_id.id = t.category_id
+            LEFT JOIN categories c_name ON t.category_id IS NULL AND t.category IS NOT NULL AND c_name.name = t.category
+            WHERE t.budget_id IS NULL
+              AND src.account_type = 'On Budget'
+              AND t.amount > 0
+              AND NOT (dst.account_type = 'On Budget')
+              AND (COALESCE(c_id.name, c_name.name, t.category) IS NULL OR COALESCE(c_id.name, c_name.name, t.category) NOT IN ('Initial Balance', 'Transfer', 'Transfers'))
+              AND t.transaction_date >= $1
+              AND t.transaction_date < $2
             "#,
         )
         .bind(start_date)
