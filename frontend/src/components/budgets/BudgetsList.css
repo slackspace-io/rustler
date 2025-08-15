@@ -85,7 +85,7 @@
 }
 
 .edit-button:hover {
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-bg-secondary);
 }
 
 /* Budget progress styles */
@@ -172,7 +172,7 @@
 }
 
 .budget-group.drag-over {
-  background-color: var(--color-bg-hover, rgba(0,0,0,0.04));
+  background-color: var(--color-bg-secondary);
   transition: background-color 0.2s ease;
 }
 
@@ -180,4 +180,39 @@
 .summary-box a {
   font-size: 1.8rem;
   font-weight: bold;
+}
+
+/* YNAB-like table enhancements */
+.budget-group table th,
+.budget-group table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+}
+
+.budget-group table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+/* Numeric alignment with tabular figures */
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.category-cell a {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Hover rows */
+.budget-group table tbody tr:hover {
+  background-color: var(--color-bg-secondary);
 }

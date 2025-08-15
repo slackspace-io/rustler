@@ -250,6 +250,32 @@ const QuickAddTransaction = () => {
             id="amount"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            onFocus={(e) => {
+              // Auto-clear default zero when the user focuses the field
+              const v = (amount || '').trim();
+              if (v === '' || v === '0' || v === '0.0' || v === '0.00') {
+                setAmount('');
+                // Optionally select to help overwrite on some browsers
+                // But since we set to empty, selection is not necessary
+              } else {
+                // If not clearing, select all for quick overwrite
+                // This improves UX without losing data
+                requestAnimationFrame(() => {
+                  try {
+                    e.currentTarget.select();
+                  } catch {
+                    /* ignore selection errors */
+                  }
+                });
+              }
+            }}
+            onBlur={() => {
+              // If user leaves the field empty, restore to 0 to keep valid state
+              const v = (amount || '').trim();
+              if (v === '') {
+                setAmount('0');
+              }
+            }}
             step="0.01"
             min="0"
             required

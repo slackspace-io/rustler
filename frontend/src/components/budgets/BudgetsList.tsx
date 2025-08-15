@@ -297,12 +297,6 @@ const BudgetsList = () => {
     return <div className="error">{error}</div>;
   }
 
-  // Format date string to a more readable format
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return 'Ongoing';
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
-  };
 
   // Format month name
   const getMonthName = (month: number) => {
@@ -414,7 +408,7 @@ const BudgetsList = () => {
             </div>
 
             <div className="summary-box">
-              <h3>Remaining to Budget</h3>
+              <h3>To Be Budgeted</h3>
               <p className={`remaining-amount ${monthlyStatus.remaining_to_budget >= 0 ? 'positive' : 'negative'}`}>
                 {monthlyStatus.remaining_to_budget.toFixed(2)}
               </p>
@@ -507,18 +501,16 @@ const BudgetsList = () => {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Amount</th>
-                  <th>Spent</th>
-                  <th>Remaining</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
+                  <th>Category</th>
+                  <th>Assigned</th>
+                  <th>Activity</th>
+                  <th>Available</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {budgets.filter(b => !b.group_id).length === 0 ? (
-                  <tr><td colSpan={7}>No ungrouped budgets</td></tr>
+                  <tr><td colSpan={5}>No ungrouped budgets</td></tr>
                 ) : (
                   budgets.filter(b => !b.group_id).map(budget => (
                     <tr
@@ -528,9 +520,9 @@ const BudgetsList = () => {
                       onDragEnd={handleBudgetDragEnd}
                       className={draggedBudget?.id === budget.id ? 'dragging' : ''}
                     >
-                      <td><Link to={`/budgets/${budget.id}`}>{budget.name}</Link></td>
-                      <td>{budget.amount.toFixed(2)}</td>
-                      <td>
+                      <td className="category-cell"><Link to={`/budgets/${budget.id}`}>{budget.name}</Link></td>
+                      <td className="numeric">{budget.amount.toFixed(2)}</td>
+                      <td className="numeric">
                         {(() => {
                           const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
                           const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -543,9 +535,7 @@ const BudgetsList = () => {
                           );
                         })()}
                       </td>
-                      <td>{(budget.amount - budget.spent).toFixed(2)}</td>
-                      <td>{formatDate(budget.start_date)}</td>
-                      <td>{formatDate(budget.end_date)}</td>
+                      <td className="numeric">{(budget.amount - budget.spent).toFixed(2)}</td>
                       <td>
                         <div className="actions">
                           <Link to={`/budgets/${budget.id}`} className="button small">View</Link>
@@ -590,18 +580,16 @@ const BudgetsList = () => {
                 <table>
                   <thead>
                     <tr>
-                      <th>Name</th>
-                      <th>Amount</th>
-                      <th>Spent</th>
-                      <th>Remaining</th>
-                      <th>Start Date</th>
-                      <th>End Date</th>
+                      <th>Category</th>
+                      <th>Assigned</th>
+                      <th>Activity</th>
+                      <th>Available</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {groupBudgets.length === 0 ? (
-                      <tr><td colSpan={7}>No budgets in this group</td></tr>
+                      <tr><td colSpan={5}>No budgets in this group</td></tr>
                     ) : (
                       groupBudgets.map(budget => (
                         <tr
@@ -611,9 +599,9 @@ const BudgetsList = () => {
                           onDragEnd={handleBudgetDragEnd}
                           className={draggedBudget?.id === budget.id ? 'dragging' : ''}
                         >
-                          <td><Link to={`/budgets/${budget.id}`}>{budget.name}</Link></td>
-                          <td>{budget.amount.toFixed(2)}</td>
-                          <td>
+                          <td className="category-cell"><Link to={`/budgets/${budget.id}`}>{budget.name}</Link></td>
+                          <td className="numeric">{budget.amount.toFixed(2)}</td>
+                          <td className="numeric">
                             {(() => {
                               const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
                               const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -626,9 +614,7 @@ const BudgetsList = () => {
                               );
                             })()}
                           </td>
-                          <td>{(budget.amount - budget.spent).toFixed(2)}</td>
-                          <td>{formatDate(budget.start_date)}</td>
-                          <td>{formatDate(budget.end_date)}</td>
+                          <td className="numeric">{(budget.amount - budget.spent).toFixed(2)}</td>
                           <td>
                             <div className="actions">
                               <Link to={`/budgets/${budget.id}`} className="button small">View</Link>
