@@ -292,6 +292,18 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, initialCreateData, isE
     }
   };
 
+  // Helper to render user-friendly action value labels
+  const getActionValueLabel = (action: RuleAction): string => {
+    switch (action.action_type) {
+      case 'set_budget': {
+        const b = budgets.find(b => b.id === action.value);
+        return b ? b.name : action.value;
+      }
+      default:
+        return action.value;
+    }
+  };
+
   // Render value input based on condition type
   const renderConditionValueInput = () => {
     switch (newConditionType) {
@@ -547,8 +559,8 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, initialCreateData, isE
               <ul>
                 {actions.map((action, index) => (
                   <li key={index} className="action-item">
-                    <span className="action-type">{getActionTypeLabel(action.action_type)}</span>
-                    <span className="action-value">{action.value}</span>
+                    <span className="action-type">{getActionTypeLabel(action.action_type)}</span>{' '}
+                    <span className="action-value">{getActionValueLabel(action)}</span>
                     <button
                       type="button"
                       className="button small danger"
