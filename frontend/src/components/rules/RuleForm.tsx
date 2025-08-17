@@ -4,7 +4,8 @@ import {
   accountsApi,
   budgetsApi,
   categoriesApi,
-  rulesApi
+  rulesApi,
+  budgetGroupsApi
 } from '../../services/api';
 import type {
   Rule,
@@ -14,7 +15,8 @@ import type {
   ActionType,
   Account,
   Budget,
-  Category
+  Category,
+  CategoryGroup
 } from '../../services/api';
 
 interface RuleFormProps {
@@ -60,6 +62,7 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, initialCreateData, isE
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [budgetGroups, setBudgetGroups] = useState<CategoryGroup[]>([]);
 
   // Form state
   const [loading, setLoading] = useState(false);
@@ -108,15 +111,17 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, initialCreateData, isE
   useEffect(() => {
     const fetchReferenceData = async () => {
       try {
-        const [accountsData, budgetsData, categoriesData] = await Promise.all([
+        const [accountsData, budgetsData, categoriesData, budgetGroupsData] = await Promise.all([
           accountsApi.getAccounts(),
           budgetsApi.getActiveBudgets(),
-          categoriesApi.getCategories()
+          categoriesApi.getCategories(),
+          budgetGroupsApi.getBudgetGroups()
         ]);
 
         setAccounts(accountsData);
         setBudgets(budgetsData);
         setCategories(categoriesData);
+        setBudgetGroups(budgetGroupsData);
       } catch (err) {
         console.error('Error fetching reference data:', err);
         setError('Failed to load reference data. Some dropdown options may be unavailable.');
@@ -356,11 +361,50 @@ const RuleForm: React.FC<RuleFormProps> = ({ initialRule, initialCreateData, isE
             onChange={(e) => setNewActionValue(e.target.value)}
           >
             <option value="">Select Budget</option>
-            {budgets.map(budget => (
-              <option key={budget.id} value={budget.id}>
-                {budget.name}
-              </option>
-            ))}
+            {(() => {
+              // Group budgets by their group_id (or 'ungrouped') and render optgroups
+              const byGroup: Record<string, Budget[]> = {};
+              budgets.forEach((b) => {
+                const key = b.group_id ?? 'ungrouped';
+                if (!byGroup[key]) byGroup[key] = [];
+                byGroup[key].push(b);
+              });
+
+              const rendered: { key: string; label: string; budgets: Budget[] }[] = [];
+
+              // Render known groups first in the order returned by budgetGroups
+              budgetGroups.forEach((g) => {
+                const bs = byGroup[g.id];
+                if (bs && bs.length > 0) {
+                  rendered.push({ key: g.id, label: g.name, budgets: bs });
+                  delete byGroup[g.id];
+                }
+              });
+
+              // Render ungrouped budgets with an explicit heading
+              if (byGroup['ungrouped'] && byGroup['ungrouped'].length > 0) {
+                rendered.push({ key: 'ungrouped', label: 'Ungrouped', budgets: byGroup['ungrouped'] });
+                delete byGroup['ungrouped'];
+              }
+
+              // Render any remaining groups that didn't have a matching budget group record
+              Object.keys(byGroup).forEach((k) => {
+                const bs = byGroup[k];
+                if (bs && bs.length > 0) {
+                  rendered.push({ key: k, label: 'Other', budgets: bs });
+                }
+              });
+
+              return rendered.map((group) => (
+                <optgroup key={group.key} label={group.label}>
+                  {group.budgets.map((budget) => (
+                    <option key={budget.id} value={budget.id}>
+                      {budget.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ));
+            })()}
           </select>
         );
 
