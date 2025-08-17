@@ -125,7 +125,14 @@ export const accountsApi = {
   },
 
   // Create a new account
-  createAccount: async (account: Omit<Account, 'id' | 'created_at' | 'updated_at'>): Promise<Account> => {
+  createAccount: async (account: {
+    name: string;
+    account_type: string;
+    account_sub_type?: string | null;
+    balance: number;
+    currency: string;
+    is_default?: boolean;
+  }): Promise<Account> => {
     const response = await fetch(`${API_BASE_URL}/accounts`, {
       method: 'POST',
       headers: {

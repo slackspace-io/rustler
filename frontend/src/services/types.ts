@@ -99,6 +99,7 @@ export interface Account {
   account_type: string;
   account_sub_type?: string | null;
   currency: string;
+  is_default: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -13,6 +13,7 @@ const AccountNew = () => {
   const [accountType, setAccountType] = useState(ACCOUNT_TYPE.ON_BUDGET);
   const [accountSubtype, setAccountSubtype] = useState('');
   const [balance, setBalance] = useState('0');
+  const [isDefault, setIsDefault] = useState(false);
 
   // Update subtype when account type changes
   useEffect(() => {
@@ -38,7 +39,8 @@ const AccountNew = () => {
         account_type: accountType,
         account_sub_type: accountSubtype || null,
         balance: parseFloat(balance),
-        currency: "DEFAULT" // Using a default currency value since the app is currency-agnostic
+        currency: "DEFAULT", // Using a default currency value since the app is currency-agnostic
+        is_default: isDefault,
       });
 
       // Redirect to accounts list on success
@@ -106,6 +108,17 @@ const AccountNew = () => {
             onChange={(e) => setBalance(e.target.value)}
             step="0.01"
           />
+        </div>
+
+        <div className="form-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+            />
+            {' '}Make this the default account
+          </label>
         </div>
 
         <div className="form-actions">

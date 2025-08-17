@@ -14,6 +14,7 @@ const AccountEdit = () => {
   const [name, setName] = useState('');
   const [accountType, setAccountType] = useState('');
   const [accountSubtype, setAccountSubtype] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
 
 
   useEffect(() => {
@@ -28,6 +29,7 @@ const AccountEdit = () => {
         setName(account.name);
         setAccountType(account.account_type);
         setAccountSubtype(account.account_sub_type || '');
+        setIsDefault(!!account.is_default);
 
         setLoading(false);
       } catch (err) {
@@ -71,7 +73,8 @@ const AccountEdit = () => {
         name,
         account_type: accountType,
         account_sub_type: accountSubtype || null,
-        currency: "DEFAULT" // Using a default currency value since the app is currency-agnostic
+        currency: "DEFAULT", // Using a default currency value since the app is currency-agnostic
+        is_default: isDefault,
       });
 
       // Redirect to account view on success
@@ -137,6 +140,17 @@ const AccountEdit = () => {
             </select>
           </div>
         )}
+
+        <div className="form-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+            />
+            {' '}Make this the default account
+          </label>
+        </div>
 
         <div className="form-actions">
           <button type="submit" disabled={saving}>

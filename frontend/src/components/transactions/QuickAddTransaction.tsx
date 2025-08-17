@@ -82,9 +82,15 @@ const QuickAddTransaction = () => {
         const accountsData = await accountsApi.getAccounts();
         setAccounts(accountsData);
 
-        // If there are on-budget accounts, preselect the first one
+        // Prefer default on-budget account, otherwise default account, otherwise first on-budget
         const onBudgetAccounts = accountsData.filter(a => a.account_type && a.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET));
-        if (onBudgetAccounts.length > 0) {
+        const defaultOnBudget = onBudgetAccounts.find(a => a.is_default);
+        const defaultAny = accountsData.find(a => a.is_default);
+        if (defaultOnBudget) {
+          setSourceAccountId(defaultOnBudget.id);
+        } else if (defaultAny) {
+          setSourceAccountId(defaultAny.id);
+        } else if (onBudgetAccounts.length > 0) {
           setSourceAccountId(onBudgetAccounts[0].id);
         }
 

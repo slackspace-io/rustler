@@ -37,11 +37,18 @@ impl AccountService {
         // Start a transaction to ensure atomicity
         let mut tx = self.db.begin().await?;
 
-        // Create the account
+        // If this account should be default, unset others first to satisfy unique partial index
+        if req.is_default {
+            sqlx::query("UPDATE accounts SET is_default = false WHERE is_default = true")
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        // Create the account including is_default
         let account = sqlx::query_as::<_, Account>(
             r#"
-            INSERT INTO accounts (id, name, account_type, account_sub_type, balance, currency, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO accounts (id, name, account_type, account_sub_type, balance, currency, is_default, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING *
             "#,
         )
@@ -51,6 +58,7 @@ impl AccountService {
         .bind(&req.account_sub_type)
         .bind(req.balance)
         .bind(&req.currency)
+        .bind(req.is_default)
         .bind(now)
         .bind(now)
         .fetch_one(&mut *tx)
@@ -117,47 +125,66 @@ impl AccountService {
         // First, check if the account exists
         let account = self.get_account(id).await?;
 
-        if let Some(account) = account {
-            // Build the update query dynamically based on which fields are provided
-            let mut query = String::from("UPDATE accounts SET updated_at = $1");
-            let mut params: Vec<String> = vec![];
-            let now = chrono::Utc::now();
-
-            if let Some(name) = &req.name {
-                params.push(format!("name = '{}'", name));
-            }
-
-            if let Some(account_type) = &req.account_type {
-                params.push(format!("account_type = '{}'", account_type));
-            }
-
-            if let Some(account_sub_type) = &req.account_sub_type {
-                params.push(format!("account_sub_type = '{}'", account_sub_type));
-            }
-
-            if let Some(balance) = req.balance {
-                params.push(format!("balance = {}", balance));
-            }
-
-            if let Some(currency) = &req.currency {
-                params.push(format!("currency = '{}'", currency));
-            }
-
-            if !params.is_empty() {
-                query.push_str(", ");
-                query.push_str(&params.join(", "));
-            }
-
-            query.push_str(" WHERE id = $2 RETURNING *");
-
-            sqlx::query_as::<_, Account>(&query)
-                .bind(now)
-                .bind(id)
-                .fetch_optional(&self.db)
-                .await
-        } else {
-            Ok(None)
+        if account.is_none() {
+            return Ok(None);
         }
+
+        let now = chrono::Utc::now();
+
+        // Start a transaction to ensure atomicity, especially when toggling default
+        let mut tx = self.db.begin().await?;
+
+        // If setting this account as default, unset others first to satisfy unique partial index
+        if let Some(true) = req.is_default {
+            sqlx::query("UPDATE accounts SET is_default = false WHERE is_default = true")
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        // Build the update query dynamically based on which fields are provided
+        let mut query = String::from("UPDATE accounts SET updated_at = $1");
+        let mut params: Vec<String> = vec![];
+
+        if let Some(name) = &req.name {
+            params.push(format!("name = '{}'", name));
+        }
+
+        if let Some(account_type) = &req.account_type {
+            params.push(format!("account_type = '{}'", account_type));
+        }
+
+        if let Some(account_sub_type) = &req.account_sub_type {
+            params.push(format!("account_sub_type = '{}'", account_sub_type));
+        }
+
+        if let Some(balance) = req.balance {
+            params.push(format!("balance = {}", balance));
+        }
+
+        if let Some(currency) = &req.currency {
+            params.push(format!("currency = '{}'", currency));
+        }
+
+        if let Some(is_default) = req.is_default {
+            params.push(format!("is_default = {}", if is_default { "true" } else { "false" }));
+        }
+
+        if !params.is_empty() {
+            query.push_str(", ");
+            query.push_str(&params.join(", "));
+        }
+
+        query.push_str(" WHERE id = $2 RETURNING *");
+
+        let updated = sqlx::query_as::<_, Account>(&query)
+            .bind(now)
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+
+        Ok(updated)
     }
 
     /// Delete an account
