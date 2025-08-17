@@ -169,44 +169,44 @@ const QuickAddTransaction = () => {
     );
   };
 
-  return (
-    <div className="quick-add-transaction">
-      <div className="quick-add-header">
-        <h1>Quick Add Transaction</h1>
-        <button
-          type="button"
-          className="settings-button"
-          onClick={() => setShowSettings(true)}
-          aria-label="Configure fields"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
-      </div>
+  const allowedKeys = ['sourceAccount','destinationAccount','description','amount','category','budget','date'];
+  const defaultOrder = allowedKeys;
+  const storedOrder = (settings.quickAddOrder && settings.quickAddOrder.length > 0) ? settings.quickAddOrder : defaultOrder;
+  // Normalize: keep only allowed, dedupe, then append any missing in default order
+  const seen = new Set<string>();
+  const fieldOrder = [
+    ...storedOrder.filter(k => allowedKeys.includes(k) && !seen.has(k) && (seen.add(k), true)),
+    ...defaultOrder.filter(k => !seen.has(k))
+  ];
 
-      {error && <div className="error">{error}</div>}
+  const isVisible = (key: string) => {
+    if (key === 'destinationAccount') return !!fieldSettings.destinationAccount;
+    if (key === 'category') return !!fieldSettings.category;
+    if (key === 'budget') return !!fieldSettings.budget;
+    if (key === 'date') return !!fieldSettings.date;
+    return true; // required fields
+  };
 
-      {renderSettingsModal()}
-
-      <form ref={formRef} onSubmit={handleSubmit} className={`quick-add-form ${isAndroid ? 'android-form' : ''}`}>
-        {/* Source Account - Always required */}
-        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
-          <AccountInput
-            accounts={accounts.filter(a => a.account_type && a.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET))}
-            value={sourceAccountId}
-            onChange={setSourceAccountId}
-            placeholder="Select Source Account"
-            label="Source Account"
-            required={true}
-            isAndroid={isAndroid}
-          />
-        </div>
-
-        {/* Destination Account - Optional field */}
-        {fieldSettings.destinationAccount && (
-          <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+  const renderField = (key: string) => {
+    if (!isVisible(key)) return null;
+    switch (key) {
+      case 'sourceAccount':
+        return (
+          <div key={key} className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+            <AccountInput
+              accounts={accounts.filter(a => a.account_type && a.account_type.startsWith(ACCOUNT_TYPE.ON_BUDGET))}
+              value={sourceAccountId}
+              onChange={setSourceAccountId}
+              placeholder="Select Source Account"
+              label="Source Account"
+              required={true}
+              isAndroid={isAndroid}
+            />
+          </div>
+        );
+      case 'destinationAccount':
+        return (
+          <div key={key} className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
             <AccountInput
               accounts={accounts}
               value={destinationAccountId}
@@ -217,89 +217,79 @@ const QuickAddTransaction = () => {
               isAndroid={isAndroid}
             />
           </div>
-        )}
-
-        {/* Description - Always required */}
-        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
-          <label htmlFor="description" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Description</label>
-          <input
-            type="text"
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-            placeholder="What was this transaction for?"
-            className="mobile-input"
-            style={isAndroid ? {
-              height: '56px',
-              fontSize: '16px',
-              width: '100%',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cccccc'
-            } : {}}
-          />
-        </div>
-
-        {/* Amount - Always required */}
-        <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
-          <label htmlFor="amount" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Amount</label>
-          <input
-            type="number"
-            id="amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            onFocus={(e) => {
-              // Auto-clear default zero when the user focuses the field
-              const v = (amount || '').trim();
-              if (v === '' || v === '0' || v === '0.0' || v === '0.00') {
-                setAmount('');
-                // Optionally select to help overwrite on some browsers
-                // But since we set to empty, selection is not necessary
-              } else {
-                // If not clearing, select all for quick overwrite
-                // This improves UX without losing data
-                requestAnimationFrame(() => {
-                  try {
-                    e.currentTarget.select();
-                  } catch {
-                    /* ignore selection errors */
-                  }
-                });
-              }
-            }}
-            onBlur={() => {
-              // If user leaves the field empty, restore to 0 to keep valid state
-              const v = (amount || '').trim();
-              if (v === '') {
-                setAmount('0');
-              }
-            }}
-            step="0.01"
-            min="0"
-            required
-            placeholder="Enter amount (positive numbers only)"
-            className="mobile-input"
-            inputMode="decimal"
-            style={isAndroid ? {
-              height: '56px',
-              fontSize: '16px',
-              width: '100%',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cccccc'
-            } : {}}
-          />
-          <small style={isAndroid ? { fontSize: '14px', marginTop: '4px', display: 'block' } : {}}>
-            Money will be withdrawn from source account and deposited into destination account
-          </small>
-        </div>
-
-        {/* Category - Optional field */}
-        {fieldSettings.category && (
-          <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+        );
+      case 'description':
+        return (
+          <div key={key} className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+            <label htmlFor="description" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Description</label>
+            <input
+              type="text"
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              placeholder="What was this transaction for?"
+              className="mobile-input"
+              style={isAndroid ? {
+                height: '56px',
+                fontSize: '16px',
+                width: '100%',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cccccc'
+              } : {}}
+            />
+          </div>
+        );
+      case 'amount':
+        return (
+          <div key={key} className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+            <label htmlFor="amount" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Amount</label>
+            <input
+              type="number"
+              id="amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              onFocus={(e) => {
+                // Auto-clear default zero when the user focuses the field
+                const v = (amount || '').trim();
+                if (v === '' || v === '0' || v === '0.0' || v === '0.00') {
+                  setAmount('');
+                } else {
+                  requestAnimationFrame(() => {
+                    try { e.currentTarget.select(); } catch { /* ignore */ }
+                  });
+                }
+              }}
+              onBlur={() => {
+                const v = (amount || '').trim();
+                if (v === '') { setAmount('0'); }
+              }}
+              step="0.01"
+              min="0"
+              required
+              placeholder="Enter amount (positive numbers only)"
+              className="mobile-input"
+              inputMode="decimal"
+              style={isAndroid ? {
+                height: '56px',
+                fontSize: '16px',
+                width: '100%',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cccccc'
+              } : {}}
+            />
+            <small style={isAndroid ? { fontSize: '14px', marginTop: '4px', display: 'block' } : {}}>
+              Money will be withdrawn from source account and deposited into destination account
+            </small>
+          </div>
+        );
+      case 'category':
+        return (
+          <div key={key} className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
             <label htmlFor="category" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Category</label>
             <CategoryInput
               value={category}
@@ -308,11 +298,10 @@ const QuickAddTransaction = () => {
               className={isAndroid ? 'android-input' : ''}
             />
           </div>
-        )}
-
-        {/* Budget - Optional field */}
-        {fieldSettings.budget && (
-          <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+        );
+      case 'budget':
+        return (
+          <div key={key} className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
             <label htmlFor="budget" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Budget (Optional)</label>
             <input
               type="text"
@@ -324,18 +313,15 @@ const QuickAddTransaction = () => {
                 setBudgetError(null);
 
                 if (inputValue === '') {
-                  // Empty input is valid (budget is optional)
                   setBudgetId('');
                   return;
                 }
 
-                // Check if the input matches an existing budget
                 const matchedBudget = budgets.find(
                   budget => budget.name === inputValue ||
-                          budget.name.toLowerCase() === inputValue.toLowerCase()
+                            budget.name.toLowerCase() === inputValue.toLowerCase()
                 );
 
-                // If matched, set the budget ID, otherwise set error
                 if (matchedBudget) {
                   setBudgetId(matchedBudget.id);
                 } else {
@@ -363,11 +349,10 @@ const QuickAddTransaction = () => {
             </datalist>
             {budgetError && <div className="field-error" style={isAndroid ? { fontSize: '14px', color: 'red', marginTop: '4px' } : {}}>{budgetError}</div>}
           </div>
-        )}
-
-        {/* Date - Optional field */}
-        {fieldSettings.date && (
-          <div className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
+        );
+      case 'date':
+        return (
+          <div key={key} className="form-group" style={isAndroid ? { marginBottom: '16px' } : {}}>
             <label htmlFor="transaction-date" style={isAndroid ? { fontSize: '16px', marginBottom: '8px', display: 'block' } : {}}>Date</label>
             <input
               type="date"
@@ -387,7 +372,35 @@ const QuickAddTransaction = () => {
               } : {}}
             />
           </div>
-        )}
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="quick-add-transaction">
+      <div className="quick-add-header">
+        <h1>Quick Add Transaction</h1>
+        <button
+          type="button"
+          className="settings-button"
+          onClick={() => setShowSettings(true)}
+          aria-label="Configure fields"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+
+      {error && <div className="error">{error}</div>}
+
+      {renderSettingsModal()}
+
+      <form ref={formRef} onSubmit={handleSubmit} className={`quick-add-form ${isAndroid ? 'android-form' : ''}`}>
+        {fieldOrder.map((k) => renderField(k))}
 
         <div className="form-actions" style={isAndroid ? { marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
           <button

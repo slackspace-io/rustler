@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: Settings = {
     budget: true,
     date: true,
   },
+  quickAddOrder: ['sourceAccount','destinationAccount','description','amount','category','budget','date'],
 };
 
 // Local storage key

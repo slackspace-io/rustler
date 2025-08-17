@@ -6,6 +6,7 @@ export interface SettingsContextType {
   settings: Settings;
   updateNumberFormat: (format: 'decimal' | 'comma') => void;
   updateQuickAddFields: (fields: Settings['quickAddFields']) => void;
+  updateQuickAddOrder: (order: Settings['quickAddOrder']) => void;
   formatNumber: (value: number, decimals?: number) => string;
   parseNumber: (value: string) => number;
 }

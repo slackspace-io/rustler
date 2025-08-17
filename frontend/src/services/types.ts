@@ -148,6 +148,15 @@ export interface CategorySpending {
   amount: number;
 }
 
+export type QuickAddFieldKey =
+  | 'sourceAccount'
+  | 'destinationAccount'
+  | 'description'
+  | 'amount'
+  | 'category'
+  | 'budget'
+  | 'date';
+
 export interface Settings {
   numberFormat: 'decimal' | 'comma';
   quickAddFields?: {
@@ -159,6 +168,7 @@ export interface Settings {
     budget: boolean;
     date: boolean;
   };
+  quickAddOrder?: QuickAddFieldKey[];
 }
 
 // Firefly III import options

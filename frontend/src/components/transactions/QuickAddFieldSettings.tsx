@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSettings } from '../../contexts/useSettings';
+import type { QuickAddFieldKey } from '../../services/types';
 
 // Define a non-optional type for QuickAddFields
 type QuickAddFields = {
@@ -16,8 +17,18 @@ interface QuickAddFieldSettingsProps {
   onClose: () => void;
 }
 
+const DEFAULT_ORDER: QuickAddFieldKey[] = [
+  'sourceAccount',
+  'destinationAccount',
+  'description',
+  'amount',
+  'category',
+  'budget',
+  'date',
+];
+
 const QuickAddFieldSettings: React.FC<QuickAddFieldSettingsProps> = ({ onClose }) => {
-  const { settings, updateQuickAddFields } = useSettings();
+  const { settings, updateQuickAddFields, updateQuickAddOrder } = useSettings();
 
   // Initialize state with current settings or defaults
   const [fields, setFields] = useState<QuickAddFields>(
@@ -30,6 +41,12 @@ const QuickAddFieldSettings: React.FC<QuickAddFieldSettingsProps> = ({ onClose }
       budget: true,
       date: true,
     }
+  );
+
+  const [order, setOrder] = useState<QuickAddFieldKey[]>(
+    (settings.quickAddOrder && settings.quickAddOrder.length > 0)
+      ? settings.quickAddOrder
+      : DEFAULT_ORDER
   );
 
   // Handle checkbox changes
@@ -50,10 +67,22 @@ const QuickAddFieldSettings: React.FC<QuickAddFieldSettingsProps> = ({ onClose }
     setFields(updatedFields);
   };
 
+  const move = (key: QuickAddFieldKey, direction: 'up' | 'down') => {
+    const idx = order.indexOf(key);
+    if (idx === -1) return;
+    const newOrder = [...order];
+    if (direction === 'up' && idx > 0) {
+      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+    } else if (direction === 'down' && idx < newOrder.length - 1) {
+      [newOrder[idx + 1], newOrder[idx]] = [newOrder[idx], newOrder[idx + 1]];
+    }
+    setOrder(newOrder);
+  };
+
   // Save changes and close
   const handleSave = () => {
-    // Pass fields as Settings['quickAddFields'] to updateQuickAddFields
     updateQuickAddFields(fields);
+    updateQuickAddOrder(order);
     onClose();
   };
 
@@ -61,10 +90,11 @@ const QuickAddFieldSettings: React.FC<QuickAddFieldSettingsProps> = ({ onClose }
     <div className="quick-add-field-settings">
       <div className="settings-header">
         <h2>Quick Add Fields</h2>
-        <p>Select which fields to show in the quick add transaction form</p>
+        <p>Select which fields to show and reorder them for the quick add transaction form</p>
       </div>
 
       <div className="settings-fields">
+        <h3>Visibility</h3>
         <div className="field-option">
           <input
             type="checkbox"
@@ -143,6 +173,29 @@ const QuickAddFieldSettings: React.FC<QuickAddFieldSettingsProps> = ({ onClose }
           />
           <label htmlFor="date">Date</label>
         </div>
+      </div>
+
+      <div className="settings-order">
+        <h3>Order</h3>
+        <ul className="order-list">
+          {order.map((key, index) => (
+            <li key={key} className="order-item">
+              <span className="order-label">
+                {key === 'sourceAccount' && 'Source Account'}
+                {key === 'destinationAccount' && 'Destination Account'}
+                {key === 'description' && 'Description'}
+                {key === 'amount' && 'Amount'}
+                {key === 'category' && 'Category'}
+                {key === 'budget' && 'Budget'}
+                {key === 'date' && 'Date'}
+              </span>
+              <div className="order-actions">
+                <button type="button" className="button small" onClick={() => move(key, 'up')} disabled={index === 0}>Up</button>
+                <button type="button" className="button small" onClick={() => move(key, 'down')} disabled={index === order.length - 1}>Down</button>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="settings-actions">
